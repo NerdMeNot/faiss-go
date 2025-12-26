@@ -47,6 +47,8 @@ extern "C" {
 
 // Opaque pointer types
 typedef void* FaissIndex;
+typedef void* FaissIndexBinary;
+typedef void* FaissVectorTransform;
 typedef void* FaissKmeans;
 
 // ==== Flat Index Functions ====
@@ -106,6 +108,42 @@ extern int faiss_Kmeans_set_niter(FaissKmeans kmeans, int niter);
 extern int faiss_Kmeans_set_verbose(FaissKmeans kmeans, int verbose);
 extern int faiss_Kmeans_set_seed(FaissKmeans kmeans, int64_t seed);
 extern void faiss_Kmeans_free(FaissKmeans kmeans);
+
+// ==== Scalar Quantizer Index Functions ====
+extern int faiss_IndexScalarQuantizer_new(FaissIndex* p_index, int64_t d, int qtype, int metric_type);
+extern int faiss_IndexIVFScalarQuantizer_new(FaissIndex* p_index, FaissIndex quantizer, int64_t d, int64_t nlist, int qtype, int metric_type);
+
+// ==== Binary Index Functions ====
+extern int faiss_IndexBinaryFlat_new(FaissIndexBinary* p_index, int64_t d);
+extern int faiss_IndexBinaryIVF_new(FaissIndexBinary* p_index, FaissIndexBinary quantizer, int64_t d, int64_t nlist);
+extern int faiss_IndexBinaryHash_new(FaissIndexBinary* p_index, int64_t d, int64_t nbits);
+extern int faiss_IndexBinary_add(FaissIndexBinary index, int64_t n, const uint8_t* x);
+extern int faiss_IndexBinary_search(FaissIndexBinary index, int64_t n, const uint8_t* x, int64_t k, int32_t* distances, int64_t* labels);
+extern int faiss_IndexBinary_train(FaissIndexBinary index, int64_t n, const uint8_t* x);
+extern int faiss_IndexBinary_reset(FaissIndexBinary index);
+extern int faiss_IndexBinary_ntotal(FaissIndexBinary index, int64_t* ntotal);
+extern int faiss_IndexBinary_is_trained(FaissIndexBinary index, int* is_trained);
+extern int faiss_IndexBinaryIVF_set_nprobe(FaissIndexBinary index, int64_t nprobe);
+extern void faiss_IndexBinary_free(FaissIndexBinary index);
+
+// ==== LSH Index Functions ====
+extern int faiss_IndexLSH_new(FaissIndex* p_index, int64_t d, int64_t nbits, int rotate_data, int train_thresholds);
+
+// ==== Vector Transform Functions ====
+extern int faiss_PCAMatrix_new(FaissVectorTransform* p_transform, int64_t d_in, int64_t d_out, float eigen_power, int random_rotation);
+extern int faiss_OPQMatrix_new(FaissVectorTransform* p_transform, int64_t d, int64_t M);
+extern int faiss_RandomRotationMatrix_new(FaissVectorTransform* p_transform, int64_t d_in, int64_t d_out);
+extern int faiss_VectorTransform_train(FaissVectorTransform transform, int64_t n, const float* x);
+extern int faiss_VectorTransform_apply(FaissVectorTransform transform, int64_t n, const float* x, float* xt);
+extern int faiss_VectorTransform_reverse_transform(FaissVectorTransform transform, int64_t n, const float* xt, float* x);
+extern void faiss_VectorTransform_free(FaissVectorTransform transform);
+
+// ==== Composite Index Functions ====
+extern int faiss_IndexRefine_new(FaissIndex* p_index, FaissIndex base_index, FaissIndex refine_index);
+extern int faiss_IndexRefine_set_k_factor(FaissIndex index, float k_factor);
+extern int faiss_IndexPreTransform_new(FaissIndex* p_index, FaissVectorTransform transform, FaissIndex base_index);
+extern int faiss_IndexShards_new(FaissIndex* p_index, int64_t d, int metric_type);
+extern int faiss_IndexShards_add_shard(FaissIndex index, FaissIndex shard);
 
 #ifdef __cplusplus
 }

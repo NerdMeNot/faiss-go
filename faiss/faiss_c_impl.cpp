@@ -12,6 +12,16 @@
 #include <faiss/IndexIDMap.h>
 #include <faiss/IndexPQ.h>
 #include <faiss/IndexIVFPQ.h>
+#include <faiss/IndexScalarQuantizer.h>
+#include <faiss/IndexIVFScalarQuantizer.h>
+#include <faiss/IndexBinaryFlat.h>
+#include <faiss/IndexBinaryIVF.h>
+#include <faiss/IndexBinaryHash.h>
+#include <faiss/IndexLSH.h>
+#include <faiss/IndexRefine.h>
+#include <faiss/IndexPreTransform.h>
+#include <faiss/IndexShards.h>
+#include <faiss/VectorTransform.h>
 #include <faiss/Clustering.h>
 #include <faiss/index_io.h>
 #include <faiss/impl/AuxIndexStructures.h>
@@ -29,6 +39,8 @@ extern "C" {
 // ==== Type Definitions ====
 
 typedef faiss::Index* FaissIndex;
+typedef faiss::IndexBinary* FaissIndexBinary;
+typedef faiss::VectorTransform* FaissVectorTransform;
 typedef faiss::Clustering* FaissKmeans;
 
 // ==== Error Handling Helper ====
@@ -472,6 +484,247 @@ int faiss_Kmeans_set_seed(FaissKmeans kmeans, int64_t seed) {
 
 void faiss_Kmeans_free(FaissKmeans kmeans) {
     delete kmeans;
+}
+
+// ==== Scalar Quantizer Index Functions ====
+
+int faiss_IndexScalarQuantizer_new(FaissIndex* p_index, int64_t d, int qtype, int metric_type) {
+    try {
+        faiss::MetricType metric = metric_type == 0 ?
+            faiss::METRIC_INNER_PRODUCT : faiss::METRIC_L2;
+        faiss::ScalarQuantizer::QuantizerType qt =
+            static_cast<faiss::ScalarQuantizer::QuantizerType>(qtype);
+
+        *p_index = new faiss::IndexScalarQuantizer(d, qt, metric);
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_IndexIVFScalarQuantizer_new(FaissIndex* p_index, FaissIndex quantizer,
+                                      int64_t d, int64_t nlist, int qtype, int metric_type) {
+    try {
+        faiss::MetricType metric = metric_type == 0 ?
+            faiss::METRIC_INNER_PRODUCT : faiss::METRIC_L2;
+        faiss::ScalarQuantizer::QuantizerType qt =
+            static_cast<faiss::ScalarQuantizer::QuantizerType>(qtype);
+
+        *p_index = new faiss::IndexIVFScalarQuantizer(quantizer, d, nlist, qt, metric);
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+// ==== Binary Index Functions ====
+
+int faiss_IndexBinaryFlat_new(FaissIndexBinary* p_index, int64_t d) {
+    try {
+        *p_index = new faiss::IndexBinaryFlat(d);
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_IndexBinaryIVF_new(FaissIndexBinary* p_index, FaissIndexBinary quantizer,
+                             int64_t d, int64_t nlist) {
+    try {
+        *p_index = new faiss::IndexBinaryIVF(quantizer, d, nlist);
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_IndexBinaryHash_new(FaissIndexBinary* p_index, int64_t d, int64_t nbits) {
+    try {
+        *p_index = new faiss::IndexBinaryHash(d, nbits);
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_IndexBinary_add(FaissIndexBinary index, int64_t n, const uint8_t* x) {
+    try {
+        index->add(n, x);
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_IndexBinary_search(FaissIndexBinary index, int64_t n, const uint8_t* x,
+                             int64_t k, int32_t* distances, int64_t* labels) {
+    try {
+        index->search(n, x, k, distances, labels);
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_IndexBinary_train(FaissIndexBinary index, int64_t n, const uint8_t* x) {
+    try {
+        index->train(n, x);
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_IndexBinary_reset(FaissIndexBinary index) {
+    try {
+        index->reset();
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_IndexBinary_ntotal(FaissIndexBinary index, int64_t* ntotal) {
+    try {
+        *ntotal = index->ntotal;
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_IndexBinary_is_trained(FaissIndexBinary index, int* is_trained) {
+    try {
+        *is_trained = index->is_trained ? 1 : 0;
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_IndexBinaryIVF_set_nprobe(FaissIndexBinary index, int64_t nprobe) {
+    try {
+        auto* ivf = dynamic_cast<faiss::IndexBinaryIVF*>(index);
+        if (!ivf) return -1;
+        ivf->nprobe = nprobe;
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+void faiss_IndexBinary_free(FaissIndexBinary index) {
+    delete index;
+}
+
+// ==== LSH Index Functions ====
+
+int faiss_IndexLSH_new(FaissIndex* p_index, int64_t d, int64_t nbits,
+                       int rotate_data, int train_thresholds) {
+    try {
+        *p_index = new faiss::IndexLSH(d, nbits, rotate_data, train_thresholds);
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+// ==== Vector Transform Functions ====
+
+int faiss_PCAMatrix_new(FaissVectorTransform* p_transform, int64_t d_in, int64_t d_out,
+                        float eigen_power, int random_rotation) {
+    try {
+        auto* pca = new faiss::PCAMatrix(d_in, d_out, eigen_power, random_rotation);
+        *p_transform = pca;
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_OPQMatrix_new(FaissVectorTransform* p_transform, int64_t d, int64_t M) {
+    try {
+        auto* opq = new faiss::OPQMatrix(d, M);
+        *p_transform = opq;
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_RandomRotationMatrix_new(FaissVectorTransform* p_transform,
+                                   int64_t d_in, int64_t d_out) {
+    try {
+        auto* rr = new faiss::RandomRotationMatrix(d_in, d_out);
+        *p_transform = rr;
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_VectorTransform_train(FaissVectorTransform transform, int64_t n, const float* x) {
+    try {
+        transform->train(n, x);
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_VectorTransform_apply(FaissVectorTransform transform, int64_t n,
+                                const float* x, float* xt) {
+    try {
+        transform->apply_noalloc(n, x, xt);
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_VectorTransform_reverse_transform(FaissVectorTransform transform, int64_t n,
+                                            const float* xt, float* x) {
+    try {
+        transform->reverse_transform(n, xt, x);
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+void faiss_VectorTransform_free(FaissVectorTransform transform) {
+    delete transform;
+}
+
+// ==== Composite Index Functions ====
+
+int faiss_IndexRefine_new(FaissIndex* p_index, FaissIndex base_index, FaissIndex refine_index) {
+    try {
+        *p_index = new faiss::IndexRefine(base_index, refine_index);
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_IndexRefine_set_k_factor(FaissIndex index, float k_factor) {
+    try {
+        auto* refine = dynamic_cast<faiss::IndexRefine*>(index);
+        if (!refine) return -1;
+        refine->k_factor = k_factor;
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_IndexPreTransform_new(FaissIndex* p_index, FaissVectorTransform transform,
+                                FaissIndex base_index) {
+    try {
+        // Note: IndexPreTransform takes ownership of the transform
+        *p_index = new faiss::IndexPreTransform(transform, base_index);
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_IndexShards_new(FaissIndex* p_index, int64_t d, int metric_type) {
+    try {
+        faiss::MetricType metric = metric_type == 0 ?
+            faiss::METRIC_INNER_PRODUCT : faiss::METRIC_L2;
+        *p_index = new faiss::IndexShards(d, true, false); // threaded=true, successive_ids=false
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_IndexShards_add_shard(FaissIndex index, FaissIndex shard) {
+    try {
+        auto* shards = dynamic_cast<faiss::IndexShards*>(index);
+        if (!shards) return -1;
+        shards->add_shard(shard);
+        return 0;
+    }
+    CATCH_AND_HANDLE()
 }
 
 } // extern "C"
