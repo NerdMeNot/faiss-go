@@ -1,0 +1,477 @@
+/**
+ * FAISS C API Implementation for Go Bindings
+ *
+ * This file implements the C API used by the Go bindings.
+ * It uses FAISS's official C API where available and creates
+ * C++ wrappers for additional functionality.
+ */
+
+#include <faiss/IndexFlat.h>
+#include <faiss/IndexIVFFlat.h>
+#include <faiss/IndexHNSW.h>
+#include <faiss/IndexIDMap.h>
+#include <faiss/IndexPQ.h>
+#include <faiss/IndexIVFPQ.h>
+#include <faiss/Clustering.h>
+#include <faiss/index_io.h>
+#include <faiss/impl/AuxIndexStructures.h>
+
+#include <cstring>
+#include <memory>
+#include <exception>
+
+// For serialization
+#include <faiss/impl/io.h>
+#include <sstream>
+
+extern "C" {
+
+// ==== Type Definitions ====
+
+typedef faiss::Index* FaissIndex;
+typedef faiss::Clustering* FaissKmeans;
+
+// ==== Error Handling Helper ====
+
+#define CATCH_AND_HANDLE() \
+    catch (const std::exception& e) { \
+        return -1; \
+    } \
+    catch (...) { \
+        return -1; \
+    }
+
+// ==== Flat Index Functions ====
+
+int faiss_IndexFlatL2_new(FaissIndex* p_index, int64_t d) {
+    try {
+        *p_index = new faiss::IndexFlatL2(d);
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_IndexFlatIP_new(FaissIndex* p_index, int64_t d) {
+    try {
+        *p_index = new faiss::IndexFlatIP(d);
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+// ==== IVF Index Functions ====
+
+int faiss_IndexIVFFlat_new(FaissIndex* p_index, FaissIndex quantizer,
+                           int64_t d, int64_t nlist, int metric_type) {
+    try {
+        faiss::MetricType metric = metric_type == 0 ?
+            faiss::METRIC_INNER_PRODUCT : faiss::METRIC_L2;
+
+        *p_index = new faiss::IndexIVFFlat(quantizer, d, nlist, metric);
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_IndexIVF_set_nprobe(FaissIndex index, int64_t nprobe) {
+    try {
+        auto* ivf = dynamic_cast<faiss::IndexIVF*>(index);
+        if (!ivf) return -1;
+        ivf->nprobe = nprobe;
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_IndexIVF_get_nprobe(FaissIndex index, int64_t* nprobe) {
+    try {
+        auto* ivf = dynamic_cast<faiss::IndexIVF*>(index);
+        if (!ivf) return -1;
+        *nprobe = ivf->nprobe;
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+// ==== HNSW Index Functions ====
+
+int faiss_IndexHNSWFlat_new(FaissIndex* p_index, int64_t d, int M, int metric_type) {
+    try {
+        faiss::MetricType metric = metric_type == 0 ?
+            faiss::METRIC_INNER_PRODUCT : faiss::METRIC_L2;
+
+        *p_index = new faiss::IndexHNSWFlat(d, M, metric);
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_IndexHNSW_set_efConstruction(FaissIndex index, int ef) {
+    try {
+        auto* hnsw = dynamic_cast<faiss::IndexHNSW*>(index);
+        if (!hnsw) return -1;
+        hnsw->hnsw.efConstruction = ef;
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_IndexHNSW_set_efSearch(FaissIndex index, int ef) {
+    try {
+        auto* hnsw = dynamic_cast<faiss::IndexHNSW*>(index);
+        if (!hnsw) return -1;
+        hnsw->hnsw.efSearch = ef;
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_IndexHNSW_get_efConstruction(FaissIndex index, int* ef) {
+    try {
+        auto* hnsw = dynamic_cast<faiss::IndexHNSW*>(index);
+        if (!hnsw) return -1;
+        *ef = hnsw->hnsw.efConstruction;
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_IndexHNSW_get_efSearch(FaissIndex index, int* ef) {
+    try {
+        auto* hnsw = dynamic_cast<faiss::IndexHNSW*>(index);
+        if (!hnsw) return -1;
+        *ef = hnsw->hnsw.efSearch;
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+// ==== PQ Index Functions ====
+
+int faiss_IndexPQ_new(FaissIndex* p_index, int64_t d, int64_t M, int64_t nbits, int metric_type) {
+    try {
+        faiss::MetricType metric = metric_type == 0 ?
+            faiss::METRIC_INNER_PRODUCT : faiss::METRIC_L2;
+
+        *p_index = new faiss::IndexPQ(d, M, nbits, metric);
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_IndexIVFPQ_new(FaissIndex* p_index, FaissIndex quantizer,
+                         int64_t d, int64_t nlist, int64_t M, int64_t nbits) {
+    try {
+        *p_index = new faiss::IndexIVFPQ(quantizer, d, nlist, M, nbits);
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+// ==== ID Map Functions ====
+
+int faiss_IndexIDMap_new(FaissIndex* p_index, FaissIndex base_index) {
+    try {
+        *p_index = new faiss::IndexIDMap(base_index);
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_IndexIDMap_add_with_ids(FaissIndex index, int64_t n, const float* x, const int64_t* ids) {
+    try {
+        auto* idmap = dynamic_cast<faiss::IndexIDMap*>(index);
+        if (!idmap) return -1;
+        idmap->add_with_ids(n, x, ids);
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_IndexIDMap_remove_ids(FaissIndex index, const int64_t* ids, int64_t n_ids, int64_t* n_removed) {
+    try {
+        auto* idmap = dynamic_cast<faiss::IndexIDMap*>(index);
+        if (!idmap) return -1;
+
+        faiss::IDSelectorBatch sel(n_ids, ids);
+        *n_removed = idmap->remove_ids(sel);
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+// ==== Common Index Operations ====
+
+int faiss_Index_add(FaissIndex index, int64_t n, const float* x) {
+    try {
+        index->add(n, x);
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_Index_add_with_ids(FaissIndex index, int64_t n, const float* x, const int64_t* ids) {
+    try {
+        index->add_with_ids(n, x, ids);
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_Index_search(FaissIndex index, int64_t n, const float* x,
+                       int64_t k, float* distances, int64_t* labels) {
+    try {
+        index->search(n, x, k, distances, labels);
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_Index_range_search(FaissIndex index, int64_t n, const float* x,
+                              float radius, void** p_result) {
+    try {
+        auto* result = new faiss::RangeSearchResult(n);
+        index->range_search(n, x, radius, result);
+        *p_result = result;
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_RangeSearchResult_get(void* result, int64_t** lims, int64_t** labels, float** distances) {
+    try {
+        auto* res = static_cast<faiss::RangeSearchResult*>(result);
+        *lims = res->lims;
+        *labels = res->labels;
+        *distances = res->distances;
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+void faiss_RangeSearchResult_free(void* result) {
+    delete static_cast<faiss::RangeSearchResult*>(result);
+}
+
+int faiss_Index_train(FaissIndex index, int64_t n, const float* x) {
+    try {
+        index->train(n, x);
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_Index_assign(FaissIndex index, int64_t n, const float* x, int64_t* labels) {
+    try {
+        auto* ivf = dynamic_cast<faiss::IndexIVF*>(index);
+        if (!ivf) return -1;
+        ivf->assign(n, x, labels);
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_Index_reconstruct(FaissIndex index, int64_t key, float* recons) {
+    try {
+        index->reconstruct(key, recons);
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_Index_reconstruct_n(FaissIndex index, int64_t i0, int64_t ni, float* recons) {
+    try {
+        index->reconstruct_n(i0, ni, recons);
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_Index_reset(FaissIndex index) {
+    try {
+        index->reset();
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+void faiss_Index_free(FaissIndex index) {
+    delete index;
+}
+
+int64_t faiss_Index_ntotal(FaissIndex index) {
+    return index->ntotal;
+}
+
+int faiss_Index_is_trained(FaissIndex index) {
+    return index->is_trained ? 1 : 0;
+}
+
+int faiss_Index_d(FaissIndex index) {
+    return index->d;
+}
+
+// ==== Serialization Functions ====
+
+int faiss_write_index(FaissIndex index, const char* filename) {
+    try {
+        faiss::write_index(index, filename);
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_read_index(const char* filename, FaissIndex* p_index,
+                     char* index_type, int* d, int* metric, int64_t* ntotal) {
+    try {
+        *p_index = faiss::read_index(filename);
+
+        // Determine index type
+        if (dynamic_cast<faiss::IndexFlatL2*>(*p_index)) {
+            strcpy(index_type, "IndexFlatL2");
+        } else if (dynamic_cast<faiss::IndexFlatIP*>(*p_index)) {
+            strcpy(index_type, "IndexFlatIP");
+        } else if (dynamic_cast<faiss::IndexIVFFlat*>(*p_index)) {
+            strcpy(index_type, "IndexIVFFlat");
+        } else if (dynamic_cast<faiss::IndexIVFPQ*>(*p_index)) {
+            strcpy(index_type, "IndexIVFPQ");
+        } else if (dynamic_cast<faiss::IndexHNSWFlat*>(*p_index)) {
+            strcpy(index_type, "IndexHNSWFlat");
+        } else if (dynamic_cast<faiss::IndexPQ*>(*p_index)) {
+            strcpy(index_type, "IndexPQ");
+        } else if (dynamic_cast<faiss::IndexIDMap*>(*p_index)) {
+            strcpy(index_type, "IndexIDMap");
+        } else {
+            strcpy(index_type, "Unknown");
+        }
+
+        *d = (*p_index)->d;
+        *metric = (*p_index)->metric_type;
+        *ntotal = (*p_index)->ntotal;
+
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_serialize_index(FaissIndex index, uint8_t** data, size_t* size) {
+    try {
+        faiss::VectorIOWriter writer;
+        faiss::write_index(index, &writer);
+
+        *size = writer.data.size();
+        *data = (uint8_t*)malloc(*size);
+        memcpy(*data, writer.data.data(), *size);
+
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_deserialize_index(const uint8_t* data, size_t size, FaissIndex* p_index,
+                             char* index_type, int* d, int* metric, int64_t* ntotal) {
+    try {
+        faiss::VectorIOReader reader;
+        reader.data.resize(size);
+        memcpy(reader.data.data(), data, size);
+
+        *p_index = faiss::read_index(&reader);
+
+        // Determine index type (same as read_index)
+        if (dynamic_cast<faiss::IndexFlatL2*>(*p_index)) {
+            strcpy(index_type, "IndexFlatL2");
+        } else if (dynamic_cast<faiss::IndexFlatIP*>(*p_index)) {
+            strcpy(index_type, "IndexFlatIP");
+        } else if (dynamic_cast<faiss::IndexIVFFlat*>(*p_index)) {
+            strcpy(index_type, "IndexIVFFlat");
+        } else if (dynamic_cast<faiss::IndexIVFPQ*>(*p_index)) {
+            strcpy(index_type, "IndexIVFPQ");
+        } else if (dynamic_cast<faiss::IndexHNSWFlat*>(*p_index)) {
+            strcpy(index_type, "IndexHNSWFlat");
+        } else if (dynamic_cast<faiss::IndexPQ*>(*p_index)) {
+            strcpy(index_type, "IndexPQ");
+        } else if (dynamic_cast<faiss::IndexIDMap*>(*p_index)) {
+            strcpy(index_type, "IndexIDMap");
+        } else {
+            strcpy(index_type, "Unknown");
+        }
+
+        *d = (*p_index)->d;
+        *metric = (*p_index)->metric_type;
+        *ntotal = (*p_index)->ntotal;
+
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+// ==== Kmeans Functions ====
+
+int faiss_Kmeans_new(FaissKmeans* p_kmeans, int64_t d, int64_t k) {
+    try {
+        *p_kmeans = new faiss::Clustering(d, k);
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_Kmeans_train(FaissKmeans kmeans, int64_t n, const float* x) {
+    try {
+        faiss::IndexFlatL2 index(kmeans->d);
+        kmeans->train(n, x, index);
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_Kmeans_assign(FaissKmeans kmeans, int64_t n, const float* x, int64_t* labels) {
+    try {
+        faiss::IndexFlatL2 index(kmeans->d);
+        index.add(kmeans->k, kmeans->centroids.data());
+
+        std::vector<float> distances(n);
+        index.search(n, x, 1, distances.data(), labels);
+
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_Kmeans_get_centroids(FaissKmeans kmeans, float* centroids) {
+    try {
+        memcpy(centroids, kmeans->centroids.data(),
+               kmeans->k * kmeans->d * sizeof(float));
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_Kmeans_set_niter(FaissKmeans kmeans, int niter) {
+    try {
+        kmeans->niter = niter;
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_Kmeans_set_verbose(FaissKmeans kmeans, int verbose) {
+    try {
+        kmeans->verbose = verbose != 0;
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+int faiss_Kmeans_set_seed(FaissKmeans kmeans, int64_t seed) {
+    try {
+        kmeans->seed = seed;
+        return 0;
+    }
+    CATCH_AND_HANDLE()
+}
+
+void faiss_Kmeans_free(FaissKmeans kmeans) {
+    delete kmeans;
+}
+
+} // extern "C"

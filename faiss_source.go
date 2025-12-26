@@ -4,23 +4,35 @@
 package faiss
 
 /*
+// FAISS Installation Requirements:
+// This build mode requires FAISS to be installed on your system.
+//
+// Installation:
+//   Ubuntu/Debian: apt-get install libfaiss-dev
+//   macOS: brew install faiss
+//   From source: https://github.com/facebookresearch/faiss/blob/main/INSTALL.md
+//
+// The C++ bridge implementation (faiss/faiss_c_impl.cpp) will be compiled
+// and linked against your system's FAISS installation.
+
 #cgo CPPFLAGS: -I${SRCDIR}/faiss -std=c++17 -O3 -Wall -Wextra
 #cgo CXXFLAGS: -std=c++17 -O3 -fopenmp
-#cgo LDFLAGS: -lgomp -lstdc++ -lm
+#cgo LDFLAGS: -lfaiss -lgomp -lstdc++ -lm
 
 // Linux-specific flags
-#cgo linux LDFLAGS: -lopenblas -lgfortran
+#cgo linux CPPFLAGS: -I/usr/include -I/usr/local/include
+#cgo linux LDFLAGS: -L/usr/lib -L/usr/local/lib -lopenblas -lgfortran
 
 // macOS-specific flags
-#cgo darwin CPPFLAGS: -I/opt/homebrew/opt/openblas/include -I/usr/local/opt/openblas/include
-#cgo darwin LDFLAGS: -L/opt/homebrew/opt/openblas/lib -L/usr/local/opt/openblas/lib -lopenblas -Wl,-framework,Accelerate
+#cgo darwin CPPFLAGS: -I/opt/homebrew/include -I/usr/local/include -I/opt/homebrew/opt/openblas/include
+#cgo darwin LDFLAGS: -L/opt/homebrew/lib -L/usr/local/lib -L/opt/homebrew/opt/openblas/lib -lopenblas -Wl,-framework,Accelerate
 
 // Windows-specific flags
-#cgo windows LDFLAGS: -lopenblas -lgfortran -lquadmath -lpthread
+#cgo windows CPPFLAGS: -IC:/faiss/include
+#cgo windows LDFLAGS: -LC:/faiss/lib -lopenblas -lgfortran -lquadmath -lpthread
 
-// Source files - these will be compiled by CGO
-// Note: faiss.cpp is the amalgamated source file
-// We'll include it via a separate C++ wrapper to control compilation
+// Compile our C++ bridge implementation
+// This file uses FAISS's C++ API and exposes a C interface for CGO
 
 #include <stdlib.h>
 #include <stdint.h>
@@ -53,6 +65,10 @@ extern int faiss_IndexHNSW_set_efSearch(FaissIndex index, int ef);
 extern int faiss_IndexHNSW_get_efConstruction(FaissIndex index, int* ef);
 extern int faiss_IndexHNSW_get_efSearch(FaissIndex index, int* ef);
 
+// ==== PQ Index Functions ====
+extern int faiss_IndexPQ_new(FaissIndex* p_index, int64_t d, int64_t M, int64_t nbits, int metric_type);
+extern int faiss_IndexIVFPQ_new(FaissIndex* p_index, FaissIndex quantizer, int64_t d, int64_t nlist, int64_t M, int64_t nbits);
+
 // ==== ID Map Functions ====
 extern int faiss_IndexIDMap_new(FaissIndex* p_index, FaissIndex base_index);
 extern int faiss_IndexIDMap_add_with_ids(FaissIndex index, int64_t n, const float* x, const int64_t* ids);
@@ -62,8 +78,13 @@ extern int faiss_IndexIDMap_remove_ids(FaissIndex index, const int64_t* ids, int
 extern int faiss_Index_add(FaissIndex index, int64_t n, const float* x);
 extern int faiss_Index_add_with_ids(FaissIndex index, int64_t n, const float* x, const int64_t* ids);
 extern int faiss_Index_search(FaissIndex index, int64_t n, const float* x, int64_t k, float* distances, int64_t* labels);
+extern int faiss_Index_range_search(FaissIndex index, int64_t n, const float* x, float radius, void** p_result);
+extern int faiss_RangeSearchResult_get(void* result, int64_t** lims, int64_t** labels, float** distances);
+extern void faiss_RangeSearchResult_free(void* result);
 extern int faiss_Index_train(FaissIndex index, int64_t n, const float* x);
 extern int faiss_Index_assign(FaissIndex index, int64_t n, const float* x, int64_t* labels);
+extern int faiss_Index_reconstruct(FaissIndex index, int64_t key, float* recons);
+extern int faiss_Index_reconstruct_n(FaissIndex index, int64_t i0, int64_t ni, float* recons);
 extern int faiss_Index_reset(FaissIndex index);
 extern void faiss_Index_free(FaissIndex index);
 extern int64_t faiss_Index_ntotal(FaissIndex index);
@@ -464,5 +485,112 @@ func faissKmeansSetSeed(ptr uintptr, seed int64) error {
 func faissKmeansFree(ptr uintptr) error {
 	kmeans := C.FaissKmeans(unsafe.Pointer(ptr))
 	C.faiss_Kmeans_free(kmeans)
+	return nil
+}
+
+// ==== PQ Index Functions ====
+
+func faissIndexPQNew(d, M, nbits, metric int) (uintptr, error) {
+	var idx C.FaissIndex
+	ret := C.faiss_IndexPQ_new(&idx, C.int64_t(d), C.int64_t(M), C.int64_t(nbits), C.int(metric))
+	if ret != 0 {
+		return 0, fmt.Errorf("FAISS error code: %d", ret)
+	}
+	if idx == nil {
+		return 0, errors.New("null index pointer")
+	}
+	return uintptr(unsafe.Pointer(idx)), nil
+}
+
+func faissIndexIVFPQNew(quantizerPtr uintptr, d, nlist, M, nbits int) (uintptr, error) {
+	var idx C.FaissIndex
+	quantizer := C.FaissIndex(unsafe.Pointer(quantizerPtr))
+	ret := C.faiss_IndexIVFPQ_new(&idx, quantizer, C.int64_t(d), C.int64_t(nlist),
+		C.int64_t(M), C.int64_t(nbits))
+	if ret != 0 {
+		return 0, fmt.Errorf("FAISS error code: %d", ret)
+	}
+	if idx == nil {
+		return 0, errors.New("null index pointer")
+	}
+	return uintptr(unsafe.Pointer(idx)), nil
+}
+
+// ==== Range Search Functions ====
+
+func faissIndexRangeSearch(ptr uintptr, queries []float32, nq int, radius float32) (uintptr, []int64, []int64, []float32, error) {
+	idx := C.FaissIndex(unsafe.Pointer(ptr))
+	queryPtr := (*C.float)(unsafe.Pointer(&queries[0]))
+
+	var resultPtr unsafe.Pointer
+	ret := C.faiss_Index_range_search(idx, C.int64_t(nq), queryPtr, C.float(radius), &resultPtr)
+	if ret != 0 {
+		return 0, nil, nil, nil, fmt.Errorf("FAISS error code: %d", ret)
+	}
+
+	// Get result arrays
+	var cLims, cLabels *C.int64_t
+	var cDistances *C.float
+
+	ret2 := C.faiss_RangeSearchResult_get(resultPtr, &cLims, &cLabels, &cDistances)
+	if ret2 != 0 {
+		C.faiss_RangeSearchResult_free(resultPtr)
+		return 0, nil, nil, nil, fmt.Errorf("FAISS error code: %d", ret2)
+	}
+
+	// Convert to Go slices (we need to copy the data)
+	lims := (*[1 << 30]C.int64_t)(unsafe.Pointer(cLims))[:nq+1:nq+1]
+	totalResults := int(lims[nq])
+
+	goLims := make([]int64, nq+1)
+	for i := 0; i <= nq; i++ {
+		goLims[i] = int64(lims[i])
+	}
+
+	var goLabels []int64
+	var goDistances []float32
+
+	if totalResults > 0 {
+		labels := (*[1 << 30]C.int64_t)(unsafe.Pointer(cLabels))[:totalResults:totalResults]
+		distances := (*[1 << 30]C.float)(unsafe.Pointer(cDistances))[:totalResults:totalResults]
+
+		goLabels = make([]int64, totalResults)
+		goDistances = make([]float32, totalResults)
+
+		for i := 0; i < totalResults; i++ {
+			goLabels[i] = int64(labels[i])
+			goDistances[i] = float32(distances[i])
+		}
+	} else {
+		goLabels = []int64{}
+		goDistances = []float32{}
+	}
+
+	return uintptr(resultPtr), goLims, goLabels, goDistances, nil
+}
+
+func faissRangeSearchResultFree(ptr uintptr) {
+	C.faiss_RangeSearchResult_free(unsafe.Pointer(ptr))
+}
+
+// ==== Reconstruction Functions ====
+
+func faissIndexReconstruct(ptr uintptr, key int64, recons []float32) error {
+	idx := C.FaissIndex(unsafe.Pointer(ptr))
+	reconsPtr := (*C.float)(unsafe.Pointer(&recons[0]))
+	ret := C.faiss_Index_reconstruct(idx, C.int64_t(key), reconsPtr)
+	if ret != 0 {
+		return fmt.Errorf("FAISS error code: %d", ret)
+	}
+	return nil
+}
+
+func faissIndexReconstructN(ptr uintptr, i0, ni int64, recons []float32) error {
+	idx := C.FaissIndex(unsafe.Pointer(ptr))
+	reconsPtr := (*C.float)(unsafe.Pointer(&recons[0]))
+	ret := C.faiss_Index_reconstruct_n(idx, C.int64_t(i0), C.int64_t(ni), reconsPtr)
+	if ret != 0 {
+		return fmt.Errorf("FAISS error code: %d", ret)
+	}
 	return nil
 }
