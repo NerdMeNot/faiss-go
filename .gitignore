@@ -1,0 +1,53 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Go workspace file
+go.work
+go.work.sum
+
+# Dependency directories
+vendor/
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Build artifacts
+bin/
+build/
+dist/
+
+# FAISS build artifacts
+faiss/build/
+faiss/.git/
+*.o
+*.a
+*.cmake
+CMakeCache.txt
+CMakeFiles/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Pre-built library build artifacts
+libs/build/
+*.log
+
+# OS specific
+Thumbs.db
