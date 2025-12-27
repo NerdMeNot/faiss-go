@@ -15,8 +15,8 @@ package faiss
 // The C++ bridge implementation (faiss/faiss_c_impl.cpp) will be compiled
 // and linked against your system's FAISS installation.
 
-#cgo CPPFLAGS: -I${SRCDIR}/faiss -std=c++17 -O3 -Wall -Wextra
-#cgo CXXFLAGS: -std=c++17 -O3 -fopenmp
+#cgo CPPFLAGS: -I${SRCDIR}/faiss
+#cgo CXXFLAGS: -std=c++17 -O3 -fopenmp -Wall -Wextra
 #cgo LDFLAGS: -lfaiss -lgomp -lstdc++ -lm
 
 // Linux-specific flags

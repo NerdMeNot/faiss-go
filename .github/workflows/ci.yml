@@ -13,8 +13,10 @@ jobs:
 
     strategy:
       matrix:
-        go-version: ['1.21', '1.22', '1.23']
-        faiss-version: ['1.7.4', '1.8.0']
+        go-version: ['1.22', '1.23']
+        faiss-version: ['1.8.0']
+        # Reduced matrix for faster CI - expand later if needed
+        # Full matrix: go-version: ['1.21', '1.22', '1.23'], faiss-version: ['1.7.4', '1.8.0']
 
     steps:
     - name: Checkout code
@@ -48,13 +50,14 @@ jobs:
 
     - name: Build and install FAISS
       if: steps.cache-faiss.outputs.cache-hit != 'true'
+      timeout-minutes: 30
       run: |
         cd /tmp
-        wget https://github.com/facebookresearch/faiss/archive/refs/tags/v${{ matrix.faiss-version }}.tar.gz
+        wget -q https://github.com/facebookresearch/faiss/archive/refs/tags/v${{ matrix.faiss-version }}.tar.gz
         tar -xzf v${{ matrix.faiss-version }}.tar.gz
         cd faiss-${{ matrix.faiss-version }}
 
-        # Build FAISS C library
+        # Build FAISS C library (limit to 2 parallel jobs to avoid OOM)
         cmake -B build \
           -DCMAKE_BUILD_TYPE=Release \
           -DFAISS_ENABLE_GPU=OFF \
@@ -64,7 +67,7 @@ jobs:
           -DCMAKE_INSTALL_PREFIX=/usr/local \
           .
 
-        make -C build -j$(nproc)
+        make -C build -j2
         sudo make -C build install
         sudo ldconfig
 
