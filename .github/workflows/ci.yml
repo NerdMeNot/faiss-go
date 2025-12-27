@@ -159,10 +159,47 @@ jobs:
       with:
         go-version: '1.23'
 
+    - name: Cache FAISS build
+      id: cache-faiss
+      uses: actions/cache@v4
+      with:
+        path: |
+          /usr/local/lib/libfaiss*
+          /usr/local/include/faiss
+        key: faiss-1.8.0-${{ runner.os }}-lint
+
+    - name: Install dependencies
+      if: steps.cache-faiss.outputs.cache-hit != 'true'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake g++ libopenblas-dev libgomp1 libomp-dev
+
+    - name: Build and install FAISS
+      if: steps.cache-faiss.outputs.cache-hit != 'true'
+      timeout-minutes: 30
+      run: |
+        cd /tmp
+        wget -q https://github.com/facebookresearch/faiss/archive/refs/tags/v1.8.0.tar.gz
+        tar -xzf v1.8.0.tar.gz
+        cd faiss-1.8.0
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DFAISS_ENABLE_GPU=OFF \
+          -DFAISS_ENABLE_PYTHON=OFF \
+          -DBUILD_TESTING=OFF \
+          -DBUILD_SHARED_LIBS=ON \
+          -DCMAKE_INSTALL_PREFIX=/usr/local \
+          .
+        make -C build -j4
+        sudo make -C build install
+        sudo ldconfig
+
     - name: golangci-lint
       uses: golangci/golangci-lint-action@v4
       env:
-        CGO_ENABLED: 0
+        CGO_LDFLAGS: "-L/usr/local/lib -lfaiss -lgomp -lstdc++ -lm -lopenblas"
+        CGO_CFLAGS: "-I/usr/local/include"
+        LD_LIBRARY_PATH: "/usr/local/lib:$LD_LIBRARY_PATH"
       with:
         version: v1.62.2
         args: --timeout=5m

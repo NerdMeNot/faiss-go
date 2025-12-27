@@ -201,17 +201,17 @@ func TestIndexShards(t *testing.T) {
 	defer shards.Close()
 
 	// Create and add shards
+	// Note: Do NOT defer Close() on child shards! IndexShards manages their lifecycle.
+	// If we close them before shards.Close(), we get use-after-free errors.
 	shard1, err := NewIndexFlatL2(d)
 	if err != nil {
 		t.Fatalf("Failed to create shard1: %v", err)
 	}
-	defer shard1.Close()
 
 	shard2, err := NewIndexFlatL2(d)
 	if err != nil {
 		t.Fatalf("Failed to create shard2: %v", err)
 	}
-	defer shard2.Close()
 
 	if err := shards.AddShard(shard1); err != nil {
 		t.Fatalf("Failed to add shard1: %v", err)

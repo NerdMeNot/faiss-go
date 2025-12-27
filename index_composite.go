@@ -610,11 +610,18 @@ func (idx *IndexShards) Reset() error {
 	return nil
 }
 
-// Close frees the index
+// Close frees the index and all child shards
 func (idx *IndexShards) Close() error {
 	if idx.ptr != 0 {
 		faiss_Index_free(idx.ptr)
 		idx.ptr = 0
 	}
+	// Close all child shards
+	for _, shard := range idx.shards {
+		if shard != nil {
+			shard.Close()
+		}
+	}
+	idx.shards = nil
 	return nil
 }
