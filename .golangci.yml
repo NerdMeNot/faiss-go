@@ -24,7 +24,8 @@ linters:
     - goimports
     - misspell
     - unconvert
-    - typecheck
+    # typecheck disabled - requires C++ compilation with FAISS headers
+    # Type checking is handled by 'go build' step instead
     - gocyclo
     - goconst
 
