@@ -1,3 +1,5 @@
+version: "2"
+
 linters-settings:
   govet:
     enable-all: true
@@ -15,7 +17,6 @@ linters:
   disable-all: true
   enable:
     - errcheck
-    - gosimple
     # govet disabled - requires type information from compilation
     # - govet
     - ineffassign
@@ -24,12 +25,15 @@ linters:
     # typecheck disabled - requires C++ compilation
     # - typecheck
     - unused
-    - gofmt
-    - goimports
     - misspell
     - unconvert
     - gocyclo
     - goconst
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
 
 issues:
   exclude-rules:
