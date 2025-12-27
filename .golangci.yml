@@ -13,19 +13,21 @@ linters-settings:
 
 linters:
   disable-all: true
+  disable:
+    - typecheck  # Explicitly disable - requires C++ compilation
   enable:
     - errcheck
     - gosimple
-    - govet
+    # govet disabled - also requires type information from compilation
+    # - govet
     - ineffassign
-    - staticcheck
+    # staticcheck disabled - requires full compilation
+    # - staticcheck
     - unused
     - gofmt
     - goimports
     - misspell
     - unconvert
-    # typecheck disabled - requires C++ compilation with FAISS headers
-    # Type checking is handled by 'go build' step instead
     - gocyclo
     - goconst
 
