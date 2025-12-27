@@ -142,19 +142,20 @@ func (idx *IndexRefine) Train(vectors []float32) error {
 	return nil
 }
 
-// Add adds vectors to the index (FAISS handles both base and refine internally)
+// Add adds vectors to both indexes
 func (idx *IndexRefine) Add(vectors []float32) error {
 	if !idx.IsTrained() {
 		return fmt.Errorf("index must be trained before adding vectors")
 	}
-	if len(vectors)%idx.d != 0 {
-		return fmt.Errorf("vectors length must be multiple of dimension %d", idx.d)
+
+	// Add to base index
+	if err := idx.baseIndex.Add(vectors); err != nil {
+		return fmt.Errorf("base index add failed: %w", err)
 	}
 
-	n := int64(len(vectors) / idx.d)
-	ret := faiss_Index_add(idx.ptr, n, &vectors[0])
-	if ret != 0 {
-		return fmt.Errorf("add failed")
+	// Add to refine index
+	if err := idx.refineIndex.Add(vectors); err != nil {
+		return fmt.Errorf("refine index add failed: %w", err)
 	}
 
 	idx.ntotal = idx.baseIndex.Ntotal()
@@ -344,7 +345,7 @@ func (idx *IndexPreTransform) Train(vectors []float32) error {
 	return nil
 }
 
-// Add adds vectors after applying transformation (FAISS handles transformation internally)
+// Add adds vectors after applying transformation
 func (idx *IndexPreTransform) Add(vectors []float32) error {
 	if !idx.IsTrained() {
 		return fmt.Errorf("index must be trained before adding vectors")
@@ -356,17 +357,22 @@ func (idx *IndexPreTransform) Add(vectors []float32) error {
 		return fmt.Errorf("vectors length must be multiple of input dimension %d", idx.dIn)
 	}
 
-	n := int64(len(vectors) / idx.dIn)
-	ret := faiss_Index_add(idx.ptr, n, &vectors[0])
-	if ret != 0 {
-		return fmt.Errorf("add failed")
+	// Apply transformation
+	transformed, err := idx.transform.Apply(vectors)
+	if err != nil {
+		return fmt.Errorf("transform failed: %w", err)
+	}
+
+	// Add transformed vectors
+	if err := idx.index.Add(transformed); err != nil {
+		return fmt.Errorf("add failed: %w", err)
 	}
 
 	idx.ntotal = idx.index.Ntotal()
 	return nil
 }
 
-// Search searches after applying transformation to queries (FAISS handles transformation internally)
+// Search searches after applying transformation to queries
 func (idx *IndexPreTransform) Search(queries []float32, k int) (distances []float32, indices []int64, err error) {
 	if len(queries) == 0 {
 		return nil, nil, fmt.Errorf("empty query vectors")
@@ -375,16 +381,14 @@ func (idx *IndexPreTransform) Search(queries []float32, k int) (distances []floa
 		return nil, nil, fmt.Errorf("queries length must be multiple of input dimension %d", idx.dIn)
 	}
 
-	nq := int64(len(queries) / idx.dIn)
-	distances = make([]float32, nq*int64(k))
-	indices = make([]int64, nq*int64(k))
-
-	ret := faiss_Index_search(idx.ptr, nq, &queries[0], int64(k), &distances[0], &indices[0])
-	if ret != 0 {
-		return nil, nil, fmt.Errorf("search failed")
+	// Apply transformation to queries
+	transformed, err := idx.transform.Apply(queries)
+	if err != nil {
+		return nil, nil, fmt.Errorf("query transform failed: %w", err)
 	}
 
-	return distances, indices, nil
+	// Search with transformed queries
+	return idx.index.Search(transformed, k)
 }
 
 // Reset removes all vectors from the underlying index
