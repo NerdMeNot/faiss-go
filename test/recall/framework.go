@@ -166,7 +166,7 @@ func RunRecallTest(t *testing.T, config RecallTestConfig) RecallTestResult {
 		return result
 	}
 
-	if index.Ntotal() != n {
+	if index.Ntotal() != int64(n) {
 		result.Error = fmt.Errorf("expected %d vectors in index, got %d", n, index.Ntotal())
 		t.Error(result.Error)
 		return result

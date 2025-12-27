@@ -89,7 +89,7 @@ func TestScalarQuantizer_Recall(t *testing.T) {
 	config := RecallTestConfig{
 		Name:          "SQ8",
 		IndexType:     "IndexScalarQuantizer",
-		BuildIndex:    buildSQ(faiss.ScalarQuantizerType_QT_8bit),
+		BuildIndex:    buildSQ(faiss.QuantizerType_QT_8bit),
 		NeedsTraining: true,
 		N:             10000,
 		D:             128,
@@ -108,7 +108,7 @@ func TestIVFSQ_Recall(t *testing.T) {
 	config := RecallTestConfig{
 		Name:          "IVFSQ_nlist100_nprobe10",
 		IndexType:     "IndexIVFScalarQuantizer",
-		BuildIndex:    buildIVFSQ(100, faiss.ScalarQuantizerType_QT_8bit, 10),
+		BuildIndex:    buildIVFSQ(100, faiss.QuantizerType_QT_8bit, 10),
 		NeedsTraining: true,
 		N:             10000,
 		D:             128,
@@ -261,13 +261,13 @@ func buildIVFPQ(nlist int, m int, nbits int, nprobe int) func(d int, metric fais
 	}
 }
 
-func buildSQ(qtype faiss.ScalarQuantizerType) func(d int, metric faiss.MetricType) (faiss.Index, error) {
+func buildSQ(qtype faiss.QuantizerType) func(d int, metric faiss.MetricType) (faiss.Index, error) {
 	return func(d int, metric faiss.MetricType) (faiss.Index, error) {
 		return faiss.NewIndexScalarQuantizer(d, qtype, metric)
 	}
 }
 
-func buildIVFSQ(nlist int, qtype faiss.ScalarQuantizerType, nprobe int) func(d int, metric faiss.MetricType) (faiss.Index, error) {
+func buildIVFSQ(nlist int, qtype faiss.QuantizerType, nprobe int) func(d int, metric faiss.MetricType) (faiss.Index, error) {
 	return func(d int, metric faiss.MetricType) (faiss.Index, error) {
 		quantizer, err := faiss.NewIndexFlatL2(d)
 		if err != nil {

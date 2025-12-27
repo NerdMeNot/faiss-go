@@ -45,7 +45,7 @@ func TestImageSimilarity_VisualSearch(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to create index: %v", err)
 			}
-				index.HnswSetEfSearch(128)
+				index.SetEfSearch(128)
 				return index
 			},
 			minRecall:     0.95,
@@ -58,7 +58,7 @@ func TestImageSimilarity_VisualSearch(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to create quantizer: %v", err)
 			}
-				index, err := faiss.NewIndexIVFPQ(quantizer, dim, 4096, 64, 8, faiss.MetricInnerProduct)
+				index, err := faiss.NewIndexIVFPQ(quantizer, dim, 4096, 64, 8)
 			if err != nil {
 				t.Fatalf("Failed to create index: %v", err)
 			}
@@ -278,7 +278,7 @@ func TestImageSimilarity_ThumbnailSearch(t *testing.T) {
 
 	// Use HNSW for fast search
 	index, err := faiss.NewIndexHNSWFlat(dim, 32, faiss.MetricInnerProduct)
-	index.HnswSetEfSearch(64)
+	index.SetEfSearch(64)
 	defer index.Close()
 
 	// Add products

@@ -48,7 +48,7 @@ func TestSemanticSearch_DocumentRetrieval(t *testing.T) {
 				if err != nil {
 					t.Fatalf("Failed to create HNSW index: %v", err)
 				}
-				index.HnswSetEfSearch(64)
+				index.SetEfSearch(64)
 				return index
 			},
 			minRecall:     0.95,
@@ -87,7 +87,7 @@ func TestSemanticSearch_DocumentRetrieval(t *testing.T) {
 				if err != nil {
 					t.Fatalf("Failed to create quantizer: %v", err)
 				}
-				index, err := faiss.NewIndexIVFPQ(quantizer, dim, 1000, 48, 8, faiss.MetricInnerProduct)
+				index, err := faiss.NewIndexIVFPQ(quantizer, dim, 1000, 48, 8)
 			if err != nil {
 				t.Fatalf("Failed to create index: %v", err)
 			}
@@ -241,7 +241,7 @@ func TestSemanticSearch_QA(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create HNSW index: %v", err)
 	}
-	index.HnswSetEfSearch(128) // Higher efSearch for better recall
+	index.SetEfSearch(128) // Higher efSearch for better recall
 	defer index.Close()
 
 	// Add passages
@@ -318,7 +318,7 @@ func TestSemanticSearch_MultiLingual(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create HNSW index: %v", err)
 	}
-	index.HnswSetEfSearch(64)
+	index.SetEfSearch(64)
 	defer index.Close()
 
 	// Add documents

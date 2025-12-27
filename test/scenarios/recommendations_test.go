@@ -39,7 +39,7 @@ func TestRecommendations_ItemToItem(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create quantizer: %v", err)
 	}
-		index, err := faiss.NewIndexIVFPQ(quantizer, dim, 16384, 16, 8, faiss.MetricInnerProduct)
+		index, err := faiss.NewIndexIVFPQ(quantizer, dim, 16384, 16, 8)
 	if err != nil {
 		t.Fatalf("Failed to create index: %v", err)
 	}
@@ -168,7 +168,7 @@ func TestRecommendations_ContentBased(t *testing.T) {
 
 	// Use HNSW for high-quality recommendations
 	index, err := faiss.NewIndexHNSWFlat(dim, 32, faiss.MetricInnerProduct)
-	index.HnswSetEfSearch(64)
+	index.SetEfSearch(64)
 	defer index.Close()
 
 	// Add content

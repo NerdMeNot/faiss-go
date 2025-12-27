@@ -3,7 +3,6 @@ package recall
 import (
 	"fmt"
 	"testing"
-	"time"
 
 	faiss "github.com/NerdMeNot/faiss-go"
 	"github.com/NerdMeNot/faiss-go/test/datasets"
@@ -261,16 +260,22 @@ func TestHNSW_LargeK(t *testing.T) {
 
 func buildHNSW(m int, efSearch int) func(d int, metric faiss.MetricType) (faiss.Index, error) {
 	return func(d int, metric faiss.MetricType) (faiss.Index, error) {
-		index := faiss.NewIndexHNSWFlat(d, m, metric)
-		index.HnswSetEfSearch(efSearch)
+		index, err := faiss.NewIndexHNSWFlat(d, m, metric)
+		if err != nil {
+			return nil, err
+		}
+		index.SetEfSearch(efSearch)
 		return index, nil
 	}
 }
 
 func buildHNSW_IP(m int, efSearch int) func(d int, metric faiss.MetricType) (faiss.Index, error) {
 	return func(d int, metric faiss.MetricType) (faiss.Index, error) {
-		index := faiss.NewIndexHNSWFlat(d, m, faiss.MetricInnerProduct)
-		index.HnswSetEfSearch(efSearch)
+		index, err := faiss.NewIndexHNSWFlat(d, m, faiss.MetricInnerProduct)
+		if err != nil {
+			return nil, err
+		}
+		index.SetEfSearch(efSearch)
 		return index, nil
 	}
 }

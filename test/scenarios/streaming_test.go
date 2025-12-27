@@ -55,7 +55,7 @@ func TestStreaming_ConcurrentAddAndSearch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create index: %v", err)
 	}
-		index.HnswSetEfSearch(64)
+		index.SetEfSearch(64)
 		defer index.Close()
 
 		// Add initial vectors
@@ -366,7 +366,7 @@ func TestStreaming_LatencyDegradation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create index: %v", err)
 	}
-		index.HnswSetEfSearch(64)
+		index.SetEfSearch(64)
 
 		if err := index.Add(data.Vectors); err != nil {
 			t.Fatalf("Add failed: %v", err)
