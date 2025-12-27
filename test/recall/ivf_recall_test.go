@@ -374,8 +374,14 @@ func TestIVF_TrainingSize(t *testing.T) {
 
 func buildIVF(nlist int, nprobe int) func(d int, metric faiss.MetricType) (faiss.Index, error) {
 	return func(d int, metric faiss.MetricType) (faiss.Index, error) {
-		quantizer := faiss.NewIndexFlatL2(d)
-		index := faiss.NewIndexIVFFlat(quantizer, d, nlist, metric)
+		quantizer, err := faiss.NewIndexFlatL2(d)
+		if err != nil {
+			return nil, err
+		}
+		index, err := faiss.NewIndexIVFFlat(quantizer, d, nlist, metric)
+		if err != nil {
+			return nil, err
+		}
 		index.SetNprobe(nprobe)
 		return index, nil
 	}
@@ -383,8 +389,14 @@ func buildIVF(nlist int, nprobe int) func(d int, metric faiss.MetricType) (faiss
 
 func buildIVF_IP(nlist int, nprobe int) func(d int, metric faiss.MetricType) (faiss.Index, error) {
 	return func(d int, metric faiss.MetricType) (faiss.Index, error) {
-		quantizer := faiss.NewIndexFlatIP(d)
-		index := faiss.NewIndexIVFFlat(quantizer, d, nlist, faiss.MetricInnerProduct)
+		quantizer, err := faiss.NewIndexFlatIP(d)
+		if err != nil {
+			return nil, err
+		}
+		index, err := faiss.NewIndexIVFFlat(quantizer, d, nlist, faiss.MetricInnerProduct)
+		if err != nil {
+			return nil, err
+		}
 		index.SetNprobe(nprobe)
 		return index, nil
 	}

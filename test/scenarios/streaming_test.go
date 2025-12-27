@@ -51,9 +51,12 @@ func TestStreaming_ConcurrentAddAndSearch(t *testing.T) {
 
 	// Test with HNSW (best for dynamic updates)
 	t.Run("HNSW_Dynamic", func(t *testing.T) {
-		index := faiss.NewIndexHNSWFlat(dim, 32, faiss.MetricL2)
+		index, err := faiss.NewIndexHNSWFlat(dim, 32, faiss.MetricL2)
+	if err != nil {
+		t.Fatalf("Failed to create index: %v", err)
+	}
 		index.HnswSetEfSearch(64)
-		defer index.Delete()
+		defer index.Close()
 
 		// Add initial vectors
 		t.Log("Adding initial vectors...")
@@ -207,10 +210,10 @@ func TestStreaming_BatchUpdates(t *testing.T) {
 	initial := datasets.GenerateRealisticEmbeddings(initialSize, dim)
 
 	// Use IVF for batch updates
-	quantizer := faiss.NewIndexFlatL2(dim)
-	index := faiss.NewIndexIVFFlat(quantizer, dim, 1000, faiss.MetricL2)
+	quantizer, err := faiss.NewIndexFlatL2(dim)
+	index, err := faiss.NewIndexIVFFlat(quantizer, dim, 1000, faiss.MetricL2)
 	index.SetNprobe(20)
-	defer index.Delete()
+	defer index.Close()
 
 	// Train and add initial vectors
 	t.Log("Building initial index...")
@@ -279,9 +282,12 @@ func TestStreaming_IDMapping(t *testing.T) {
 	documents.GenerateQueries(nQueries, datasets.Normalized)
 
 	// Use IndexIDMap for custom IDs
-	baseIndex := faiss.NewIndexFlatL2(dim)
-	index := faiss.NewIndexIDMap(baseIndex)
-	defer index.Delete()
+	baseIndex, err := faiss.NewIndexFlatL2(dim)
+	index, err := faiss.NewIndexIDMap(baseIndex)
+	if err != nil {
+		t.Fatalf("Failed to create index: %v", err)
+	}
+	defer index.Close()
 
 	// Add documents with custom IDs
 	customIDs := make([]int64, nDocuments)
@@ -356,7 +362,10 @@ func TestStreaming_LatencyDegradation(t *testing.T) {
 		data := datasets.GenerateRealisticEmbeddings(size, dim)
 
 		// Build index
-		index := faiss.NewIndexHNSWFlat(dim, 32, faiss.MetricL2)
+		index, err := faiss.NewIndexHNSWFlat(dim, 32, faiss.MetricL2)
+	if err != nil {
+		t.Fatalf("Failed to create index: %v", err)
+	}
 		index.HnswSetEfSearch(64)
 
 		if err := index.Add(data.Vectors); err != nil {
@@ -377,7 +386,7 @@ func TestStreaming_LatencyDegradation(t *testing.T) {
 
 		t.Logf("  P99: %v, QPS: %.0f", perf.P99Latency.Round(time.Microsecond), perf.QPS)
 
-		index.Delete()
+		index.Close()
 	}
 
 	// Analyze degradation

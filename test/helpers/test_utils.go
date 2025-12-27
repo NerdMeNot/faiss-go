@@ -39,15 +39,18 @@ func SearchWithTiming(index faiss.Index, queries []float32, k int) ([]SearchResu
 func ComputeGroundTruth(vectors, queries []float32, d, k int, metric faiss.MetricType) ([]GroundTruth, error) {
 	// Create flat index for ground truth
 	var gtIndex faiss.Index
+	var err error
 	if metric == faiss.MetricL2 {
-		gtIndex = faiss.NewIndexFlatL2(d)
+		gtIndex, err = faiss.NewIndexFlatL2(d)
 	} else {
-		gtIndex = faiss.NewIndexFlatIP(d)
+		gtIndex, err = faiss.NewIndexFlatIP(d)
 	}
-	defer gtIndex.Delete()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create ground truth index: %w", err)
+	}
+	defer gtIndex.Close()
 
 	// Add vectors
-	n := len(vectors) / d
 	if err := gtIndex.Add(vectors); err != nil {
 		return nil, fmt.Errorf("failed to add vectors to ground truth index: %w", err)
 	}
@@ -217,7 +220,7 @@ func RunComparison(t *testing.T, vectors, queries []float32, d, k int, compariso
 			if err != nil {
 				t.Fatalf("Failed to create index: %v", err)
 			}
-			defer index.Delete()
+			defer index.Close()
 
 			// Add vectors
 			if err := index.Add(vectors); err != nil {
@@ -263,7 +266,7 @@ func RunComparison(t *testing.T, vectors, queries []float32, d, k int, compariso
 func ValidateIndexInvariants(t *testing.T, index faiss.Index, expectedN, expectedD int) {
 	t.Helper()
 
-	if index.Ntotal() != expectedN {
+	if index.Ntotal() != int64(expectedN) {
 		t.Errorf("Expected %d vectors, got %d", expectedN, index.Ntotal())
 	}
 
