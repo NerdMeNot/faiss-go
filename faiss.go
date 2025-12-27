@@ -96,35 +96,7 @@ func (m MetricType) String() string {
 	}
 }
 
-// Index is the base interface for all FAISS indexes
-type Index interface {
-	// D returns the dimension of the vectors
-	D() int
-
-	// Ntotal returns the total number of vectors in the index
-	Ntotal() int64
-
-	// IsTrained returns whether the index has been trained
-	IsTrained() bool
-
-	// MetricType returns the metric type used by the index
-	MetricType() MetricType
-
-	// Add adds vectors to the index
-	// vectors must have length = D() * n for some positive integer n
-	Add(vectors []float32) error
-
-	// Search searches for the k nearest neighbors of the query vectors
-	// queries must have length = D() * nq for some positive integer nq
-	// Returns distances and indices for each query
-	Search(queries []float32, k int) (distances []float32, indices []int64, err error)
-
-	// Reset removes all vectors from the index
-	Reset() error
-
-	// Close releases resources associated with the index
-	Close() error
-}
+// Index interface is defined in index.go to avoid duplication
 
 // IndexFlat represents a flat (brute-force) index
 type IndexFlat struct {
@@ -217,6 +189,12 @@ func (idx *IndexFlat) IsTrained() bool {
 // MetricType returns the metric type used by the index
 func (idx *IndexFlat) MetricType() MetricType {
 	return idx.metric
+}
+
+// Train is a no-op for flat indexes (they don't require training)
+func (idx *IndexFlat) Train(vectors []float32) error {
+	// Flat indexes don't need training
+	return nil
 }
 
 // Add adds vectors to the index

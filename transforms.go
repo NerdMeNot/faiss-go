@@ -246,8 +246,8 @@ func (opq *OPQMatrix) IsTrained() bool {
 	return opq.isTrained
 }
 
-// M returns the number of subspaces
-func (opq *OPQMatrix) M() int {
+// GetM returns the number of subspaces
+func (opq *OPQMatrix) GetM() int {
 	return opq.M
 }
 

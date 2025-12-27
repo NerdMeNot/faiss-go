@@ -82,13 +82,7 @@ type IndexWithAssign interface {
 	Assign(vectors []float32) ([]int64, error)
 }
 
-// RangeSearchResult contains results from range search
-type RangeSearchResult struct {
-	Nq      int       // Number of queries
-	Lims    []int64   // Limits array (length nq+1)
-	Labels  []int64   // Labels for each result
-	Distances []float32 // Distances for each result
-}
+// RangeSearchResult is defined in range_search.go to avoid duplication
 
 // SearchResult is a structured search result
 type SearchResult struct {
