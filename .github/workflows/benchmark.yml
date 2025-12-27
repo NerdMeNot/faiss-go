@@ -1,0 +1,126 @@
+name: Continuous Benchmarking
+
+on:
+  push:
+    branches: [ main ]
+  schedule:
+    # Run benchmarks weekly on Sunday at 00:00 UTC
+    - cron: '0 0 * * 0'
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  benchmark:
+    name: Run Benchmarks
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch all history for comparison
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23'
+
+    - name: Cache FAISS build
+      id: cache-faiss
+      uses: actions/cache@v4
+      with:
+        path: |
+          /usr/local/lib/libfaiss*
+          /usr/local/include/faiss
+        key: faiss-1.8.0-${{ runner.os }}
+
+    - name: Install dependencies
+      if: steps.cache-faiss.outputs.cache-hit != 'true'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake g++ libopenblas-dev libgomp1 libomp-dev
+
+    - name: Build and install FAISS
+      if: steps.cache-faiss.outputs.cache-hit != 'true'
+      run: |
+        cd /tmp
+        wget https://github.com/facebookresearch/faiss/archive/refs/tags/v1.8.0.tar.gz
+        tar -xzf v1.8.0.tar.gz
+        cd faiss-1.8.0
+        cmake -B build -DCMAKE_BUILD_TYPE=Release -DFAISS_ENABLE_GPU=OFF \
+          -DFAISS_ENABLE_PYTHON=OFF -DBUILD_TESTING=OFF -DBUILD_SHARED_LIBS=ON \
+          -DCMAKE_INSTALL_PREFIX=/usr/local .
+        make -C build -j$(nproc)
+        sudo make -C build install
+        sudo ldconfig
+
+    - name: Run benchmarks
+      env:
+        CGO_LDFLAGS: "-L/usr/local/lib -lfaiss -lgomp -lstdc++ -lm -lopenblas"
+        CGO_CFLAGS: "-I/usr/local/include"
+        LD_LIBRARY_PATH: "/usr/local/lib:$LD_LIBRARY_PATH"
+      run: |
+        go test -tags nogpu -bench=. -benchmem -benchtime=5s -run=^$ ./... | tee benchmark-output.txt
+
+    - name: Store benchmark result
+      uses: benchmark-action/github-action-benchmark@v1
+      with:
+        name: Go Benchmark
+        tool: 'go'
+        output-file-path: benchmark-output.txt
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        auto-push: true
+        # Show alert with commit comment on detecting possible performance regression
+        alert-threshold: '150%'
+        comment-on-alert: true
+        fail-on-alert: false
+        alert-comment-cc-users: '@owner'
+
+    - name: Upload benchmark results
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-results-${{ github.sha }}
+        path: benchmark-output.txt
+        retention-days: 90
+
+  compare-benchmarks:
+    name: Compare with Previous Benchmarks
+    runs-on: ubuntu-latest
+    needs: benchmark
+    if: github.event_name == 'pull_request'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23'
+
+    - name: Install benchstat
+      run: go install golang.org/x/perf/cmd/benchstat@latest
+
+    - name: Download current benchmark
+      uses: actions/download-artifact@v4
+      with:
+        name: benchmark-results-${{ github.sha }}
+        path: ./current
+
+    - name: Download base benchmark
+      uses: actions/download-artifact@v4
+      with:
+        name: benchmark-results-base
+        path: ./base
+      continue-on-error: true
+
+    - name: Compare benchmarks
+      if: success()
+      run: |
+        if [ -f ./base/benchmark-output.txt ]; then
+          echo "## Benchmark Comparison" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          benchstat ./base/benchmark-output.txt ./current/benchmark-output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+        else
+          echo "No baseline benchmark found for comparison" >> $GITHUB_STEP_SUMMARY
+        fi

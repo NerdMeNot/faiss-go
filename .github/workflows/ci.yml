@@ -1,0 +1,162 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, claude/* ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    name: Build and Test (Ubuntu)
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        go-version: ['1.21', '1.22', '1.23']
+        faiss-version: ['1.7.4', '1.8.0']
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ matrix.go-version }}
+
+    - name: Cache FAISS build
+      id: cache-faiss
+      uses: actions/cache@v4
+      with:
+        path: |
+          /usr/local/lib/libfaiss*
+          /usr/local/include/faiss
+        key: faiss-${{ matrix.faiss-version }}-${{ runner.os }}
+
+    - name: Install dependencies
+      if: steps.cache-faiss.outputs.cache-hit != 'true'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          cmake \
+          g++ \
+          libopenblas-dev \
+          libgomp1 \
+          libomp-dev \
+          swig
+
+    - name: Build and install FAISS
+      if: steps.cache-faiss.outputs.cache-hit != 'true'
+      run: |
+        cd /tmp
+        wget https://github.com/facebookresearch/faiss/archive/refs/tags/v${{ matrix.faiss-version }}.tar.gz
+        tar -xzf v${{ matrix.faiss-version }}.tar.gz
+        cd faiss-${{ matrix.faiss-version }}
+
+        # Build FAISS C library
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DFAISS_ENABLE_GPU=OFF \
+          -DFAISS_ENABLE_PYTHON=OFF \
+          -DBUILD_TESTING=OFF \
+          -DBUILD_SHARED_LIBS=ON \
+          -DCMAKE_INSTALL_PREFIX=/usr/local \
+          .
+
+        make -C build -j$(nproc)
+        sudo make -C build install
+        sudo ldconfig
+
+    - name: Verify FAISS installation
+      run: |
+        ls -la /usr/local/lib/libfaiss* || true
+        ls -la /usr/local/include/faiss || true
+        ldconfig -p | grep faiss || true
+
+    - name: Build Go project
+      env:
+        CGO_LDFLAGS: "-L/usr/local/lib -lfaiss -lgomp -lstdc++ -lm -lopenblas"
+        CGO_CFLAGS: "-I/usr/local/include"
+        LD_LIBRARY_PATH: "/usr/local/lib:$LD_LIBRARY_PATH"
+      run: |
+        go build -tags nogpu -v ./...
+
+    - name: Run tests
+      env:
+        CGO_LDFLAGS: "-L/usr/local/lib -lfaiss -lgomp -lstdc++ -lm -lopenblas"
+        CGO_CFLAGS: "-I/usr/local/include"
+        LD_LIBRARY_PATH: "/usr/local/lib:$LD_LIBRARY_PATH"
+      run: |
+        go test -v -tags nogpu -timeout 10m -coverprofile=coverage.out -covermode=atomic ./...
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        files: ./coverage.out
+        flags: unittests
+        name: codecov-umbrella
+
+    - name: Run benchmarks (sample)
+      env:
+        CGO_LDFLAGS: "-L/usr/local/lib -lfaiss -lgomp -lstdc++ -lm -lopenblas"
+        CGO_CFLAGS: "-I/usr/local/include"
+        LD_LIBRARY_PATH: "/usr/local/lib:$LD_LIBRARY_PATH"
+      run: |
+        go test -v -tags nogpu -bench=BenchmarkIndexFlatL2 -benchtime=1s -run=^$ ./...
+
+  build-macos:
+    name: Build and Test (macOS)
+    runs-on: macos-latest
+
+    strategy:
+      matrix:
+        go-version: ['1.22', '1.23']
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ matrix.go-version }}
+
+    - name: Install dependencies
+      run: |
+        brew install cmake openblas libomp faiss
+
+    - name: Build Go project
+      env:
+        CGO_LDFLAGS: "-L/opt/homebrew/lib -lfaiss -lomp"
+        CGO_CFLAGS: "-I/opt/homebrew/include"
+        DYLD_LIBRARY_PATH: "/opt/homebrew/lib:$DYLD_LIBRARY_PATH"
+      run: |
+        go build -tags nogpu -v ./...
+
+    - name: Run tests
+      env:
+        CGO_LDFLAGS: "-L/opt/homebrew/lib -lfaiss -lomp"
+        CGO_CFLAGS: "-I/opt/homebrew/include"
+        DYLD_LIBRARY_PATH: "/opt/homebrew/lib:$DYLD_LIBRARY_PATH"
+      run: |
+        go test -v -tags nogpu -timeout 10m ./...
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23'
+
+    - name: golangci-lint
+      uses: golangci/golangci-lint-action@v4
+      with:
+        version: latest
+        args: --timeout=5m
