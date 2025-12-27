@@ -67,7 +67,8 @@ jobs:
           -DCMAKE_INSTALL_PREFIX=/usr/local \
           .
 
-        make -C build -j2
+        # Use all available cores (2 vCPU × 2 hyperthreads = 4 threads)
+        make -C build -j4
         sudo make -C build install
         sudo ldconfig
 
