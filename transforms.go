@@ -39,9 +39,8 @@ type PCAMatrix struct {
 	dIn       int     // input dimension
 	dOut      int     // output dimension
 	isTrained bool    // training status
-	eigenVec  []float32 // eigenvectors (optional, for introspection)
-	eigenVal  []float32 // eigenvalues (optional, for introspection)
-	mean      []float32 // mean vector
+	// Note: eigenVec, eigenVal, and mean fields removed to reduce memory footprint
+	// Future: could add getter methods that query FAISS if introspection is needed
 }
 
 // NewPCAMatrix creates a new PCA transformation matrix

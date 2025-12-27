@@ -20,8 +20,8 @@ type Kmeans struct {
 	k          int      // number of clusters
 	niter      int      // number of iterations
 	centroids  []float32 // cluster centroids (k * d)
-	obj        []float32 // objective function values per iteration
 	isTrained  bool     // training status
+	// Note: obj field removed - objective values can be queried from FAISS if needed
 }
 
 // NewKmeans creates a new k-means clustering object

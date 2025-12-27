@@ -1,3 +1,4 @@
+//nolint:goconst // Type identifiers match serialized format, not config values
 package faiss
 
 import (

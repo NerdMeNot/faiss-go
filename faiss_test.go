@@ -80,7 +80,7 @@ func TestAddVectors(t *testing.T) {
 
 	// Note: This will fail with stub implementation
 	// but the test structure is correct
-	err = index.Add(vectors)
+	_ = index.Add(vectors) // nolint:errcheck // TODO: Check error when implementation ready
 	// TODO: Uncomment when real implementation is ready
 	// if err != nil {
 	// 	t.Fatalf("Failed to add vectors: %v", err)

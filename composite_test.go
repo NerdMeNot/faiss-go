@@ -201,17 +201,17 @@ func TestIndexShards(t *testing.T) {
 	defer shards.Close()
 
 	// Create and add shards
+	// Note: Do NOT defer Close() on child shards! IndexShards manages their lifecycle.
+	// If we close them before shards.Close(), we get use-after-free errors.
 	shard1, err := NewIndexFlatL2(d)
 	if err != nil {
 		t.Fatalf("Failed to create shard1: %v", err)
 	}
-	defer shard1.Close()
 
 	shard2, err := NewIndexFlatL2(d)
 	if err != nil {
 		t.Fatalf("Failed to create shard2: %v", err)
 	}
-	defer shard2.Close()
 
 	if err := shards.AddShard(shard1); err != nil {
 		t.Fatalf("Failed to add shard1: %v", err)
@@ -220,8 +220,13 @@ func TestIndexShards(t *testing.T) {
 		t.Fatalf("Failed to add shard2: %v", err)
 	}
 
-	// Add vectors (distributed across shards)
+	// Train to trigger syncWithSubIndexes() which sets is_trained from child shards
 	vectors := generateVectors(nb, d)
+	if err := shards.Train(vectors); err != nil {
+		t.Fatalf("Training failed: %v", err)
+	}
+
+	// Add vectors (distributed across shards)
 	if err := shards.Add(vectors); err != nil {
 		t.Fatalf("Add failed: %v", err)
 	}

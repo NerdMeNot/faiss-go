@@ -105,7 +105,10 @@ func (idx *IndexRefine) Ntotal() int64 {
 
 // IsTrained returns whether the index has been trained
 func (idx *IndexRefine) IsTrained() bool {
-	return idx.baseIndex.IsTrained()
+	if idx.ptr == 0 {
+		return false
+	}
+	return faiss_Index_is_trained(idx.ptr) != 0
 }
 
 // MetricType returns the distance metric used
@@ -314,7 +317,10 @@ func (idx *IndexPreTransform) Ntotal() int64 {
 
 // IsTrained returns whether both transform and index are trained
 func (idx *IndexPreTransform) IsTrained() bool {
-	return idx.transform.IsTrained() && idx.index.IsTrained()
+	if idx.ptr == 0 {
+		return false
+	}
+	return faiss_Index_is_trained(idx.ptr) != 0
 }
 
 // MetricType returns the distance metric used
@@ -502,21 +508,21 @@ func (idx *IndexShards) D() int {
 
 // Ntotal returns the total number of vectors across all shards
 func (idx *IndexShards) Ntotal() int64 {
-	total := int64(0)
-	for _, shard := range idx.shards {
-		total += shard.Ntotal()
+	if idx.ptr == 0 {
+		return 0
 	}
-	return total
+	// Query FAISS directly - it tracks the total across all shards
+	return faiss_Index_ntotal(idx.ptr)
 }
 
 // IsTrained returns whether all shards are trained
 func (idx *IndexShards) IsTrained() bool {
-	for _, shard := range idx.shards {
-		if !shard.IsTrained() {
-			return false
-		}
+	if idx.ptr == 0 {
+		return false
 	}
-	return true
+	// IndexShards is always considered trained (it's just a container)
+	// But we should query FAISS to be consistent
+	return faiss_Index_is_trained(idx.ptr) != 0
 }
 
 // MetricType returns the distance metric
@@ -524,13 +530,26 @@ func (idx *IndexShards) MetricType() MetricType {
 	return idx.metric
 }
 
-// Train trains all shards
+// Train trains all shards via the IndexShards composite index
 func (idx *IndexShards) Train(vectors []float32) error {
-	for _, shard := range idx.shards {
-		if err := shard.Train(vectors); err != nil {
-			return fmt.Errorf("shard training failed: %w", err)
-		}
+	if len(idx.shards) == 0 {
+		return fmt.Errorf("no shards added")
 	}
+	if len(vectors) == 0 {
+		return fmt.Errorf("empty training vectors")
+	}
+	if len(vectors)%idx.d != 0 {
+		return fmt.Errorf("vectors length must be multiple of dimension %d", idx.d)
+	}
+
+	// Call faiss_Index_train on the IndexShards pointer
+	// FAISS will internally train all child shards and set is_trained flag
+	n := int64(len(vectors) / idx.d)
+	ret := faiss_Index_train(idx.ptr, n, &vectors[0])
+	if ret != 0 {
+		return fmt.Errorf("training failed")
+	}
+
 	idx.isTrained = true
 	return nil
 }
@@ -582,20 +601,31 @@ func (idx *IndexShards) Search(queries []float32, k int) (distances []float32, i
 
 // Reset removes all vectors from all shards
 func (idx *IndexShards) Reset() error {
-	for _, shard := range idx.shards {
-		if err := shard.Reset(); err != nil {
-			return err
-		}
+	if idx.ptr == 0 {
+		return nil
+	}
+	// Call faiss_Index_reset on the IndexShards pointer
+	// FAISS will internally reset all child shards
+	ret := faiss_Index_reset(idx.ptr)
+	if ret != 0 {
+		return fmt.Errorf("reset failed")
 	}
 	idx.ntotal = 0
 	return nil
 }
 
-// Close frees the index
+// Close frees the index and all child shards
 func (idx *IndexShards) Close() error {
 	if idx.ptr != 0 {
 		faiss_Index_free(idx.ptr)
 		idx.ptr = 0
 	}
+	// Close all child shards
+	for _, shard := range idx.shards {
+		if shard != nil {
+			shard.Close()
+		}
+	}
+	idx.shards = nil
 	return nil
 }

@@ -1,3 +1,4 @@
+//nolint:goconst // Test identifiers don't need to be constants
 package faiss
 
 import (
