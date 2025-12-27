@@ -25,7 +25,6 @@ package faiss
 
 // macOS-specific flags
 #cgo darwin CPPFLAGS: -I/opt/homebrew/include -I/usr/local/include -I/opt/homebrew/opt/openblas/include -I/opt/homebrew/opt/libomp/include
-#cgo darwin CXXFLAGS: -Xpreprocessor -fopenmp
 #cgo darwin LDFLAGS: -L/opt/homebrew/lib -L/usr/local/lib -L/opt/homebrew/opt/openblas/lib -L/opt/homebrew/opt/libomp/lib -lopenblas -lomp -Wl,-framework,Accelerate
 
 // Windows-specific flags

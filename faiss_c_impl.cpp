@@ -252,7 +252,7 @@ int faiss_Index_range_search(FaissIndex index, int64_t n, const float* x,
 int faiss_RangeSearchResult_get(void* result, int64_t** lims, int64_t** labels, float** distances) {
     try {
         auto* res = static_cast<faiss::RangeSearchResult*>(result);
-        *lims = res->lims;
+        *lims = reinterpret_cast<int64_t*>(res->lims);
         *labels = res->labels;
         *distances = res->distances;
         return 0;
