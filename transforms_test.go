@@ -116,7 +116,7 @@ func TestPCAApplyBeforeTrain(t *testing.T) {
 func TestOPQMatrix(t *testing.T) {
 	d := 64
 	M := 8
-	nb := 500
+	nb := 10000 // OPQ internally uses PQ training which needs sufficient data
 
 	opq, err := NewOPQMatrix(d, M)
 	if err != nil {

@@ -558,7 +558,7 @@ func TestIndexPQFastScan(t *testing.T) {
 	d := 128
 	M := 8
 	nbits := 4 // Optimal for FastScan
-	nb := 500
+	nb := 1000 // Sufficient for nbits=4 (16 centroids per subquantizer)
 
 	index, err := NewIndexPQFastScan(d, M, nbits, MetricL2)
 	if err != nil {
@@ -594,7 +594,7 @@ func TestIndexIVFPQFastScan(t *testing.T) {
 	nlist := 10
 	M := 8
 	nbits := 4
-	nb := 500
+	nb := 1000 // Sufficient for nlist=10 + nbits=4
 
 	quantizer, err := NewIndexFlatL2(d)
 	if err != nil {
@@ -680,7 +680,7 @@ func TestIndexIVFPQOnDisk(t *testing.T) {
 	nlist := 10
 	M := 8
 	nbits := 8
-	nb := 500
+	nb := 10000 // Need 39*256=9984 for nbits=8 (256 centroids per subquantizer)
 	filename := "/tmp/test_ivfpq_ondisk.ivfpq"
 	defer os.Remove(filename)
 
