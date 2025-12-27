@@ -220,7 +220,7 @@ func TestIndexShards(t *testing.T) {
 		t.Fatalf("Failed to add shard2: %v", err)
 	}
 
-	// Train (required to set FAISS is_trained flag even though shards don't need training)
+	// Train to trigger syncWithSubIndexes() which sets is_trained from child shards
 	vectors := generateVectors(nb, d)
 	if err := shards.Train(vectors); err != nil {
 		t.Fatalf("Training failed: %v", err)

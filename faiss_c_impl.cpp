@@ -711,7 +711,7 @@ int faiss_IndexPreTransform_new(FaissIndex* p_index, FaissVectorTransform transf
 int faiss_IndexShards_new(FaissIndex* p_index, int64_t d, int metric_type) {
     try {
         (void)metric_type; // IndexShards doesn't use metric in constructor
-        *p_index = new faiss::IndexShards(d, true, false); // threaded=true, successive_ids=false
+        *p_index = new faiss::IndexShards(d, false, false); // threaded=false, successive_ids=false
         return 0;
     }
     CATCH_AND_HANDLE()
