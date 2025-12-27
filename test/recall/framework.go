@@ -135,7 +135,7 @@ func RunRecallTest(t *testing.T, config RecallTestConfig) RecallTestResult {
 		t.Error(result.Error)
 		return result
 	}
-	defer index.Delete()
+	defer index.Close()
 
 	// Train if needed
 	if config.NeedsTraining {

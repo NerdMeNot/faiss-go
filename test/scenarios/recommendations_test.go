@@ -35,10 +35,16 @@ func TestRecommendations_ItemToItem(t *testing.T) {
 		t.Log("Building IVFPQ index for 10M items...")
 
 		// Build IVFPQ: nlist=16384, M=16, nprobe=64
-		quantizer := faiss.NewIndexFlatIP(dim)
-		index := faiss.NewIndexIVFPQ(quantizer, dim, 16384, 16, 8, faiss.MetricInnerProduct)
+		quantizer, err := faiss.NewIndexFlatIP(dim)
+	if err != nil {
+		t.Fatalf("Failed to create quantizer: %v", err)
+	}
+		index, err := faiss.NewIndexIVFPQ(quantizer, dim, 16384, 16, 8, faiss.MetricInnerProduct)
+	if err != nil {
+		t.Fatalf("Failed to create index: %v", err)
+	}
 		index.SetNprobe(64)
-		defer index.Delete()
+		defer index.Close()
 
 		// Train with 200K items
 		trainSize := 200000
@@ -161,9 +167,9 @@ func TestRecommendations_ContentBased(t *testing.T) {
 	contentEmbeddings.GenerateQueries(nUsers, datasets.Normalized)
 
 	// Use HNSW for high-quality recommendations
-	index := faiss.NewIndexHNSWFlat(dim, 32, faiss.MetricInnerProduct)
+	index, err := faiss.NewIndexHNSWFlat(dim, 32, faiss.MetricInnerProduct)
 	index.HnswSetEfSearch(64)
-	defer index.Delete()
+	defer index.Close()
 
 	// Add content
 	t.Log("Building content index...")
@@ -227,8 +233,11 @@ func TestRecommendations_PersonalizedRanking(t *testing.T) {
 	itemEmbeddings.GenerateQueries(nUsers, datasets.Normalized)
 
 	// For small candidate set, use Flat for perfect ranking
-	index := faiss.NewIndexFlatIP(dim)
-	defer index.Delete()
+	index, err := faiss.NewIndexFlatIP(dim)
+	if err != nil {
+		t.Fatalf("Failed to create index: %v", err)
+	}
+	defer index.Close()
 
 	// Add candidates
 	if err := index.Add(itemEmbeddings.Vectors); err != nil {
@@ -276,10 +285,10 @@ func TestRecommendations_CollaborativeFiltering(t *testing.T) {
 	itemFactors.GenerateQueries(nQueries, datasets.Normalized)
 
 	// Use IVF for good balance
-	quantizer := faiss.NewIndexFlatIP(dim)
-	index := faiss.NewIndexIVFFlat(quantizer, dim, 1000, faiss.MetricInnerProduct)
+	quantizer, err := faiss.NewIndexFlatIP(dim)
+	index, err := faiss.NewIndexIVFFlat(quantizer, dim, 1000, faiss.MetricInnerProduct)
 	index.SetNprobe(20)
-	defer index.Delete()
+	defer index.Close()
 
 	// Train and add
 	t.Log("Training collaborative filtering index...")

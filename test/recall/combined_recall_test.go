@@ -152,7 +152,7 @@ func TestIndexComparison(t *testing.T) {
 			Name:      "Flat_L2_baseline",
 			IndexType: "IndexFlatL2",
 			BuildIndex: func(d int, metric faiss.MetricType) (faiss.Index, error) {
-				return faiss.NewIndexFlatL2(d), nil
+				return faiss.NewIndexFlatL2(d)
 			},
 			N:            10000,
 			D:            128,
@@ -248,8 +248,14 @@ func TestIndexComparison(t *testing.T) {
 
 func buildIVFPQ(nlist int, m int, nbits int, nprobe int) func(d int, metric faiss.MetricType) (faiss.Index, error) {
 	return func(d int, metric faiss.MetricType) (faiss.Index, error) {
-		quantizer := faiss.NewIndexFlatL2(d)
-		index := faiss.NewIndexIVFPQ(quantizer, d, nlist, m, nbits, metric)
+		quantizer, err := faiss.NewIndexFlatL2(d)
+		if err != nil {
+			return nil, err
+		}
+		index, err := faiss.NewIndexIVFPQ(quantizer, d, nlist, m, nbits, metric)
+		if err != nil {
+			return nil, err
+		}
 		index.SetNprobe(nprobe)
 		return index, nil
 	}
@@ -257,15 +263,20 @@ func buildIVFPQ(nlist int, m int, nbits int, nprobe int) func(d int, metric fais
 
 func buildSQ(qtype faiss.ScalarQuantizerType) func(d int, metric faiss.MetricType) (faiss.Index, error) {
 	return func(d int, metric faiss.MetricType) (faiss.Index, error) {
-		index := faiss.NewIndexScalarQuantizer(d, qtype, metric)
-		return index, nil
+		return faiss.NewIndexScalarQuantizer(d, qtype, metric)
 	}
 }
 
 func buildIVFSQ(nlist int, qtype faiss.ScalarQuantizerType, nprobe int) func(d int, metric faiss.MetricType) (faiss.Index, error) {
 	return func(d int, metric faiss.MetricType) (faiss.Index, error) {
-		quantizer := faiss.NewIndexFlatL2(d)
-		index := faiss.NewIndexIVFScalarQuantizer(quantizer, d, nlist, qtype, metric)
+		quantizer, err := faiss.NewIndexFlatL2(d)
+		if err != nil {
+			return nil, err
+		}
+		index, err := faiss.NewIndexIVFScalarQuantizer(quantizer, d, nlist, qtype, metric)
+		if err != nil {
+			return nil, err
+		}
 		index.SetNprobe(nprobe)
 		return index, nil
 	}
@@ -273,7 +284,6 @@ func buildIVFSQ(nlist int, qtype faiss.ScalarQuantizerType, nprobe int) func(d i
 
 func buildPQFastScan(m int) func(d int, metric faiss.MetricType) (faiss.Index, error) {
 	return func(d int, metric faiss.MetricType) (faiss.Index, error) {
-		index := faiss.NewIndexPQFastScan(d, m, 4, metric) // 4-bit codes for FastScan
-		return index, nil
+		return faiss.NewIndexPQFastScan(d, m, 4, metric) // 4-bit codes for FastScan
 	}
 }

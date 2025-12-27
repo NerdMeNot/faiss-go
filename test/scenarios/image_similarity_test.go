@@ -41,7 +41,10 @@ func TestImageSimilarity_VisualSearch(t *testing.T) {
 		{
 			name: "HNSW_M48_efSearch128",
 			buildIndex: func() faiss.Index {
-				index := faiss.NewIndexHNSWFlat(dim, 48, faiss.MetricInnerProduct)
+				index, err := faiss.NewIndexHNSWFlat(dim, 48, faiss.MetricInnerProduct)
+			if err != nil {
+				t.Fatalf("Failed to create index: %v", err)
+			}
 				index.HnswSetEfSearch(128)
 				return index
 			},
@@ -51,8 +54,14 @@ func TestImageSimilarity_VisualSearch(t *testing.T) {
 		{
 			name: "IVFPQ_nlist4096_M64",
 			buildIndex: func() faiss.Index {
-				quantizer := faiss.NewIndexFlatIP(dim)
-				index := faiss.NewIndexIVFPQ(quantizer, dim, 4096, 64, 8, faiss.MetricInnerProduct)
+				quantizer, err := faiss.NewIndexFlatIP(dim)
+			if err != nil {
+				t.Fatalf("Failed to create quantizer: %v", err)
+			}
+				index, err := faiss.NewIndexIVFPQ(quantizer, dim, 4096, 64, 8, faiss.MetricInnerProduct)
+			if err != nil {
+				t.Fatalf("Failed to create index: %v", err)
+			}
 				index.SetNprobe(32)
 				return index
 			},
@@ -85,7 +94,7 @@ func TestImageSimilarity_VisualSearch(t *testing.T) {
 			t.Logf("Building %s index for 1M images...", tc.name)
 
 			index := tc.buildIndex()
-			defer index.Delete()
+			defer index.Close()
 
 			// Train if needed
 			if !index.IsTrained() {
@@ -209,8 +218,11 @@ func TestImageSimilarity_Deduplication(t *testing.T) {
 
 	// For deduplication, use Flat for perfect recall
 	// (need to find ALL near-duplicates)
-	index := faiss.NewIndexFlatIP(dim)
-	defer index.Delete()
+	index, err := faiss.NewIndexFlatIP(dim)
+	if err != nil {
+		t.Fatalf("Failed to create index: %v", err)
+	}
+	defer index.Close()
 
 	// Add images
 	if err := index.Add(imageEmbeddings.Vectors); err != nil {
@@ -265,9 +277,9 @@ func TestImageSimilarity_ThumbnailSearch(t *testing.T) {
 	productEmbeddings.GenerateQueries(nUploads, datasets.Normalized)
 
 	// Use HNSW for fast search
-	index := faiss.NewIndexHNSWFlat(dim, 32, faiss.MetricInnerProduct)
+	index, err := faiss.NewIndexHNSWFlat(dim, 32, faiss.MetricInnerProduct)
 	index.HnswSetEfSearch(64)
-	defer index.Delete()
+	defer index.Close()
 
 	// Add products
 	if err := index.Add(productEmbeddings.Vectors); err != nil {

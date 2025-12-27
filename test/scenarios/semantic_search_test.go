@@ -41,7 +41,13 @@ func TestSemanticSearch_DocumentRetrieval(t *testing.T) {
 		{
 			name: "HNSW_M32_efSearch64",
 			buildIndex: func() faiss.Index {
-				index := faiss.NewIndexHNSWFlat(dim, 32, faiss.MetricInnerProduct)
+				index, err := faiss.NewIndexHNSWFlat(dim, 32, faiss.MetricInnerProduct)
+			if err != nil {
+				t.Fatalf("Failed to create index: %v", err)
+			}
+				if err != nil {
+					t.Fatalf("Failed to create HNSW index: %v", err)
+				}
 				index.HnswSetEfSearch(64)
 				return index
 			},
@@ -51,8 +57,20 @@ func TestSemanticSearch_DocumentRetrieval(t *testing.T) {
 		{
 			name: "IVF1000_nprobe20",
 			buildIndex: func() faiss.Index {
-				quantizer := faiss.NewIndexFlatIP(dim)
-				index := faiss.NewIndexIVFFlat(quantizer, dim, 1000, faiss.MetricInnerProduct)
+				quantizer, err := faiss.NewIndexFlatIP(dim)
+			if err != nil {
+				t.Fatalf("Failed to create quantizer: %v", err)
+			}
+				if err != nil {
+					t.Fatalf("Failed to create quantizer: %v", err)
+				}
+				index, err := faiss.NewIndexIVFFlat(quantizer, dim, 1000, faiss.MetricInnerProduct)
+			if err != nil {
+				t.Fatalf("Failed to create index: %v", err)
+			}
+				if err != nil {
+					t.Fatalf("Failed to create IVF index: %v", err)
+				}
 				index.SetNprobe(20)
 				return index
 			},
@@ -62,8 +80,20 @@ func TestSemanticSearch_DocumentRetrieval(t *testing.T) {
 		{
 			name: "IVFPQ_nlist1000_M48",
 			buildIndex: func() faiss.Index {
-				quantizer := faiss.NewIndexFlatIP(dim)
-				index := faiss.NewIndexIVFPQ(quantizer, dim, 1000, 48, 8, faiss.MetricInnerProduct)
+				quantizer, err := faiss.NewIndexFlatIP(dim)
+			if err != nil {
+				t.Fatalf("Failed to create quantizer: %v", err)
+			}
+				if err != nil {
+					t.Fatalf("Failed to create quantizer: %v", err)
+				}
+				index, err := faiss.NewIndexIVFPQ(quantizer, dim, 1000, 48, 8, faiss.MetricInnerProduct)
+			if err != nil {
+				t.Fatalf("Failed to create index: %v", err)
+			}
+				if err != nil {
+					t.Fatalf("Failed to create IVFPQ index: %v", err)
+				}
 				index.SetNprobe(20)
 				return index
 			},
@@ -91,7 +121,7 @@ func TestSemanticSearch_DocumentRetrieval(t *testing.T) {
 			t.Logf("Building %s index...", tc.name)
 
 			index := tc.buildIndex()
-			defer index.Delete()
+			defer index.Close()
 
 			// Train if needed
 			if !index.IsTrained() {
@@ -207,9 +237,12 @@ func TestSemanticSearch_QA(t *testing.T) {
 
 	// For Q&A, we want very high precision (top results must be relevant)
 	// Use HNSW for best accuracy
-	index := faiss.NewIndexHNSWFlat(dim, 48, faiss.MetricInnerProduct)
+	index, err := faiss.NewIndexHNSWFlat(dim, 48, faiss.MetricInnerProduct)
+	if err != nil {
+		t.Fatalf("Failed to create HNSW index: %v", err)
+	}
 	index.HnswSetEfSearch(128) // Higher efSearch for better recall
-	defer index.Delete()
+	defer index.Close()
 
 	// Add passages
 	t.Log("Building passage index...")
@@ -281,9 +314,12 @@ func TestSemanticSearch_MultiLingual(t *testing.T) {
 	docEmbeddings.GenerateQueries(nQueries, datasets.Normalized)
 
 	// Use HNSW for multi-lingual (cross-lingual retrieval needs high recall)
-	index := faiss.NewIndexHNSWFlat(dim, 32, faiss.MetricInnerProduct)
+	index, err := faiss.NewIndexHNSWFlat(dim, 32, faiss.MetricInnerProduct)
+	if err != nil {
+		t.Fatalf("Failed to create HNSW index: %v", err)
+	}
 	index.HnswSetEfSearch(64)
-	defer index.Delete()
+	defer index.Close()
 
 	// Add documents
 	if err := index.Add(docEmbeddings.Vectors); err != nil {

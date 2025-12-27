@@ -352,7 +352,7 @@ func TestPQ_MemoryEfficiency(t *testing.T) {
 			Name:      "Flat_L2_baseline",
 			IndexType: "IndexFlatL2",
 			BuildIndex: func(d int, metric faiss.MetricType) (faiss.Index, error) {
-				return faiss.NewIndexFlatL2(d), nil
+				return faiss.NewIndexFlatL2(d)
 			},
 			N:            n,
 			D:            d,
@@ -408,7 +408,6 @@ func TestPQ_MemoryEfficiency(t *testing.T) {
 
 func buildPQ(m int, nbits int) func(d int, metric faiss.MetricType) (faiss.Index, error) {
 	return func(d int, metric faiss.MetricType) (faiss.Index, error) {
-		index := faiss.NewIndexPQ(d, m, nbits, metric)
-		return index, nil
+		return faiss.NewIndexPQ(d, m, nbits, metric)
 	}
 }
