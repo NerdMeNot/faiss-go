@@ -126,16 +126,21 @@ func (idx *IndexRefine) SetK_factor(kFactor float32) error {
 	return nil
 }
 
-// Train trains both base and refine indexes
+// Train trains the IndexRefine (which internally trains both base and refine indexes)
 func (idx *IndexRefine) Train(vectors []float32) error {
-	// Train base index
-	if err := idx.baseIndex.Train(vectors); err != nil {
-		return fmt.Errorf("base index training failed: %w", err)
+	if len(vectors) == 0 {
+		return fmt.Errorf("empty training vectors")
+	}
+	if len(vectors)%idx.d != 0 {
+		return fmt.Errorf("vectors length must be multiple of dimension %d", idx.d)
 	}
 
-	// Train refine index (usually no-op for flat)
-	if err := idx.refineIndex.Train(vectors); err != nil {
-		return fmt.Errorf("refine index training failed: %w", err)
+	// Call faiss_Index_train on the IndexRefine pointer
+	// FAISS will internally train both base and refine indexes and set is_trained flag
+	n := int64(len(vectors) / idx.d)
+	ret := faiss_Index_train(idx.ptr, n, &vectors[0])
+	if ret != 0 {
+		return fmt.Errorf("training failed")
 	}
 
 	idx.isTrained = true
@@ -317,7 +322,7 @@ func (idx *IndexPreTransform) MetricType() MetricType {
 	return idx.metric
 }
 
-// Train trains both the transform and the underlying index
+// Train trains the IndexPreTransform (which internally trains transform and index)
 func (idx *IndexPreTransform) Train(vectors []float32) error {
 	if len(vectors) == 0 {
 		return fmt.Errorf("empty training vectors")
@@ -326,20 +331,12 @@ func (idx *IndexPreTransform) Train(vectors []float32) error {
 		return fmt.Errorf("vectors length must be multiple of input dimension %d", idx.dIn)
 	}
 
-	// Train transform
-	if err := idx.transform.Train(vectors); err != nil {
-		return fmt.Errorf("transform training failed: %w", err)
-	}
-
-	// Apply transform to training data
-	transformed, err := idx.transform.Apply(vectors)
-	if err != nil {
-		return fmt.Errorf("transform apply failed: %w", err)
-	}
-
-	// Train index on transformed data
-	if err := idx.index.Train(transformed); err != nil {
-		return fmt.Errorf("index training failed: %w", err)
+	// Call faiss_Index_train on the IndexPreTransform pointer
+	// FAISS will internally train the transform chain and the underlying index
+	n := int64(len(vectors) / idx.dIn)
+	ret := faiss_Index_train(idx.ptr, n, &vectors[0])
+	if ret != 0 {
+		return fmt.Errorf("training failed")
 	}
 
 	idx.isTrained = true
