@@ -1,9 +1,5 @@
 package faiss
 
-import (
-	"runtime"
-)
-
 // PerformanceHints provides guidance on optimizing FAISS operations
 //
 // Zero-Copy Operations:
