@@ -1,0 +1,237 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: 'Version bump type'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: 'patch'
+      prerelease_suffix:
+        description: 'Pre-release suffix (optional, e.g., alpha.1, beta.1, rc.1)'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Get current version
+        id: current_version
+        run: |
+          # Extract current version from faiss.go
+          CURRENT=$(grep -oP 'Version\s*=\s*"\K[^"]+' faiss.go)
+          echo "current=$CURRENT" >> $GITHUB_OUTPUT
+          echo "Current version: $CURRENT"
+
+          # Remove any pre-release suffix for version bumping
+          BASE_VERSION=$(echo $CURRENT | sed 's/-.*$//')
+          echo "base=$BASE_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Calculate next version
+        id: next_version
+        run: |
+          BASE="${{ steps.current_version.outputs.base }}"
+
+          # Remove 'v' prefix if present
+          BASE=$(echo $BASE | sed 's/^v//')
+
+          # Split version into components
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE"
+
+          # Bump version based on input
+          case "${{ inputs.version_type }}" in
+            major)
+              MAJOR=$((MAJOR + 1))
+              MINOR=0
+              PATCH=0
+              ;;
+            minor)
+              MINOR=$((MINOR + 1))
+              PATCH=0
+              ;;
+            patch)
+              PATCH=$((PATCH + 1))
+              ;;
+          esac
+
+          NEXT_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+
+          # Add pre-release suffix if provided
+          if [ -n "${{ inputs.prerelease_suffix }}" ]; then
+            NEXT_VERSION="${NEXT_VERSION}-${{ inputs.prerelease_suffix }}"
+          fi
+
+          echo "version=$NEXT_VERSION" >> $GITHUB_OUTPUT
+          echo "tag=v$NEXT_VERSION" >> $GITHUB_OUTPUT
+          echo "Next version: $NEXT_VERSION"
+          echo "Git tag: v$NEXT_VERSION"
+
+      - name: Check if tag already exists
+        run: |
+          if git rev-parse "${{ steps.next_version.outputs.tag }}" >/dev/null 2>&1; then
+            echo "Error: Tag ${{ steps.next_version.outputs.tag }} already exists"
+            exit 1
+          fi
+
+      - name: Update version in faiss.go
+        run: |
+          NEXT_VERSION="${{ steps.next_version.outputs.version }}"
+
+          # Update the Version constant in faiss.go
+          sed -i 's/Version = "[^"]*"/Version = "'$NEXT_VERSION'"/' faiss.go
+
+          echo "Updated version in faiss.go:"
+          grep 'Version = ' faiss.go
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Get the last tag
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+          if [ -z "$LAST_TAG" ]; then
+            echo "No previous tags found, generating full changelog"
+            COMMIT_RANGE="HEAD"
+          else
+            echo "Generating changelog from $LAST_TAG to HEAD"
+            COMMIT_RANGE="$LAST_TAG..HEAD"
+          fi
+
+          # Generate changelog from commit messages
+          CHANGELOG=$(git log $COMMIT_RANGE --pretty=format:"- %s (%h)" --no-merges)
+
+          # Categorize commits
+          {
+            echo "## What's Changed"
+            echo ""
+
+            # Features
+            FEATURES=$(echo "$CHANGELOG" | grep -i "feat:" || true)
+            if [ -n "$FEATURES" ]; then
+              echo "### ✨ Features"
+              echo "$FEATURES"
+              echo ""
+            fi
+
+            # Bug Fixes
+            FIXES=$(echo "$CHANGELOG" | grep -i "fix:" || true)
+            if [ -n "$FIXES" ]; then
+              echo "### 🐛 Bug Fixes"
+              echo "$FIXES"
+              echo ""
+            fi
+
+            # Performance
+            PERF=$(echo "$CHANGELOG" | grep -i "perf:" || true)
+            if [ -n "$PERF" ]; then
+              echo "### ⚡ Performance"
+              echo "$PERF"
+              echo ""
+            fi
+
+            # Documentation
+            DOCS=$(echo "$CHANGELOG" | grep -i "docs:" || true)
+            if [ -n "$DOCS" ]; then
+              echo "### 📚 Documentation"
+              echo "$DOCS"
+              echo ""
+            fi
+
+            # Other changes
+            OTHER=$(echo "$CHANGELOG" | grep -viE "feat:|fix:|perf:|docs:" || true)
+            if [ -n "$OTHER" ]; then
+              echo "### 🔧 Other Changes"
+              echo "$OTHER"
+              echo ""
+            fi
+
+          } > RELEASE_NOTES.md
+
+          cat RELEASE_NOTES.md
+
+      - name: Run tests
+        run: |
+          echo "Running tests before release..."
+          go test -v ./...
+
+      - name: Run linting
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.62.2
+          args: --timeout=5m --build-tags=nogpu
+
+      - name: Commit version bump
+        run: |
+          git add faiss.go
+          git commit -m "chore: Bump version to ${{ steps.next_version.outputs.version }}"
+
+      - name: Create and push tag
+        run: |
+          TAG="${{ steps.next_version.outputs.tag }}"
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin main
+          git push origin "$TAG"
+
+      - name: Create GitHub Release
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const tag = '${{ steps.next_version.outputs.tag }}';
+            const releaseNotes = fs.readFileSync('RELEASE_NOTES.md', 'utf8');
+
+            const isPrerelease = tag.includes('-alpha') || tag.includes('-beta') || tag.includes('-rc');
+
+            const release = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: tag,
+              name: `Release ${tag}`,
+              body: releaseNotes,
+              draft: false,
+              prerelease: isPrerelease
+            });
+
+            console.log(`Created release: ${release.data.html_url}`);
+
+      - name: Summary
+        run: |
+          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Released version:** ${{ steps.next_version.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Installation" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "go get github.com/NerdMeNot/faiss-go@${{ steps.next_version.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Release Notes" >> $GITHUB_STEP_SUMMARY
+          cat RELEASE_NOTES.md >> $GITHUB_STEP_SUMMARY

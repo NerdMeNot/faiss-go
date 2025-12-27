@@ -1,11 +1,14 @@
 name: GPU CI
 
 on:
-  push:
-    branches: [ main ]
   pull_request:
     branches: [ main ]
-  workflow_dispatch:  # Allow manual trigger
+    paths:
+      - '**.go'
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/gpu-ci.yml'
+  workflow_dispatch:  # Allow manual trigger for on-demand GPU testing
 
 jobs:
   gpu-test:
