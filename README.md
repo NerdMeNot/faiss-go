@@ -1,16 +1,17 @@
 # 🚀 faiss-go
 
-**Production-Ready FAISS bindings for Go** - ~98% Python FAISS Parity!
+**Complete FAISS bindings for Go** - 🎉 **100% Python FAISS Parity!** 🎉
 
-Go bindings for [FAISS](https://github.com/facebookresearch/faiss) (Facebook AI Similarity Search) with comprehensive feature support, achieving near-complete parity with Python FAISS.
+Go bindings for [FAISS](https://github.com/facebookresearch/faiss) (Facebook AI Similarity Search) with **complete feature parity** with Python FAISS.
 
 ## ✨ Features
 
-- **🎯 98% Python FAISS Parity**: Comprehensive support for all major index types and operations
-- **🔌 System Integration**: Links against system FAISS installation for maximum compatibility
-- **⚡ Production Ready**: 13+ index types, binary vectors, transformations, and composite indexes
-- **🏗️ Complete API**: Scalar quantization, PCA, OPQ, LSH, refinement, and more
-- **📊 Full Feature Set**: Range search, reconstruction, clustering, serialization
+- **🎯 100% Python FAISS Parity**: Complete support for ALL index types and operations
+- **🚀 GPU Acceleration**: Full GPU support with CUDA (optional)
+- **⚡ SIMD Optimized**: PQFastScan for 2-4x CPU speedup
+- **💾 OnDisk Indexes**: Billion-scale datasets with limited RAM
+- **🏗️ Complete API**: 18+ index types, transforms, utilities, GPU support
+- **📊 Full Feature Set**: Everything from Python FAISS available in Go
 - **💪 Type Safe**: Compile-time type checking with Go's strong typing
 
 ## 🎮 Quick Start

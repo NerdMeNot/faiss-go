@@ -145,6 +145,29 @@ extern int faiss_IndexPreTransform_new(FaissIndex* p_index, FaissVectorTransform
 extern int faiss_IndexShards_new(FaissIndex* p_index, int64_t d, int metric_type);
 extern int faiss_IndexShards_add_shard(FaissIndex index, FaissIndex shard);
 
+// ==== PQFastScan Index Functions ====
+extern int faiss_IndexPQFastScan_new(FaissIndex* p_index, int64_t d, int64_t M, int64_t nbits, int metric_type);
+extern int faiss_IndexIVFPQFastScan_new(FaissIndex* p_index, FaissIndex quantizer, int64_t d, int64_t nlist, int64_t M, int64_t nbits, int metric_type);
+extern int faiss_IndexPQFastScan_set_bbs(FaissIndex index, int64_t bbs);
+
+// ==== OnDisk Index Functions ====
+extern int faiss_IndexIVFFlatOnDisk_new(FaissIndex* p_index, FaissIndex quantizer, int64_t d, int64_t nlist, const char* filename, int metric_type);
+extern int faiss_IndexIVFPQOnDisk_new(FaissIndex* p_index, FaissIndex quantizer, int64_t d, int64_t nlist, int64_t M, int64_t nbits, const char* filename, int metric_type);
+
+// ==== GPU Support Functions ====
+typedef void* FaissGpuResources;
+
+extern int faiss_StandardGpuResources_new(FaissGpuResources* p_res);
+extern int faiss_StandardGpuResources_setTempMemory(FaissGpuResources res, int64_t bytes);
+extern int faiss_StandardGpuResources_setDefaultNullStreamAllDevices(FaissGpuResources res);
+extern void faiss_StandardGpuResources_free(FaissGpuResources res);
+extern int faiss_GpuIndexFlat_new(FaissIndex* p_index, FaissGpuResources res, int64_t d, int metric_type, int64_t device);
+extern int faiss_GpuIndexIVFFlat_new(FaissIndex* p_index, FaissGpuResources res, FaissIndex quantizer, int64_t d, int64_t nlist, int metric_type, int64_t device);
+extern int faiss_index_cpu_to_gpu(FaissGpuResources res, int64_t device, FaissIndex cpu_index, FaissIndex* p_gpu_index);
+extern int faiss_index_gpu_to_cpu(FaissIndex gpu_index, FaissIndex* p_cpu_index, char* index_type, int* d, int* metric, int64_t* ntotal);
+extern int faiss_index_cpu_to_all_gpus(FaissIndex cpu_index, FaissIndex* p_gpu_index);
+extern int faiss_get_num_gpus(int* ngpus);
+
 #ifdef __cplusplus
 }
 #endif
