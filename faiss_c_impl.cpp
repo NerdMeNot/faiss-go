@@ -640,6 +640,8 @@ int faiss_RandomRotationMatrix_new(FaissVectorTransform* p_transform,
                                    int64_t d_in, int64_t d_out) {
     try {
         auto* rr = new faiss::RandomRotationMatrix(d_in, d_out);
+        // Initialize the rotation matrix
+        rr->init(42); // Use a fixed seed for reproducibility
         *p_transform = rr;
         return 0;
     }

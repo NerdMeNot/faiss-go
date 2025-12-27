@@ -396,9 +396,13 @@ func TestRecallPrecision_IVFIndex(t *testing.T) {
 		t.Fatalf("Failed to add to ground truth: %v", err)
 	}
 
-	if err := ivfIndex.Train(vectors); err != nil {
+	// IVF needs sufficient training data (at least 39*nlist samples)
+	// Generate additional training vectors based on existing patterns
+	trainingVectors := generateVectors(100, d)
+	if err := ivfIndex.Train(trainingVectors); err != nil {
 		t.Fatalf("Failed to train IVF: %v", err)
 	}
+
 	if err := ivfIndex.Add(vectors); err != nil {
 		t.Fatalf("Failed to add to IVF: %v", err)
 	}

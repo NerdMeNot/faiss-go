@@ -169,7 +169,7 @@ func TestPQCompressionPipeline(t *testing.T) {
 	d := 128
 	M := 8
 	nbits := 8
-	nb := 2000
+	nb := 5000
 
 	// Create index
 	index, err := NewIndexPQ(d, M, nbits, MetricL2)
@@ -414,7 +414,7 @@ func TestTransformPipeline(t *testing.T) {
 // TestFactoryString tests index creation via factory
 func TestFactoryString(t *testing.T) {
 	d := 64
-	nb := 500
+	nb := 5000
 
 	tests := []struct {
 		name    string

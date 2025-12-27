@@ -17,7 +17,8 @@ import (
 //   - "Flat"              -> IndexFlatL2 or IndexFlatIP
 //   - "IVFn,Flat"        -> IndexIVFFlat with n clusters
 //   - "HNSW32"           -> IndexHNSW with M=32
-//   - "IVFn,PQ8"         -> IndexIVFPQ with n clusters and 8-bit PQ
+//   - "PQ8"              -> IndexPQ with M=8
+//   - "IVFn,PQ8"         -> IndexIVFPQ with n clusters and M=8
 //
 // Examples:
 //   index, _ := faiss.IndexFactory(128, "Flat", faiss.MetricL2)
@@ -65,8 +66,29 @@ func IndexFactory(d int, description string, metric MetricType) (Index, error) {
 			return NewIndexIVFFlat(quantizer, d, nlist, metric)
 		}
 
-		// Future: support PQ, SQ, etc.
+		// Support PQ encoding: "PQnn" where nn is M value
+		if strings.HasPrefix(parts[1], "PQ") {
+			MStr := strings.TrimPrefix(parts[1], "PQ")
+			M, err := strconv.Atoi(MStr)
+			if err != nil {
+				return nil, fmt.Errorf("faiss: invalid PQ description: %s", parts[1])
+			}
+			nbits := 8 // default nbits for PQ
+			return NewIndexIVFPQ(quantizer, d, nlist, M, nbits)
+		}
+
+		// Future: support SQ, etc.
 		return nil, fmt.Errorf("faiss: unsupported IVF storage type: %s", parts[1])
+
+	case strings.HasPrefix(description, "PQ"):
+		// Standalone PQ index: "PQnn" where nn is M value
+		MStr := strings.TrimPrefix(description, "PQ")
+		M, err := strconv.Atoi(MStr)
+		if err != nil {
+			return nil, fmt.Errorf("faiss: invalid PQ description: %s", description)
+		}
+		nbits := 8 // default nbits for PQ
+		return NewIndexPQ(d, M, nbits, metric)
 
 	case strings.HasPrefix(description, "HNSW"):
 		// HNSW index
