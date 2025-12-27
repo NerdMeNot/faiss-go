@@ -24,6 +24,8 @@ import (
 //   index, _ := faiss.IndexFactory(128, "Flat", faiss.MetricL2)
 //   index, _ := faiss.IndexFactory(128, "IVF100,Flat", faiss.MetricL2)
 //   index, _ := faiss.IndexFactory(128, "HNSW32", faiss.MetricL2)
+//
+//nolint:gocyclo,goconst // Factory pattern naturally has high complexity
 func IndexFactory(d int, description string, metric MetricType) (Index, error) {
 	if d <= 0 {
 		return nil, ErrInvalidDimension

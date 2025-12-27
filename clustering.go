@@ -20,7 +20,7 @@ type Kmeans struct {
 	k          int      // number of clusters
 	niter      int      // number of iterations
 	centroids  []float32 // cluster centroids (k * d)
-	obj        []float32 // objective function values per iteration
+	_obj       []float32 // objective function values (reserved for future use)
 	isTrained  bool     // training status
 }
 
