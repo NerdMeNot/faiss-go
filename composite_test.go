@@ -11,7 +11,7 @@ import (
 func TestIndexRefine(t *testing.T) {
 	d := 64
 	nlist := 10
-	nb := 500
+	nb := 1000
 
 	// Create base index (IVF for speed)
 	quantizer, err := NewIndexFlatL2(d)

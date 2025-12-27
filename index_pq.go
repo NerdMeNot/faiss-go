@@ -250,6 +250,7 @@ func (idx *IndexPQ) Close() error {
 // billion-scale search with limited memory.
 type IndexIVFPQ struct {
 	ptr       uintptr    // C pointer
+	quantizer Index      // quantizer index (must be kept alive)
 	d         int        // dimension
 	metric    MetricType // metric type
 	ntotal    int64      // number of vectors
@@ -310,6 +311,7 @@ func NewIndexIVFPQ(quantizer Index, d, nlist, M, nbits int) (*IndexIVFPQ, error)
 
 	idx := &IndexIVFPQ{
 		ptr:       ptr,
+		quantizer: quantizer, // Keep reference to prevent GC
 		d:         d,
 		metric:    quantizer.MetricType(),
 		ntotal:    0,

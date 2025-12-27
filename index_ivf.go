@@ -13,6 +13,7 @@ import (
 // Python equivalent: faiss.IndexIVFFlat
 type IndexIVFFlat struct {
 	ptr       uintptr     // C pointer
+	quantizer Index       // quantizer index (must be kept alive)
 	d         int         // dimension
 	metric    MetricType  // metric type
 	ntotal    int64       // number of vectors
@@ -58,6 +59,7 @@ func NewIndexIVFFlat(quantizer Index, d, nlist int, metric MetricType) (*IndexIV
 
 	idx := &IndexIVFFlat{
 		ptr:       ptr,
+		quantizer: quantizer, // Keep reference to prevent GC
 		d:         d,
 		metric:    metric,
 		ntotal:    0,
