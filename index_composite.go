@@ -508,11 +508,11 @@ func (idx *IndexShards) D() int {
 
 // Ntotal returns the total number of vectors across all shards
 func (idx *IndexShards) Ntotal() int64 {
-	total := int64(0)
-	for _, shard := range idx.shards {
-		total += shard.Ntotal()
+	if idx.ptr == 0 {
+		return 0
 	}
-	return total
+	// Query FAISS directly - it tracks the total across all shards
+	return faiss_Index_ntotal(idx.ptr)
 }
 
 // IsTrained returns whether all shards are trained

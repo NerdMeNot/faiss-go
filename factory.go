@@ -6,6 +6,11 @@ import (
 	"strings"
 )
 
+const (
+	indexTypeFlat       = "Flat"
+	indexTypeIndexFlatL2 = "IndexFlatL2" // for factory string matching
+)
+
 // IndexFactory creates an index from a description string
 //
 // This provides a convenient way to create indexes with various configurations
@@ -36,7 +41,7 @@ func IndexFactory(d int, description string, metric MetricType) (Index, error) {
 
 	// Parse the description
 	switch {
-	case description == "Flat":
+	case description == indexTypeFlat:
 		// Simple flat index
 		if metric == MetricL2 {
 			return NewIndexFlatL2(d)
@@ -136,8 +141,8 @@ func ParseIndexDescription(description string) map[string]interface{} {
 	result["raw"] = description
 
 	switch {
-	case description == "Flat":
-		result["type"] = "Flat"
+	case description == indexTypeFlat:
+		result["type"] = indexTypeFlat
 
 	case strings.HasPrefix(parts[0], "IVF"):
 		result["type"] = "IVF"
@@ -193,7 +198,7 @@ func RecommendIndex(n int64, d int, metric MetricType, requirements map[string]i
 	switch {
 	case n < 10000:
 		// Small dataset: use exact search
-		return "Flat"
+		return indexTypeFlat
 
 	case n < 1000000 && speedPref == "fast":
 		// Medium dataset, need speed: use HNSW

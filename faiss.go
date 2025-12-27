@@ -222,6 +222,8 @@ func (idx *IndexFlat) Add(vectors []float32) error {
 }
 
 // Search searches for the k nearest neighbors of the query vectors
+// For large batches (>100 queries), this releases the Go scheduler during
+// the C++ computation to prevent blocking other goroutines
 func (idx *IndexFlat) Search(queries []float32, k int) (distances []float32, indices []int64, err error) {
 	if idx.ptr == 0 {
 		return nil, nil, ErrNullPointer
@@ -243,6 +245,13 @@ func (idx *IndexFlat) Search(queries []float32, k int) (distances []float32, ind
 
 	distances = make([]float32, nq*k)
 	indices = make([]int64, nq*k)
+
+	// For large searches, lock to OS thread to optimize C++ performance
+	// and prevent Go scheduler from migrating goroutine during computation
+	if nq > 100 {
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+	}
 
 	if err := faissIndexSearch(idx.ptr, queries, nq, k, distances, indices); err != nil {
 		return nil, nil, fmt.Errorf("faiss: search failed: %w", err)
