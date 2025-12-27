@@ -149,17 +149,17 @@ func TestIndexComparison(t *testing.T) {
 
 	configs := []RecallTestConfig{
 		{
-			Name:       "Flat_L2_baseline",
-			IndexType:  "IndexFlatL2",
+			Name:      "Flat_L2_baseline",
+			IndexType: "IndexFlatL2",
 			BuildIndex: func(d int, metric faiss.MetricType) (faiss.Index, error) {
 				return faiss.NewIndexFlatL2(d), nil
 			},
-			N:           10000,
-			D:           128,
-			NQ:          100,
-			MinRecall10: 1.0,
-			K:           10,
-			Metric:      faiss.MetricL2,
+			N:            10000,
+			D:            128,
+			NQ:           100,
+			MinRecall10:  1.0,
+			K:            10,
+			Metric:       faiss.MetricL2,
 			Distribution: datasets.UniformRandom,
 		},
 		{

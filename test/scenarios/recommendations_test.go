@@ -19,10 +19,10 @@ func TestRecommendations_ItemToItem(t *testing.T) {
 	// Simulate product embeddings learned from user interactions
 	t.Log("Simulating item-to-item recommendations...")
 
-	nItems := 10000000   // 10M products
-	dim := 128           // Embedding dimension
-	nRequests := 1000    // 1K recommendation requests
-	k := 50              // Top-50 recommendations
+	nItems := 10000000 // 10M products
+	dim := 128         // Embedding dimension
+	nRequests := 1000  // 1K recommendation requests
+	k := 50            // Top-50 recommendations
 
 	t.Logf("Dataset: %d items, %d dimensions", nItems, dim)
 
@@ -149,10 +149,10 @@ func TestRecommendations_ContentBased(t *testing.T) {
 	}
 
 	// Simulate video/article embeddings
-	nContent := 500000   // 500K videos/articles
-	dim := 512           // Content embedding dimension
-	nUsers := 1000       // 1K active users
-	k := 20              // Top-20 recommendations
+	nContent := 500000 // 500K videos/articles
+	dim := 512         // Content embedding dimension
+	nUsers := 1000     // 1K active users
+	k := 20            // Top-20 recommendations
 
 	t.Logf("Simulating content-based recommendations for %d items", nContent)
 
@@ -215,10 +215,10 @@ func TestRecommendations_ContentBased(t *testing.T) {
 // TestRecommendations_PersonalizedRanking simulates personalized ranking
 func TestRecommendations_PersonalizedRanking(t *testing.T) {
 	// Use case: Re-rank candidate items based on user preference
-	nCandidates := 1000  // Pre-filtered candidates
-	nUsers := 500        // Active users
-	dim := 256           // User/item embedding dimension
-	k := 10              // Top-10 personalized results
+	nCandidates := 1000 // Pre-filtered candidates
+	nUsers := 500       // Active users
+	dim := 256          // User/item embedding dimension
+	k := 10             // Top-10 personalized results
 
 	t.Logf("Simulating personalized ranking for %d users", nUsers)
 
@@ -264,10 +264,10 @@ func TestRecommendations_CollaborativeFiltering(t *testing.T) {
 	}
 
 	// Use case: User-user or item-item collaborative filtering
-	nItems := 100000     // 100K items
-	dim := 128           // Latent factor dimension
-	nQueries := 2000     // 2K recommendation requests
-	k := 30              // Top-30 recommendations
+	nItems := 100000 // 100K items
+	dim := 128       // Latent factor dimension
+	nQueries := 2000 // 2K recommendation requests
+	k := 30          // Top-30 recommendations
 
 	t.Logf("Simulating collaborative filtering with %d items", nItems)
 

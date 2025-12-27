@@ -20,10 +20,10 @@ func TestSemanticSearch_DocumentRetrieval(t *testing.T) {
 	// Simulate BERT-style embeddings (768-dim, normalized)
 	t.Log("Simulating document retrieval with BERT-like embeddings...")
 
-	nDocs := 100000      // 100K documents
-	dim := 768           // BERT-base dimension
-	nQueries := 1000     // 1K search queries
-	k := 10              // Top-10 results
+	nDocs := 100000  // 100K documents
+	dim := 768       // BERT-base dimension
+	nQueries := 1000 // 1K search queries
+	k := 10          // Top-10 results
 
 	t.Logf("Dataset: %d documents, %d dimensions", nDocs, dim)
 
@@ -33,9 +33,9 @@ func TestSemanticSearch_DocumentRetrieval(t *testing.T) {
 
 	// Test different index types suitable for semantic search
 	testCases := []struct {
-		name         string
-		buildIndex   func() faiss.Index
-		minRecall    float64
+		name          string
+		buildIndex    func() faiss.Index
+		minRecall     float64
 		maxLatencyP99 time.Duration
 	}{
 		{
@@ -45,7 +45,7 @@ func TestSemanticSearch_DocumentRetrieval(t *testing.T) {
 				index.HnswSetEfSearch(64)
 				return index
 			},
-			minRecall:    0.95,
+			minRecall:     0.95,
 			maxLatencyP99: 10 * time.Millisecond,
 		},
 		{
@@ -56,7 +56,7 @@ func TestSemanticSearch_DocumentRetrieval(t *testing.T) {
 				index.SetNprobe(20)
 				return index
 			},
-			minRecall:    0.85,
+			minRecall:     0.85,
 			maxLatencyP99: 8 * time.Millisecond,
 		},
 		{
@@ -67,7 +67,7 @@ func TestSemanticSearch_DocumentRetrieval(t *testing.T) {
 				index.SetNprobe(20)
 				return index
 			},
-			minRecall:    0.80,
+			minRecall:     0.80,
 			maxLatencyP99: 7 * time.Millisecond,
 		},
 	}

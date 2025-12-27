@@ -20,10 +20,10 @@ func TestImageSimilarity_VisualSearch(t *testing.T) {
 	// Simulate ResNet50 features (2048-dim, L2-normalized)
 	t.Log("Simulating visual search with ResNet50-like features...")
 
-	nImages := 1000000    // 1M product images
-	dim := 2048          // ResNet50 feature dimension
-	nQueries := 500      // 500 user searches
-	k := 20              // Top-20 similar products
+	nImages := 1000000 // 1M product images
+	dim := 2048        // ResNet50 feature dimension
+	nQueries := 500    // 500 user searches
+	k := 20            // Top-20 similar products
 
 	t.Logf("Dataset: %d images, %d dimensions", nImages, dim)
 
@@ -33,9 +33,9 @@ func TestImageSimilarity_VisualSearch(t *testing.T) {
 
 	// Test index types suitable for large-scale image search
 	testCases := []struct {
-		name         string
-		buildIndex   func() faiss.Index
-		minRecall    float64
+		name          string
+		buildIndex    func() faiss.Index
+		minRecall     float64
 		maxLatencyP99 time.Duration
 	}{
 		{
@@ -45,7 +45,7 @@ func TestImageSimilarity_VisualSearch(t *testing.T) {
 				index.HnswSetEfSearch(128)
 				return index
 			},
-			minRecall:    0.95,
+			minRecall:     0.95,
 			maxLatencyP99: 15 * time.Millisecond,
 		},
 		{
@@ -56,7 +56,7 @@ func TestImageSimilarity_VisualSearch(t *testing.T) {
 				index.SetNprobe(32)
 				return index
 			},
-			minRecall:    0.80,
+			minRecall:     0.80,
 			maxLatencyP99: 10 * time.Millisecond,
 		},
 	}

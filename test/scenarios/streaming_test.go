@@ -24,8 +24,8 @@ func TestStreaming_ConcurrentAddAndSearch(t *testing.T) {
 	dim := 256
 	initialSize := 50000
 	streamDuration := 10 * time.Second
-	addRate := 1000                    // 1K vectors/sec
-	queryRate := 100                   // 100 queries/sec
+	addRate := 1000  // 1K vectors/sec
+	queryRate := 100 // 100 queries/sec
 	k := 10
 
 	t.Logf("Configuration:")

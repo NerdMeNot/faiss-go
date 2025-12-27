@@ -19,14 +19,14 @@ type RecallMetrics struct {
 
 // PerformanceMetrics contains performance measurements
 type PerformanceMetrics struct {
-	P50Latency    time.Duration // Median latency
-	P95Latency    time.Duration // 95th percentile latency
-	P99Latency    time.Duration // 99th percentile latency
-	QPS           float64       // Queries per second
-	TotalTime     time.Duration // Total time for all queries
-	AvgLatency    time.Duration // Average latency
-	MinLatency    time.Duration // Minimum latency
-	MaxLatency    time.Duration // Maximum latency
+	P50Latency time.Duration // Median latency
+	P95Latency time.Duration // 95th percentile latency
+	P99Latency time.Duration // 99th percentile latency
+	QPS        float64       // Queries per second
+	TotalTime  time.Duration // Total time for all queries
+	AvgLatency time.Duration // Average latency
+	MinLatency time.Duration // Minimum latency
+	MaxLatency time.Duration // Maximum latency
 }
 
 // SearchResult represents search results for a single query

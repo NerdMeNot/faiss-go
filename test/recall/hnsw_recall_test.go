@@ -30,17 +30,17 @@ func TestHNSW_Recall_Synthetic(t *testing.T) {
 // TestHNSW_Recall_SIFT10K tests HNSW with real SIFT dataset
 func TestHNSW_Recall_SIFT10K(t *testing.T) {
 	config := RecallTestConfig{
-		Name:          "HNSW_M32_efSearch64_SIFT10K",
-		IndexType:     "IndexHNSWFlat",
-		BuildIndex:    buildHNSW(32, 64),
-		UseDataset:    "SIFT10K",
-		MinRecall1:    0.90,
-		MinRecall10:   0.95,
-		MinRecall100:  0.90,
-		K:             100,
-		Metric:        faiss.MetricL2,
-		TestdataPath:  DefaultTestdataPath(),
-		SkipIfNoData:  true,
+		Name:         "HNSW_M32_efSearch64_SIFT10K",
+		IndexType:    "IndexHNSWFlat",
+		BuildIndex:   buildHNSW(32, 64),
+		UseDataset:   "SIFT10K",
+		MinRecall1:   0.90,
+		MinRecall10:  0.95,
+		MinRecall100: 0.90,
+		K:            100,
+		Metric:       faiss.MetricL2,
+		TestdataPath: DefaultTestdataPath(),
+		SkipIfNoData: true,
 	}
 
 	RunRecallTest(t, config)
@@ -53,15 +53,15 @@ func TestHNSW_Recall_SIFT1M(t *testing.T) {
 	}
 
 	config := RecallTestConfig{
-		Name:          "HNSW_M32_efSearch64_SIFT1M",
-		IndexType:     "IndexHNSWFlat",
-		BuildIndex:    buildHNSW(32, 64),
-		UseDataset:    "SIFT1M",
-		MinRecall10:   0.95,
-		K:             10,
-		Metric:        faiss.MetricL2,
-		TestdataPath:  DefaultTestdataPath(),
-		SkipIfNoData:  true,
+		Name:         "HNSW_M32_efSearch64_SIFT1M",
+		IndexType:    "IndexHNSWFlat",
+		BuildIndex:   buildHNSW(32, 64),
+		UseDataset:   "SIFT1M",
+		MinRecall10:  0.95,
+		K:            10,
+		Metric:       faiss.MetricL2,
+		TestdataPath: DefaultTestdataPath(),
+		SkipIfNoData: true,
 	}
 
 	RunRecallTest(t, config)

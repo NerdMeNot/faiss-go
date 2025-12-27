@@ -13,15 +13,15 @@ import (
 // RecallTestConfig configures a recall validation test
 type RecallTestConfig struct {
 	// Test identification
-	Name        string // Test name (e.g., "HNSW_M32_efSearch64")
-	IndexType   string // Index type description
+	Name      string // Test name (e.g., "HNSW_M32_efSearch64")
+	IndexType string // Index type description
 
 	// Index builder
 	BuildIndex func(d int, metric faiss.MetricType) (faiss.Index, error)
 
 	// Training configuration
-	NeedsTraining bool   // Whether index requires training
-	TrainSize     int    // Number of vectors for training (0 = use all)
+	NeedsTraining bool // Whether index requires training
+	TrainSize     int  // Number of vectors for training (0 = use all)
 
 	// Dataset
 	UseDataset string // Dataset name (e.g., "SIFT10K") or empty for synthetic
@@ -36,14 +36,14 @@ type RecallTestConfig struct {
 
 	// Performance targets (0 = skip check)
 	MaxP99Latency time.Duration // Maximum P99 latency
-	MinQPS        float64        // Minimum queries per second
+	MinQPS        float64       // Minimum queries per second
 
 	// Test configuration
-	K              int                      // Number of neighbors to retrieve
-	Metric         faiss.MetricType         // Distance metric
-	Distribution   datasets.DataDistribution // For synthetic data
-	TestdataPath   string                   // Path to testdata directory
-	SkipIfNoData   bool                     // Skip instead of fail if dataset missing
+	K            int                       // Number of neighbors to retrieve
+	Metric       faiss.MetricType          // Distance metric
+	Distribution datasets.DataDistribution // For synthetic data
+	TestdataPath string                    // Path to testdata directory
+	SkipIfNoData bool                      // Skip instead of fail if dataset missing
 }
 
 // RecallTestResult contains test results
@@ -104,7 +104,7 @@ func RunRecallTest(t *testing.T, config RecallTestConfig) RecallTestResult {
 			D:            config.D,
 			Distribution: config.Distribution,
 			NumClusters:  int(float64(config.N) * 0.1), // ~10% clusters
-			Seed:         42, // Reproducible
+			Seed:         42,                           // Reproducible
 		}
 
 		synData := datasets.GenerateSyntheticData(genConfig)

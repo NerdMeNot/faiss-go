@@ -239,8 +239,8 @@ func TestPQ_HighDimensional(t *testing.T) {
 		d int
 		m int
 	}{
-		{768, 48},   // BERT: 768-dim, M=48 (16x compression)
-		{1536, 64},  // OpenAI: 1536-dim, M=64 (24x compression)
+		{768, 48},  // BERT: 768-dim, M=48 (16x compression)
+		{1536, 64}, // OpenAI: 1536-dim, M=64 (24x compression)
 	}
 
 	for _, dim := range dimensions {
@@ -349,17 +349,17 @@ func TestPQ_MemoryEfficiency(t *testing.T) {
 	// Compare PQ memory vs Flat index
 	configs := []RecallTestConfig{
 		{
-			Name:       "Flat_L2_baseline",
-			IndexType:  "IndexFlatL2",
+			Name:      "Flat_L2_baseline",
+			IndexType: "IndexFlatL2",
 			BuildIndex: func(d int, metric faiss.MetricType) (faiss.Index, error) {
 				return faiss.NewIndexFlatL2(d), nil
 			},
-			N:           n,
-			D:           d,
-			NQ:          100,
-			MinRecall10: 1.0,
-			K:           10,
-			Metric:      faiss.MetricL2,
+			N:            n,
+			D:            d,
+			NQ:           100,
+			MinRecall10:  1.0,
+			K:            10,
+			Metric:       faiss.MetricL2,
 			Distribution: datasets.UniformRandom,
 		},
 		{
