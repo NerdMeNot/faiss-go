@@ -105,7 +105,10 @@ func (idx *IndexRefine) Ntotal() int64 {
 
 // IsTrained returns whether the index has been trained
 func (idx *IndexRefine) IsTrained() bool {
-	return idx.baseIndex.IsTrained()
+	if idx.ptr == 0 {
+		return false
+	}
+	return faiss_Index_is_trained(idx.ptr) != 0
 }
 
 // MetricType returns the distance metric used
@@ -314,7 +317,10 @@ func (idx *IndexPreTransform) Ntotal() int64 {
 
 // IsTrained returns whether both transform and index are trained
 func (idx *IndexPreTransform) IsTrained() bool {
-	return idx.transform.IsTrained() && idx.index.IsTrained()
+	if idx.ptr == 0 {
+		return false
+	}
+	return faiss_Index_is_trained(idx.ptr) != 0
 }
 
 // MetricType returns the distance metric used
@@ -511,12 +517,12 @@ func (idx *IndexShards) Ntotal() int64 {
 
 // IsTrained returns whether all shards are trained
 func (idx *IndexShards) IsTrained() bool {
-	for _, shard := range idx.shards {
-		if !shard.IsTrained() {
-			return false
-		}
+	if idx.ptr == 0 {
+		return false
 	}
-	return true
+	// IndexShards is always considered trained (it's just a container)
+	// But we should query FAISS to be consistent
+	return faiss_Index_is_trained(idx.ptr) != 0
 }
 
 // MetricType returns the distance metric
@@ -524,13 +530,26 @@ func (idx *IndexShards) MetricType() MetricType {
 	return idx.metric
 }
 
-// Train trains all shards
+// Train trains all shards via the IndexShards composite index
 func (idx *IndexShards) Train(vectors []float32) error {
-	for _, shard := range idx.shards {
-		if err := shard.Train(vectors); err != nil {
-			return fmt.Errorf("shard training failed: %w", err)
-		}
+	if len(idx.shards) == 0 {
+		return fmt.Errorf("no shards added")
 	}
+	if len(vectors) == 0 {
+		return fmt.Errorf("empty training vectors")
+	}
+	if len(vectors)%idx.d != 0 {
+		return fmt.Errorf("vectors length must be multiple of dimension %d", idx.d)
+	}
+
+	// Call faiss_Index_train on the IndexShards pointer
+	// FAISS will internally train all child shards and set is_trained flag
+	n := int64(len(vectors) / idx.d)
+	ret := faiss_Index_train(idx.ptr, n, &vectors[0])
+	if ret != 0 {
+		return fmt.Errorf("training failed")
+	}
+
 	idx.isTrained = true
 	return nil
 }

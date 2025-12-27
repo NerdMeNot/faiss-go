@@ -220,8 +220,13 @@ func TestIndexShards(t *testing.T) {
 		t.Fatalf("Failed to add shard2: %v", err)
 	}
 
-	// Add vectors (distributed across shards)
+	// Train (required to set FAISS is_trained flag even though shards don't need training)
 	vectors := generateVectors(nb, d)
+	if err := shards.Train(vectors); err != nil {
+		t.Fatalf("Training failed: %v", err)
+	}
+
+	// Add vectors (distributed across shards)
 	if err := shards.Add(vectors); err != nil {
 		t.Fatalf("Add failed: %v", err)
 	}
