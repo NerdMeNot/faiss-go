@@ -211,7 +211,7 @@ func TestConcurrentIndexCreation(t *testing.T) {
 // TestBinaryIndexMemory tests binary index memory management
 func TestBinaryIndexMemory(t *testing.T) {
 	d := 256
-	nb := 100
+	nb := 500 // Binary IVF with nlist=10 requires 39 * 10 = 390 training points
 	binaryVectors := generateBinaryVectors(nb, d)
 
 	tests := []struct {

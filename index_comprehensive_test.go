@@ -208,7 +208,7 @@ func TestIndexPQ(t *testing.T) {
 	d := 128
 	M := 8
 	nbits := 8
-	nb := 5000
+	nb := 10000 // PQ with nbits=8 requires 39 * 256 = 9984 training points
 
 	index, err := NewIndexPQ(d, M, nbits, MetricL2)
 	if err != nil {

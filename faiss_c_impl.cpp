@@ -710,8 +710,7 @@ int faiss_IndexPreTransform_new(FaissIndex* p_index, FaissVectorTransform transf
 
 int faiss_IndexShards_new(FaissIndex* p_index, int64_t d, int metric_type) {
     try {
-        faiss::MetricType metric = metric_type == 0 ?
-            faiss::METRIC_INNER_PRODUCT : faiss::METRIC_L2;
+        (void)metric_type; // IndexShards doesn't use metric in constructor
         *p_index = new faiss::IndexShards(d, true, false); // threaded=true, successive_ids=false
         return 0;
     }
@@ -755,6 +754,8 @@ int faiss_IndexIVFPQFastScan_new(FaissIndex* p_index, FaissIndex quantizer,
 
 int faiss_IndexPQFastScan_set_bbs(FaissIndex index, int64_t bbs) {
     try {
+        (void)index;
+        (void)bbs;
         // Block size setting (SIMD-specific)
         // For regular PQ, this is a no-op
         return 0;
@@ -767,6 +768,7 @@ int faiss_IndexPQFastScan_set_bbs(FaissIndex index, int64_t bbs) {
 int faiss_IndexIVFFlatOnDisk_new(FaissIndex* p_index, FaissIndex quantizer,
                                   int64_t d, int64_t nlist, const char* filename, int metric_type) {
     try {
+        (void)filename; // OnDisk support not fully implemented - using in-memory fallback
         faiss::MetricType metric = metric_type == 0 ?
             faiss::METRIC_INNER_PRODUCT : faiss::METRIC_L2;
         // Note: OnDisk indexes require special inverted list setup
@@ -782,6 +784,7 @@ int faiss_IndexIVFPQOnDisk_new(FaissIndex* p_index, FaissIndex quantizer,
                                int64_t d, int64_t nlist, int64_t M, int64_t nbits,
                                const char* filename, int metric_type) {
     try {
+        (void)filename; // OnDisk support not fully implemented - using in-memory fallback
         faiss::MetricType metric = metric_type == 0 ?
             faiss::METRIC_INNER_PRODUCT : faiss::METRIC_L2;
         auto* idx = new faiss::IndexIVFPQ(quantizer, d, nlist, M, nbits, metric);
@@ -898,15 +901,41 @@ int faiss_get_num_gpus(int* ngpus) {
 #else
 
 // GPU stubs when CUDA not available
-int faiss_StandardGpuResources_new(void** p_res) { return -1; }
-int faiss_StandardGpuResources_setTempMemory(void* res, int64_t bytes) { return -1; }
-int faiss_StandardGpuResources_setDefaultNullStreamAllDevices(void* res) { return -1; }
-void faiss_StandardGpuResources_free(void* res) {}
-int faiss_GpuIndexFlat_new(void** p_index, void* res, int64_t d, int metric_type, int64_t device) { return -1; }
-int faiss_GpuIndexIVFFlat_new(void** p_index, void* res, void* quantizer, int64_t d, int64_t nlist, int metric_type, int64_t device) { return -1; }
-int faiss_index_cpu_to_gpu(void* res, int64_t device, void* cpu_index, void** p_gpu_index) { return -1; }
-int faiss_index_gpu_to_cpu(void* gpu_index, void** p_cpu_index, char* index_type, int* d, int* metric, int64_t* ntotal) { return -1; }
-int faiss_index_cpu_to_all_gpus(void* cpu_index, void** p_gpu_index) { return -1; }
+int faiss_StandardGpuResources_new(void** p_res) {
+    (void)p_res;
+    return -1;
+}
+int faiss_StandardGpuResources_setTempMemory(void* res, int64_t bytes) {
+    (void)res; (void)bytes;
+    return -1;
+}
+int faiss_StandardGpuResources_setDefaultNullStreamAllDevices(void* res) {
+    (void)res;
+    return -1;
+}
+void faiss_StandardGpuResources_free(void* res) {
+    (void)res;
+}
+int faiss_GpuIndexFlat_new(void** p_index, void* res, int64_t d, int metric_type, int64_t device) {
+    (void)p_index; (void)res; (void)d; (void)metric_type; (void)device;
+    return -1;
+}
+int faiss_GpuIndexIVFFlat_new(void** p_index, void* res, void* quantizer, int64_t d, int64_t nlist, int metric_type, int64_t device) {
+    (void)p_index; (void)res; (void)quantizer; (void)d; (void)nlist; (void)metric_type; (void)device;
+    return -1;
+}
+int faiss_index_cpu_to_gpu(void* res, int64_t device, void* cpu_index, void** p_gpu_index) {
+    (void)res; (void)device; (void)cpu_index; (void)p_gpu_index;
+    return -1;
+}
+int faiss_index_gpu_to_cpu(void* gpu_index, void** p_cpu_index, char* index_type, int* d, int* metric, int64_t* ntotal) {
+    (void)gpu_index; (void)p_cpu_index; (void)index_type; (void)d; (void)metric; (void)ntotal;
+    return -1;
+}
+int faiss_index_cpu_to_all_gpus(void* cpu_index, void** p_gpu_index) {
+    (void)cpu_index; (void)p_gpu_index;
+    return -1;
+}
 int faiss_get_num_gpus(int* ngpus) { *ngpus = 0; return 0; }
 
 #endif // FAISS_GPU
