@@ -219,8 +219,8 @@ func TestIndexPQ(t *testing.T) {
 	if index.GetM() != M {
 		t.Errorf("Expected M=%d, got %d", M, index.GetM())
 	}
-	if index.Nbits() != nbits {
-		t.Errorf("Expected nbits=%d, got %d", nbits, index.Nbits())
+	if index.GetNbits() != nbits {
+		t.Errorf("Expected nbits=%d, got %d", nbits, index.GetNbits())
 	}
 
 	// Train
@@ -269,7 +269,7 @@ func TestIndexIVFPQ(t *testing.T) {
 	}
 	defer quantizer.Close()
 
-	index, err := NewIndexIVFPQ(quantizer, d, nlist, M, nbits, MetricL2)
+	index, err := NewIndexIVFPQ(quantizer, d, nlist, M, nbits)
 	if err != nil {
 		t.Fatalf("Failed to create IndexIVFPQ: %v", err)
 	}
@@ -310,7 +310,7 @@ func TestIndexHNSW(t *testing.T) {
 	M := 16
 	nb := 500
 
-	index, err := NewIndexHNSW(d, M, MetricL2)
+	index, err := NewIndexHNSWFlat(d, M, MetricL2)
 	if err != nil {
 		t.Fatalf("Failed to create IndexHNSW: %v", err)
 	}

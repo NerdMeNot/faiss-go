@@ -78,16 +78,14 @@ func (idx *IndexScalarQuantizer) D() int {
 
 // Ntotal returns the number of vectors in the index
 func (idx *IndexScalarQuantizer) Ntotal() int64 {
-	var ntotal int64
-	faiss_Index_ntotal(idx.ptr, &ntotal)
+	ntotal := faiss_Index_ntotal(idx.ptr)
 	idx.ntotal = ntotal
 	return ntotal
 }
 
 // IsTrained returns whether the index has been trained
 func (idx *IndexScalarQuantizer) IsTrained() bool {
-	var isTrained int
-	faiss_Index_is_trained(idx.ptr, &isTrained)
+	isTrained := faiss_Index_is_trained(idx.ptr)
 	idx.isTrained = (isTrained != 0)
 	return idx.isTrained
 }
@@ -277,16 +275,14 @@ func (idx *IndexIVFScalarQuantizer) D() int {
 
 // Ntotal returns the number of vectors in the index
 func (idx *IndexIVFScalarQuantizer) Ntotal() int64 {
-	var ntotal int64
-	faiss_Index_ntotal(idx.ptr, &ntotal)
+	ntotal := faiss_Index_ntotal(idx.ptr)
 	idx.ntotal = ntotal
 	return ntotal
 }
 
 // IsTrained returns whether the index has been trained
 func (idx *IndexIVFScalarQuantizer) IsTrained() bool {
-	var isTrained int
-	faiss_Index_is_trained(idx.ptr, &isTrained)
+	isTrained := faiss_Index_is_trained(idx.ptr)
 	idx.isTrained = (isTrained != 0)
 	return idx.isTrained
 }

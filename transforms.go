@@ -51,7 +51,7 @@ func NewPCAMatrix(dIn, dOut int) (*PCAMatrix, error) {
 	}
 
 	var ptr uintptr
-	ret := faiss_PCAMatrix_new(&ptr, int64(dIn), int64(dOut), 0, false)
+	ret := faiss_PCAMatrix_new(&ptr, int64(dIn), int64(dOut), 0, 0)
 	if ret != 0 {
 		return nil, fmt.Errorf("failed to create PCAMatrix")
 	}
@@ -77,7 +77,7 @@ func NewPCAMatrixWithEigen(dIn, dOut int, eigenPower float32) (*PCAMatrix, error
 	}
 
 	var ptr uintptr
-	ret := faiss_PCAMatrix_new(&ptr, int64(dIn), int64(dOut), eigenPower, true)
+	ret := faiss_PCAMatrix_new(&ptr, int64(dIn), int64(dOut), eigenPower, 1)
 	if ret != 0 {
 		return nil, fmt.Errorf("failed to create PCAMatrix")
 	}

@@ -84,16 +84,14 @@ func (idx *IndexIVFFlatOnDisk) D() int {
 
 // Ntotal returns the number of vectors in the index
 func (idx *IndexIVFFlatOnDisk) Ntotal() int64 {
-	var ntotal int64
-	faiss_Index_ntotal(idx.ptr, &ntotal)
+	ntotal := faiss_Index_ntotal(idx.ptr)
 	idx.ntotal = ntotal
 	return ntotal
 }
 
 // IsTrained returns whether the index has been trained
 func (idx *IndexIVFFlatOnDisk) IsTrained() bool {
-	var isTrained int
-	faiss_Index_is_trained(idx.ptr, &isTrained)
+	isTrained := faiss_Index_is_trained(idx.ptr)
 	idx.isTrained = (isTrained != 0)
 	return idx.isTrained
 }
@@ -307,16 +305,14 @@ func (idx *IndexIVFPQOnDisk) D() int {
 
 // Ntotal returns the number of vectors in the index
 func (idx *IndexIVFPQOnDisk) Ntotal() int64 {
-	var ntotal int64
-	faiss_Index_ntotal(idx.ptr, &ntotal)
+	ntotal := faiss_Index_ntotal(idx.ptr)
 	idx.ntotal = ntotal
 	return ntotal
 }
 
 // IsTrained returns whether the index has been trained
 func (idx *IndexIVFPQOnDisk) IsTrained() bool {
-	var isTrained int
-	faiss_Index_is_trained(idx.ptr, &isTrained)
+	isTrained := faiss_Index_is_trained(idx.ptr)
 	idx.isTrained = (isTrained != 0)
 	return idx.isTrained
 }

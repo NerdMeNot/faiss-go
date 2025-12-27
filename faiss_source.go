@@ -655,3 +655,319 @@ func faissIndexReconstructN(ptr uintptr, i0, ni int64, recons []float32) error {
 	}
 	return nil
 }
+
+// ==== Binary Index Wrapper Functions ====
+
+func faiss_IndexBinaryFlat_new(p_index *uintptr, d int64) int {
+	var idx C.FaissIndexBinary
+	ret := C.faiss_IndexBinaryFlat_new(&idx, C.int64_t(d))
+	if ret == 0 && idx != nil {
+		*p_index = uintptr(unsafe.Pointer(idx))
+	}
+	return int(ret)
+}
+
+func faiss_IndexBinaryIVF_new(p_index *uintptr, quantizer uintptr, d, nlist int64) int {
+	var idx C.FaissIndexBinary
+	q := C.FaissIndexBinary(unsafe.Pointer(quantizer))
+	ret := C.faiss_IndexBinaryIVF_new(&idx, q, C.int64_t(d), C.int64_t(nlist))
+	if ret == 0 && idx != nil {
+		*p_index = uintptr(unsafe.Pointer(idx))
+	}
+	return int(ret)
+}
+
+func faiss_IndexBinaryHash_new(p_index *uintptr, d, nbits int64) int {
+	var idx C.FaissIndexBinary
+	ret := C.faiss_IndexBinaryHash_new(&idx, C.int64_t(d), C.int64_t(nbits))
+	if ret == 0 && idx != nil {
+		*p_index = uintptr(unsafe.Pointer(idx))
+	}
+	return int(ret)
+}
+
+func faiss_IndexBinary_add(index uintptr, n int64, x *uint8) int {
+	idx := C.FaissIndexBinary(unsafe.Pointer(index))
+	ret := C.faiss_IndexBinary_add(idx, C.int64_t(n), (*C.uint8_t)(unsafe.Pointer(x)))
+	return int(ret)
+}
+
+func faiss_IndexBinary_search(index uintptr, n int64, x *uint8, k int64, distances *int32, labels *int64) int {
+	idx := C.FaissIndexBinary(unsafe.Pointer(index))
+	ret := C.faiss_IndexBinary_search(idx, C.int64_t(n), (*C.uint8_t)(unsafe.Pointer(x)),
+		C.int64_t(k), (*C.int32_t)(unsafe.Pointer(distances)), (*C.int64_t)(unsafe.Pointer(labels)))
+	return int(ret)
+}
+
+func faiss_IndexBinary_train(index uintptr, n int64, x *uint8) int {
+	idx := C.FaissIndexBinary(unsafe.Pointer(index))
+	ret := C.faiss_IndexBinary_train(idx, C.int64_t(n), (*C.uint8_t)(unsafe.Pointer(x)))
+	return int(ret)
+}
+
+func faiss_IndexBinary_reset(index uintptr) int {
+	idx := C.FaissIndexBinary(unsafe.Pointer(index))
+	ret := C.faiss_IndexBinary_reset(idx)
+	return int(ret)
+}
+
+func faiss_IndexBinary_ntotal(index uintptr, ntotal *int64) {
+	idx := C.FaissIndexBinary(unsafe.Pointer(index))
+	C.faiss_IndexBinary_ntotal(idx, (*C.int64_t)(unsafe.Pointer(ntotal)))
+}
+
+func faiss_IndexBinary_is_trained(index uintptr, is_trained *int) {
+	idx := C.FaissIndexBinary(unsafe.Pointer(index))
+	C.faiss_IndexBinary_is_trained(idx, (*C.int)(unsafe.Pointer(is_trained)))
+}
+
+func faiss_IndexBinaryIVF_set_nprobe(index uintptr, nprobe int64) int {
+	idx := C.FaissIndexBinary(unsafe.Pointer(index))
+	ret := C.faiss_IndexBinaryIVF_set_nprobe(idx, C.int64_t(nprobe))
+	return int(ret)
+}
+
+func faiss_IndexBinary_free(index uintptr) {
+	idx := C.FaissIndexBinary(unsafe.Pointer(index))
+	C.faiss_IndexBinary_free(idx)
+}
+
+// ==== Generic Index Functions (for composite indexes) ====
+
+func faiss_Index_search(index uintptr, n int64, x *float32, k int64, distances *float32, labels *int64) int {
+	idx := C.FaissIndex(unsafe.Pointer(index))
+	ret := C.faiss_Index_search(idx, C.int64_t(n), (*C.float)(unsafe.Pointer(x)),
+		C.int64_t(k), (*C.float)(unsafe.Pointer(distances)), (*C.int64_t)(unsafe.Pointer(labels)))
+	return int(ret)
+}
+
+func faiss_Index_add(index uintptr, n int64, x *float32) int {
+	idx := C.FaissIndex(unsafe.Pointer(index))
+	ret := C.faiss_Index_add(idx, C.int64_t(n), (*C.float)(unsafe.Pointer(x)))
+	return int(ret)
+}
+
+func faiss_Index_train(index uintptr, n int64, x *float32) int {
+	idx := C.FaissIndex(unsafe.Pointer(index))
+	ret := C.faiss_Index_train(idx, C.int64_t(n), (*C.float)(unsafe.Pointer(x)))
+	return int(ret)
+}
+
+func faiss_Index_reset(index uintptr) int {
+	idx := C.FaissIndex(unsafe.Pointer(index))
+	ret := C.faiss_Index_reset(idx)
+	return int(ret)
+}
+
+func faiss_Index_ntotal(index uintptr) int64 {
+	idx := C.FaissIndex(unsafe.Pointer(index))
+	return int64(C.faiss_Index_ntotal(idx))
+}
+
+func faiss_Index_is_trained(index uintptr) int {
+	idx := C.FaissIndex(unsafe.Pointer(index))
+	return int(C.faiss_Index_is_trained(idx))
+}
+
+func faiss_Index_free(index uintptr) {
+	idx := C.FaissIndex(unsafe.Pointer(index))
+	C.faiss_Index_free(idx)
+}
+
+// ==== Composite Index Wrapper Functions ====
+
+func faiss_IndexRefine_new(p_index *uintptr, base_index, refine_index uintptr) int {
+	var idx C.FaissIndex
+	base := C.FaissIndex(unsafe.Pointer(base_index))
+	refine := C.FaissIndex(unsafe.Pointer(refine_index))
+	ret := C.faiss_IndexRefine_new(&idx, base, refine)
+	if ret == 0 && idx != nil {
+		*p_index = uintptr(unsafe.Pointer(idx))
+	}
+	return int(ret)
+}
+
+func faiss_IndexRefine_set_k_factor(index uintptr, k_factor float32) int {
+	idx := C.FaissIndex(unsafe.Pointer(index))
+	ret := C.faiss_IndexRefine_set_k_factor(idx, C.float(k_factor))
+	return int(ret)
+}
+
+func faiss_IndexPreTransform_new(p_index *uintptr, transform, base_index uintptr) int {
+	var idx C.FaissIndex
+	t := C.FaissVectorTransform(unsafe.Pointer(transform))
+	base := C.FaissIndex(unsafe.Pointer(base_index))
+	ret := C.faiss_IndexPreTransform_new(&idx, t, base)
+	if ret == 0 && idx != nil {
+		*p_index = uintptr(unsafe.Pointer(idx))
+	}
+	return int(ret)
+}
+
+func faiss_IndexShards_new(p_index *uintptr, d int64, metric_type int) int {
+	var idx C.FaissIndex
+	ret := C.faiss_IndexShards_new(&idx, C.int64_t(d), C.int(metric_type))
+	if ret == 0 && idx != nil {
+		*p_index = uintptr(unsafe.Pointer(idx))
+	}
+	return int(ret)
+}
+
+func faiss_IndexShards_add_shard(index, shard uintptr) int {
+	idx := C.FaissIndex(unsafe.Pointer(index))
+	sh := C.FaissIndex(unsafe.Pointer(shard))
+	ret := C.faiss_IndexShards_add_shard(idx, sh)
+	return int(ret)
+}
+
+// ==== IVF Functions ====
+
+func faiss_IndexIVF_set_nprobe(index uintptr, nprobe int64) int {
+	idx := C.FaissIndex(unsafe.Pointer(index))
+	ret := C.faiss_IndexIVF_set_nprobe(idx, C.int64_t(nprobe))
+	return int(ret)
+}
+
+// ==== LSH Index Wrapper Functions ====
+
+func faiss_IndexLSH_new(p_index *uintptr, d, nbits int64, rotate_data, train_thresholds bool) int {
+	var idx C.FaissIndex
+	var rotInt, trainInt C.int
+	if rotate_data {
+		rotInt = 1
+	}
+	if train_thresholds {
+		trainInt = 1
+	}
+	ret := C.faiss_IndexLSH_new(&idx, C.int64_t(d), C.int64_t(nbits), rotInt, trainInt)
+	if ret == 0 && idx != nil {
+		*p_index = uintptr(unsafe.Pointer(idx))
+	}
+	return int(ret)
+}
+
+// ==== PQFastScan Index Wrapper Functions ====
+
+func faiss_IndexPQFastScan_new(p_index *uintptr, d, M, nbits int64, metric_type int) int {
+	var idx C.FaissIndex
+	ret := C.faiss_IndexPQFastScan_new(&idx, C.int64_t(d), C.int64_t(M), C.int64_t(nbits), C.int(metric_type))
+	if ret == 0 && idx != nil {
+		*p_index = uintptr(unsafe.Pointer(idx))
+	}
+	return int(ret)
+}
+
+func faiss_IndexIVFPQFastScan_new(p_index *uintptr, quantizer uintptr, d, nlist, M, nbits int64, metric_type int) int {
+	var idx C.FaissIndex
+	q := C.FaissIndex(unsafe.Pointer(quantizer))
+	ret := C.faiss_IndexIVFPQFastScan_new(&idx, q, C.int64_t(d), C.int64_t(nlist), C.int64_t(M), C.int64_t(nbits), C.int(metric_type))
+	if ret == 0 && idx != nil {
+		*p_index = uintptr(unsafe.Pointer(idx))
+	}
+	return int(ret)
+}
+
+func faiss_IndexPQFastScan_set_bbs(index uintptr, bbs int64) int {
+	idx := C.FaissIndex(unsafe.Pointer(index))
+	ret := C.faiss_IndexPQFastScan_set_bbs(idx, C.int64_t(bbs))
+	return int(ret)
+}
+
+// ==== OnDisk Index Wrapper Functions ====
+
+func faiss_IndexIVFFlatOnDisk_new(p_index *uintptr, quantizer uintptr, d, nlist int64, filename string, metric_type int) int {
+	var idx C.FaissIndex
+	q := C.FaissIndex(unsafe.Pointer(quantizer))
+	cFilename := C.CString(filename)
+	defer C.free(unsafe.Pointer(cFilename))
+	ret := C.faiss_IndexIVFFlatOnDisk_new(&idx, q, C.int64_t(d), C.int64_t(nlist), cFilename, C.int(metric_type))
+	if ret == 0 && idx != nil {
+		*p_index = uintptr(unsafe.Pointer(idx))
+	}
+	return int(ret)
+}
+
+func faiss_IndexIVFPQOnDisk_new(p_index *uintptr, quantizer uintptr, d, nlist, M, nbits int64, filename string, metric_type int) int {
+	var idx C.FaissIndex
+	q := C.FaissIndex(unsafe.Pointer(quantizer))
+	cFilename := C.CString(filename)
+	defer C.free(unsafe.Pointer(cFilename))
+	ret := C.faiss_IndexIVFPQOnDisk_new(&idx, q, C.int64_t(d), C.int64_t(nlist), C.int64_t(M), C.int64_t(nbits), cFilename, C.int(metric_type))
+	if ret == 0 && idx != nil {
+		*p_index = uintptr(unsafe.Pointer(idx))
+	}
+	return int(ret)
+}
+
+// ==== Scalar Quantizer Index Wrapper Functions ====
+
+func faiss_IndexScalarQuantizer_new(p_index *uintptr, d int64, qtype, metric_type int) int {
+	var idx C.FaissIndex
+	ret := C.faiss_IndexScalarQuantizer_new(&idx, C.int64_t(d), C.int(qtype), C.int(metric_type))
+	if ret == 0 && idx != nil {
+		*p_index = uintptr(unsafe.Pointer(idx))
+	}
+	return int(ret)
+}
+
+func faiss_IndexIVFScalarQuantizer_new(p_index *uintptr, quantizer uintptr, d, nlist int64, qtype, metric_type int) int {
+	var idx C.FaissIndex
+	q := C.FaissIndex(unsafe.Pointer(quantizer))
+	ret := C.faiss_IndexIVFScalarQuantizer_new(&idx, q, C.int64_t(d), C.int64_t(nlist), C.int(qtype), C.int(metric_type))
+	if ret == 0 && idx != nil {
+		*p_index = uintptr(unsafe.Pointer(idx))
+	}
+	return int(ret)
+}
+
+// ==== Vector Transform Wrapper Functions ====
+
+func faiss_PCAMatrix_new(p_transform *uintptr, d_in, d_out int64, eigen_power float32, random_rotation int) int {
+	var transform C.FaissVectorTransform
+	ret := C.faiss_PCAMatrix_new(&transform, C.int64_t(d_in), C.int64_t(d_out), C.float(eigen_power), C.int(random_rotation))
+	if ret == 0 && transform != nil {
+		*p_transform = uintptr(unsafe.Pointer(transform))
+	}
+	return int(ret)
+}
+
+func faiss_OPQMatrix_new(p_transform *uintptr, d, M int64) int {
+	var transform C.FaissVectorTransform
+	ret := C.faiss_OPQMatrix_new(&transform, C.int64_t(d), C.int64_t(M))
+	if ret == 0 && transform != nil {
+		*p_transform = uintptr(unsafe.Pointer(transform))
+	}
+	return int(ret)
+}
+
+func faiss_RandomRotationMatrix_new(p_transform *uintptr, d_in, d_out int64) int {
+	var transform C.FaissVectorTransform
+	ret := C.faiss_RandomRotationMatrix_new(&transform, C.int64_t(d_in), C.int64_t(d_out))
+	if ret == 0 && transform != nil {
+		*p_transform = uintptr(unsafe.Pointer(transform))
+	}
+	return int(ret)
+}
+
+func faiss_VectorTransform_train(transform uintptr, n int64, x *float32) int {
+	t := C.FaissVectorTransform(unsafe.Pointer(transform))
+	ret := C.faiss_VectorTransform_train(t, C.int64_t(n), (*C.float)(unsafe.Pointer(x)))
+	return int(ret)
+}
+
+func faiss_VectorTransform_apply(transform uintptr, n int64, x, xt *float32) int {
+	t := C.FaissVectorTransform(unsafe.Pointer(transform))
+	ret := C.faiss_VectorTransform_apply(t, C.int64_t(n), (*C.float)(unsafe.Pointer(x)), (*C.float)(unsafe.Pointer(xt)))
+	return int(ret)
+}
+
+func faiss_VectorTransform_reverse_transform(transform uintptr, n int64, xt, x *float32) int {
+	t := C.FaissVectorTransform(unsafe.Pointer(transform))
+	ret := C.faiss_VectorTransform_reverse_transform(t, C.int64_t(n), (*C.float)(unsafe.Pointer(xt)), (*C.float)(unsafe.Pointer(x)))
+	return int(ret)
+}
+
+func faiss_VectorTransform_free(transform uintptr) {
+	t := C.FaissVectorTransform(unsafe.Pointer(transform))
+	C.faiss_VectorTransform_free(t)
+}

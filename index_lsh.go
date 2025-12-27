@@ -101,8 +101,7 @@ func (idx *IndexLSH) D() int {
 
 // Ntotal returns the number of vectors in the index
 func (idx *IndexLSH) Ntotal() int64 {
-	var ntotal int64
-	faiss_Index_ntotal(idx.ptr, &ntotal)
+	ntotal := faiss_Index_ntotal(idx.ptr)
 	idx.ntotal = ntotal
 	return ntotal
 }

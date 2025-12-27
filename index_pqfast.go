@@ -75,16 +75,14 @@ func (idx *IndexPQFastScan) D() int {
 
 // Ntotal returns the number of vectors in the index
 func (idx *IndexPQFastScan) Ntotal() int64 {
-	var ntotal int64
-	faiss_Index_ntotal(idx.ptr, &ntotal)
+	ntotal := faiss_Index_ntotal(idx.ptr)
 	idx.ntotal = ntotal
 	return ntotal
 }
 
 // IsTrained returns whether the index has been trained
 func (idx *IndexPQFastScan) IsTrained() bool {
-	var isTrained int
-	faiss_Index_is_trained(idx.ptr, &isTrained)
+	isTrained := faiss_Index_is_trained(idx.ptr)
 	idx.isTrained = (isTrained != 0)
 	return idx.isTrained
 }
@@ -298,16 +296,14 @@ func (idx *IndexIVFPQFastScan) D() int {
 
 // Ntotal returns the number of vectors in the index
 func (idx *IndexIVFPQFastScan) Ntotal() int64 {
-	var ntotal int64
-	faiss_Index_ntotal(idx.ptr, &ntotal)
+	ntotal := faiss_Index_ntotal(idx.ptr)
 	idx.ntotal = ntotal
 	return ntotal
 }
 
 // IsTrained returns whether the index has been trained
 func (idx *IndexIVFPQFastScan) IsTrained() bool {
-	var isTrained int
-	faiss_Index_is_trained(idx.ptr, &isTrained)
+	isTrained := faiss_Index_is_trained(idx.ptr)
 	idx.isTrained = (isTrained != 0)
 	return idx.isTrained
 }

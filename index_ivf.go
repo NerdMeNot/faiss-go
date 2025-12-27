@@ -1,6 +1,7 @@
 package faiss
 
 import (
+	"errors"
 	"fmt"
 	"runtime"
 )

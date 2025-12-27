@@ -139,7 +139,7 @@ func TestSearch(t *testing.T) {
 		query[i] = rand.Float32()
 	}
 
-	k := 10
+	// k := 10
 	// TODO: Uncomment when real implementation is ready
 	// distances, indices, err := index.Search(query, k)
 	// if err != nil {

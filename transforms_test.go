@@ -68,7 +68,7 @@ func TestPCAMatrixWithEigenPower(t *testing.T) {
 	eigenPower := 0.5
 	nb := 500
 
-	pca, err := NewPCAMatrixWithEigenPower(dIn, dOut, eigenPower)
+	pca, err := NewPCAMatrixWithEigen(dIn, dOut, float32(eigenPower))
 	if err != nil {
 		t.Fatalf("Failed to create PCA with eigen power: %v", err)
 	}

@@ -2,7 +2,6 @@ package faiss
 
 import (
 	"fmt"
-	"unsafe"
 )
 
 // RangeSearchResult contains the results of a range search

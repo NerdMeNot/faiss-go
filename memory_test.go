@@ -90,7 +90,7 @@ func TestCloseAllIndexTypes(t *testing.T) {
 			return idx, err
 		}},
 		{"IndexHNSW", func() (interface{ Close() error }, error) {
-			idx, err := NewIndexHNSW(d, 16, MetricL2)
+			idx, err := NewIndexHNSWFlat(d, 16, MetricL2)
 			if err == nil {
 				idx.Add(vectors)
 			}

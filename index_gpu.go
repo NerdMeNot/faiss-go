@@ -80,8 +80,7 @@ func (idx *GpuIndexFlat) D() int {
 
 // Ntotal returns the number of vectors
 func (idx *GpuIndexFlat) Ntotal() int64 {
-	var ntotal int64
-	faiss_Index_ntotal(idx.ptr, &ntotal)
+	ntotal := faiss_Index_ntotal(idx.ptr)
 	idx.ntotal = ntotal
 	return ntotal
 }
@@ -246,16 +245,14 @@ func (idx *GpuIndexIVFFlat) D() int {
 
 // Ntotal returns the number of vectors
 func (idx *GpuIndexIVFFlat) Ntotal() int64 {
-	var ntotal int64
-	faiss_Index_ntotal(idx.ptr, &ntotal)
+	ntotal := faiss_Index_ntotal(idx.ptr)
 	idx.ntotal = ntotal
 	return ntotal
 }
 
 // IsTrained returns whether the index is trained
 func (idx *GpuIndexIVFFlat) IsTrained() bool {
-	var isTrained int
-	faiss_Index_is_trained(idx.ptr, &isTrained)
+	isTrained := faiss_Index_is_trained(idx.ptr)
 	idx.isTrained = (isTrained != 0)
 	return idx.isTrained
 }
