@@ -13,7 +13,6 @@
 #include <faiss/IndexPQ.h>
 #include <faiss/IndexIVFPQ.h>
 #include <faiss/IndexScalarQuantizer.h>
-#include <faiss/IndexIVFScalarQuantizer.h>
 #include <faiss/IndexBinaryFlat.h>
 #include <faiss/IndexBinaryIVF.h>
 #include <faiss/IndexBinaryHash.h>

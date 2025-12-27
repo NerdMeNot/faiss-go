@@ -15,15 +15,17 @@ package faiss
 // The C++ bridge implementation (faiss/faiss_c_impl.cpp) will be compiled
 // and linked against your system's FAISS installation.
 
-#cgo CXXFLAGS: -std=c++17 -O3 -fopenmp -Wall -Wextra
+#cgo CXXFLAGS: -std=c++17 -O3 -Wall -Wextra
 #cgo LDFLAGS: -lfaiss -lstdc++ -lm
 
 // Linux-specific flags
 #cgo linux CPPFLAGS: -I/usr/include -I/usr/local/include
+#cgo linux CXXFLAGS: -fopenmp
 #cgo linux LDFLAGS: -L/usr/lib -L/usr/local/lib -lgomp -lopenblas -lgfortran
 
 // macOS-specific flags
 #cgo darwin CPPFLAGS: -I/opt/homebrew/include -I/usr/local/include -I/opt/homebrew/opt/openblas/include -I/opt/homebrew/opt/libomp/include
+#cgo darwin CXXFLAGS: -Xpreprocessor -fopenmp
 #cgo darwin LDFLAGS: -L/opt/homebrew/lib -L/usr/local/lib -L/opt/homebrew/opt/openblas/lib -L/opt/homebrew/opt/libomp/lib -lopenblas -lomp -Wl,-framework,Accelerate
 
 // Windows-specific flags
