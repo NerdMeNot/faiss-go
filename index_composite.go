@@ -601,10 +601,14 @@ func (idx *IndexShards) Search(queries []float32, k int) (distances []float32, i
 
 // Reset removes all vectors from all shards
 func (idx *IndexShards) Reset() error {
-	for _, shard := range idx.shards {
-		if err := shard.Reset(); err != nil {
-			return err
-		}
+	if idx.ptr == 0 {
+		return nil
+	}
+	// Call faiss_Index_reset on the IndexShards pointer
+	// FAISS will internally reset all child shards
+	ret := faiss_Index_reset(idx.ptr)
+	if ret != 0 {
+		return fmt.Errorf("reset failed")
 	}
 	idx.ntotal = 0
 	return nil

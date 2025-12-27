@@ -98,15 +98,6 @@ func AddBatch(index Index, vectors []float32) error {
 	return nil
 }
 
-// withOSThreadLock executes a function with the goroutine locked to an OS thread
-// This is useful for long-running C++ operations that benefit from cache locality
-// and want to avoid Go scheduler migration overhead
-func withOSThreadLock(fn func()) {
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-	fn()
-}
-
 // BatchConfig provides configuration for batch operations
 type BatchConfig struct {
 	// BatchSize is the number of vectors per batch
