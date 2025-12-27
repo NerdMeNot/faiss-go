@@ -261,7 +261,7 @@ func TestIndexIVFPQ(t *testing.T) {
 	nlist := 10
 	M := 8
 	nbits := 8
-	nb := 1000
+	nb := 10000 // IVFPQ with nbits=8 requires 39 * 256 = 9984 training points
 
 	quantizer, err := NewIndexFlatL2(d)
 	if err != nil {
