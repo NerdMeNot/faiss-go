@@ -129,15 +129,15 @@ func TestSemanticSimilarity_AnimalSentences(t *testing.T) {
 	carHighway := animalEmbeddings["Cars drive on highways"]
 
 	// Distance between similar sentences (cat/feline)
-	distSimilar, err := L2Distance(catMat, felineRug)
+	distSimilar, err := faiss.L2Distance(catMat, felineRug)
 	if err != nil {
-		t.Fatalf("L2Distance failed: %v", err)
+		t.Fatalf("faiss.L2Distance failed: %v", err)
 	}
 
 	// Distance between dissimilar sentences (cat/cars)
-	distDissimilar, err := L2Distance(catMat, carHighway)
+	distDissimilar, err := faiss.L2Distance(catMat, carHighway)
 	if err != nil {
-		t.Fatalf("L2Distance failed: %v", err)
+		t.Fatalf("faiss.L2Distance failed: %v", err)
 	}
 
 	if distSimilar >= distDissimilar {
@@ -157,15 +157,15 @@ func TestSemanticSimilarity_TechnicalContent(t *testing.T) {
 	kitten := technicalEmbeddings["The kitten chased the yarn"]
 
 	// Technical content should be similar to each other
-	distTechnical, err := L2Distance(mlAlgo, neuralNet)
+	distTechnical, err := faiss.L2Distance(mlAlgo, neuralNet)
 	if err != nil {
-		t.Fatalf("L2Distance failed: %v", err)
+		t.Fatalf("faiss.L2Distance failed: %v", err)
 	}
 
 	// Technical vs casual should be dissimilar
-	distMixed, err := L2Distance(mlAlgo, kitten)
+	distMixed, err := faiss.L2Distance(mlAlgo, kitten)
 	if err != nil {
-		t.Fatalf("L2Distance failed: %v", err)
+		t.Fatalf("faiss.L2Distance failed: %v", err)
 	}
 
 	if distTechnical >= distMixed {
@@ -181,19 +181,19 @@ func TestSemanticSimilarity_Synonyms(t *testing.T) {
 	cat := wordEmbeddings["cat"]
 	feline := wordEmbeddings["feline"]
 
-	distCarAuto, err := L2Distance(car, automobile)
+	distCarAuto, err := faiss.L2Distance(car, automobile)
 	if err != nil {
-		t.Fatalf("L2Distance failed: %v", err)
+		t.Fatalf("faiss.L2Distance failed: %v", err)
 	}
-	distCatFeline, err := L2Distance(cat, feline)
+	distCatFeline, err := faiss.L2Distance(cat, feline)
 	if err != nil {
-		t.Fatalf("L2Distance failed: %v", err)
+		t.Fatalf("faiss.L2Distance failed: %v", err)
 	}
 
 	// Synonym pairs should be closer than unrelated words
-	distCarCat, err := L2Distance(car, cat)
+	distCarCat, err := faiss.L2Distance(car, cat)
 	if err != nil {
-		t.Fatalf("L2Distance failed: %v", err)
+		t.Fatalf("faiss.L2Distance failed: %v", err)
 	}
 
 	if distCarAuto >= distCarCat || distCatFeline >= distCarCat {
@@ -216,17 +216,17 @@ func TestSemanticSimilarity_AnalogyRelationships(t *testing.T) {
 	}
 
 	// Distance to queen should be smaller than to other words
-	distToQueen, err := L2Distance(analogy, queen)
+	distToQueen, err := faiss.L2Distance(analogy, queen)
 	if err != nil {
-		t.Fatalf("L2Distance failed: %v", err)
+		t.Fatalf("faiss.L2Distance failed: %v", err)
 	}
-	distToKing, err := L2Distance(analogy, king)
+	distToKing, err := faiss.L2Distance(analogy, king)
 	if err != nil {
-		t.Fatalf("L2Distance failed: %v", err)
+		t.Fatalf("faiss.L2Distance failed: %v", err)
 	}
-	distToCar, err := L2Distance(analogy, wordEmbeddings["car"])
+	distToCar, err := faiss.L2Distance(analogy, wordEmbeddings["car"])
 	if err != nil {
-		t.Fatalf("L2Distance failed: %v", err)
+		t.Fatalf("faiss.L2Distance failed: %v", err)
 	}
 
 	if distToQueen >= distToKing || distToQueen >= distToCar {
@@ -501,9 +501,9 @@ func TestBatchDistance_QualityCheck(t *testing.T) {
 	database = append(database, dbVectors...)
 
 	// Compute batch distances
-	distances, err := BatchL2Distance(queries, database, d)
+	distances, err := Batchfaiss.L2Distance(queries, database, d)
 	if err != nil {
-		t.Fatalf("BatchL2Distance failed: %v", err)
+		t.Fatalf("Batchfaiss.L2Distance failed: %v", err)
 	}
 
 	// First query (cat) should be closest to itself

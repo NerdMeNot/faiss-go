@@ -107,7 +107,7 @@ func TestIVFPipelineTrainAddSearch(t *testing.T) {
 	k := 10
 
 	// Create quantizer
-	quantizer, err := NewIndexFlatL2(d)
+	quantizer, err := faiss.NewIndexFlatL2(d)
 	if err != nil {
 		t.Fatalf("Failed to create quantizer: %v", err)
 	}
@@ -240,7 +240,7 @@ func TestMultiMetricSearch(t *testing.T) {
 	queries := helpers.GenerateVectors(5, d)
 
 	// Test L2
-	indexL2, _ := NewIndexFlatL2(d)
+	indexL2, _ := faiss.NewIndexFlatL2(d)
 	defer indexL2.Close()
 	indexL2.Add(vectors)
 	distL2, _, err := indexL2.Search(queries, k)
@@ -393,7 +393,7 @@ func TestTransformPipeline(t *testing.T) {
 	}
 
 	// Create index on transformed space
-	index, _ := NewIndexFlatL2(dOut)
+	index, _ := faiss.NewIndexFlatL2(dOut)
 	defer index.Close()
 
 	// Add transformed vectors

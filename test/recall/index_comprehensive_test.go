@@ -245,7 +245,7 @@ func TestIndexIVFPQ(t *testing.T) {
 	}
 	defer quantizer.Close()
 
-	index, err := NewIndexIVFPQ(quantizer, d, nlist, M, nbits)
+	index, err := faiss.NewIndexIVFPQ(quantizer, d, nlist, M, nbits)
 	if err != nil {
 		t.Fatalf("Failed to create IndexIVFPQ: %v", err)
 	}
@@ -327,13 +327,13 @@ func TestIndexScalarQuantizer(t *testing.T) {
 	d := 64
 	nb := 500
 
-	index, err := NewIndexScalarQuantizer(d, QT_8bit, faiss.MetricL2)
+	index, err := faiss.NewIndexScalarQuantizer(d, faiss.QT_8bit, faiss.MetricL2)
 	if err != nil {
 		t.Fatalf("Failed to create IndexScalarQuantizer: %v", err)
 	}
 	defer index.Close()
 
-	if index.QuantizerType() != QT_8bit {
+	if index.QuantizerType() != faiss.QT_8bit {
 		t.Error("Wrong quantizer type")
 	}
 
@@ -377,7 +377,7 @@ func TestIndexIVFScalarQuantizer(t *testing.T) {
 	}
 	defer quantizer.Close()
 
-	index, err := NewIndexIVFScalarQuantizer(quantizer, d, nlist, QT_8bit, faiss.MetricL2)
+	index, err := faiss.NewIndexIVFScalarQuantizer(quantizer, d, nlist, faiss.QT_8bit, faiss.MetricL2)
 	if err != nil {
 		t.Fatalf("Failed to create IndexIVFScalarQuantizer: %v", err)
 	}
@@ -412,7 +412,7 @@ func TestIndexLSH(t *testing.T) {
 	nbits := 256
 	nb := 500
 
-	index, err := NewIndexLSH(d, nbits)
+	index, err := faiss.NewIndexLSH(d, nbits)
 	if err != nil {
 		t.Skipf("IndexLSH not available in this FAISS build: %v", err)
 	}
@@ -500,7 +500,7 @@ func TestIndexBinaryIVF(t *testing.T) {
 	}
 	defer quantizer.Close()
 
-	index, err := NewIndexBinaryIVF(quantizer, d, nlist)
+	index, err := faiss.NewIndexBinaryIVF(quantizer, d, nlist)
 	if err != nil {
 		t.Fatalf("Failed to create IndexBinaryIVF: %v", err)
 	}
@@ -578,7 +578,7 @@ func TestIndexIVFPQFastScan(t *testing.T) {
 	}
 	defer quantizer.Close()
 
-	index, err := NewIndexIVFPQFastScan(quantizer, d, nlist, M, nbits, faiss.MetricL2)
+	index, err := faiss.faiss.NewIndexIVFPQFastScan(quantizer, d, nlist, M, nbits, faiss.MetricL2)
 	if err != nil {
 		t.Fatalf("Failed to create IndexIVFPQFastScan: %v", err)
 	}
@@ -666,7 +666,7 @@ func TestIndexIVFPQOnDisk(t *testing.T) {
 	}
 	defer quantizer.Close()
 
-	index, err := NewIndexIVFPQOnDisk(quantizer, d, nlist, M, nbits, filename, faiss.MetricL2)
+	index, err := faiss.faiss.NewIndexIVFPQOnDisk(quantizer, d, nlist, M, nbits, filename, faiss.MetricL2)
 	if err != nil {
 		t.Fatalf("Failed to create IndexIVFPQOnDisk: %v", err)
 	}

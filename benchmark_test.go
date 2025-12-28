@@ -3,6 +3,8 @@ package faiss
 
 import (
 	"testing"
+
+	"github.com/NerdMeNot/faiss-go/test/helpers"
 )
 
 // ========================================
@@ -77,7 +79,7 @@ func BenchmarkIndexHNSW_Add_10K(b *testing.B) {
 }
 
 func benchmarkIndexAdd(b *testing.B, indexType string, d, nb int) {
-	vectors := generateVectors(nb, d)
+	vectors := helpers.GenerateVectors(nb, d)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -148,8 +150,8 @@ func BenchmarkIndexIVFFlat_Search_100K_K10_Nprobe10(b *testing.B) {
 
 func benchmarkIndexSearch(b *testing.B, indexType string, d, nb, k, nq int) {
 	// Setup
-	vectors := generateVectors(nb, d)
-	queries := generateVectors(nq, d)
+	vectors := helpers.GenerateVectors(nb, d)
+	queries := helpers.GenerateVectors(nq, d)
 
 	var idx Index
 	switch indexType {
@@ -176,8 +178,8 @@ func benchmarkIndexSearch(b *testing.B, indexType string, d, nb, k, nq int) {
 func benchmarkIndexIVFFlatSearch(b *testing.B, d, nb, k, nq, nprobe int) {
 	// Setup
 	nlist := 100
-	vectors := generateVectors(nb, d)
-	queries := generateVectors(nq, d)
+	vectors := helpers.GenerateVectors(nb, d)
+	queries := helpers.GenerateVectors(nq, d)
 
 	quantizer, _ := NewIndexFlatL2(d)
 	defer quantizer.Close()
@@ -208,7 +210,7 @@ func BenchmarkIndexIVFFlat_Train_10K(b *testing.B) {
 	d := 128
 	nlist := 100
 	nb := 10000
-	vectors := generateVectors(nb, d)
+	vectors := helpers.GenerateVectors(nb, d)
 
 	quantizer, _ := NewIndexFlatL2(d)
 	defer quantizer.Close()
@@ -232,7 +234,7 @@ func BenchmarkIndexPQ_Train_10K(b *testing.B) {
 	M := 16
 	nbits := 8
 	nb := 10000
-	vectors := generateVectors(nb, d)
+	vectors := helpers.GenerateVectors(nb, d)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -258,8 +260,8 @@ func BenchmarkIndexFlatL2_RangeSearch_1K(b *testing.B) {
 	nq := 10
 	radius := float32(10.0)
 
-	vectors := generateVectors(nb, d)
-	queries := generateVectors(nq, d)
+	vectors := helpers.GenerateVectors(nb, d)
+	queries := helpers.GenerateVectors(nq, d)
 
 	idx, _ := NewIndexFlatL2(d)
 	defer idx.Close()
@@ -280,8 +282,8 @@ func BenchmarkIndexFlatL2_RangeSearch_10K(b *testing.B) {
 	nq := 10
 	radius := float32(10.0)
 
-	vectors := generateVectors(nb, d)
-	queries := generateVectors(nq, d)
+	vectors := helpers.GenerateVectors(nb, d)
+	queries := helpers.GenerateVectors(nq, d)
 
 	idx, _ := NewIndexFlatL2(d)
 	defer idx.Close()
@@ -351,7 +353,7 @@ func BenchmarkPCAMatrix_Train(b *testing.B) {
 	dIn := 128
 	dOut := 64
 	nb := 5000
-	vectors := generateVectors(nb, dIn)
+	vectors := helpers.GenerateVectors(nb, dIn)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -373,8 +375,8 @@ func BenchmarkPCAMatrix_Apply(b *testing.B) {
 	nb := 5000
 	nApply := 1000
 
-	trainingVectors := generateVectors(nb, dIn)
-	applyVectors := generateVectors(nApply, dIn)
+	trainingVectors := helpers.GenerateVectors(nb, dIn)
+	applyVectors := helpers.GenerateVectors(nApply, dIn)
 
 	pca, _ := NewPCAMatrix(dIn, dOut)
 	defer pca.Close()
@@ -392,7 +394,7 @@ func BenchmarkOPQMatrix_Train(b *testing.B) {
 	d := 128
 	M := 16
 	nb := 5000
-	vectors := generateVectors(nb, d)
+	vectors := helpers.GenerateVectors(nb, d)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -461,8 +463,8 @@ func BenchmarkBatchL2Distance_1K_Queries(b *testing.B) {
 	nq := 100
 	nb := 1000
 
-	queries := generateVectors(nq, d)
-	database := generateVectors(nb, d)
+	queries := helpers.GenerateVectors(nq, d)
+	database := helpers.GenerateVectors(nb, d)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -479,8 +481,8 @@ func BenchmarkBatchInnerProduct_1K_Queries(b *testing.B) {
 	nq := 100
 	nb := 1000
 
-	queries := generateVectors(nq, d)
-	database := generateVectors(nb, d)
+	queries := helpers.GenerateVectors(nq, d)
+	database := helpers.GenerateVectors(nb, d)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -499,7 +501,7 @@ func BenchmarkKmeans_Train_1K(b *testing.B) {
 	d := 64
 	k := 10
 	nb := 1000
-	vectors := generateVectors(nb, d)
+	vectors := helpers.GenerateVectors(nb, d)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -521,8 +523,8 @@ func BenchmarkKmeans_Assign_1K(b *testing.B) {
 	nb := 1000
 	nAssign := 1000
 
-	trainingVectors := generateVectors(nb, d)
-	assignVectors := generateVectors(nAssign, d)
+	trainingVectors := helpers.GenerateVectors(nb, d)
+	assignVectors := helpers.GenerateVectors(nAssign, d)
 
 	km, _ := NewKmeans(d, k, 25)
 	defer km.Close()
@@ -543,7 +545,7 @@ func BenchmarkKmeans_Assign_1K(b *testing.B) {
 func BenchmarkIndexFlat_Serialize(b *testing.B) {
 	d := 128
 	nb := 10000
-	vectors := generateVectors(nb, d)
+	vectors := helpers.GenerateVectors(nb, d)
 
 	idx, _ := NewIndexFlatL2(d)
 	defer idx.Close()
@@ -559,7 +561,7 @@ func BenchmarkIndexFlat_Serialize(b *testing.B) {
 func BenchmarkIndexFlat_Deserialize(b *testing.B) {
 	d := 128
 	nb := 10000
-	vectors := generateVectors(nb, d)
+	vectors := helpers.GenerateVectors(nb, d)
 
 	idx, _ := NewIndexFlatL2(d)
 	idx.Add(vectors)
@@ -586,7 +588,7 @@ func BenchmarkIndexFlat_Deserialize(b *testing.B) {
 func BenchmarkIndexFlat_MemoryAllocation(b *testing.B) {
 	d := 128
 	nb := 1000
-	vectors := generateVectors(nb, d)
+	vectors := helpers.GenerateVectors(nb, d)
 
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -603,8 +605,8 @@ func BenchmarkSearch_MemoryAllocation(b *testing.B) {
 	nq := 10
 	k := 10
 
-	vectors := generateVectors(nb, d)
-	queries := generateVectors(nq, d)
+	vectors := helpers.GenerateVectors(nb, d)
+	queries := helpers.GenerateVectors(nq, d)
 
 	idx, _ := NewIndexFlatL2(d)
 	defer idx.Close()
