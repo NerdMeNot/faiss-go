@@ -5,8 +5,8 @@ import (
 	"math/rand"
 )
 
-// Test helper functions shared across internal test files
-// (inlined to avoid import cycles with test/helpers package)
+// Test helper functions shared across internal test files in the faiss package.
+// These are inlined here to avoid import cycles with test/helpers package.
 
 // generateVectors creates random test vectors
 func generateVectors(n, d int) []float32 {
