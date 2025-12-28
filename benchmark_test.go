@@ -1,9 +1,10 @@
 //nolint:goconst // Test identifiers don't need to be constants
-package faiss
+package faiss_test
 
 import (
 	"testing"
 
+	faiss "github.com/NerdMeNot/faiss-go"
 	"github.com/NerdMeNot/faiss-go/test/helpers"
 )
 
@@ -15,7 +16,7 @@ func BenchmarkIndexFlatL2_Create(b *testing.B) {
 	d := 128
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		idx, _ := NewIndexFlatL2(d)
+		idx, _ := faiss.NewIndexFlatL2(d)
 		idx.Close()
 	}
 }
@@ -28,7 +29,7 @@ func BenchmarkIndexIVFFlat_Create(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		idx, _ := NewIndexIVFFlat(quantizer, d, nlist, MetricL2)
+		idx, _ := faiss.NewIndexIVFFlat(quantizer, d, nlist, faiss.MetricL2)
 		idx.Close()
 	}
 }
@@ -38,7 +39,7 @@ func BenchmarkIndexHNSW_Create(b *testing.B) {
 	M := 16
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		idx, _ := NewIndexHNSWFlat(d, M, MetricL2)
+		idx, _ := faiss.NewIndexHNSWFlat(d, M, faiss.MetricL2)
 		idx.Close()
 	}
 }
@@ -49,7 +50,7 @@ func BenchmarkIndexPQ_Create(b *testing.B) {
 	nbits := 8
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		idx, _ := NewIndexPQ(d, M, nbits, MetricL2)
+		idx, _ := NewIndexPQ(d, M, nbits, faiss.MetricL2)
 		idx.Close()
 	}
 }
@@ -89,7 +90,7 @@ func benchmarkIndexAdd(b *testing.B, indexType string, d, nb int) {
 		case "IndexFlatL2":
 			idx, _ = NewIndexFlatL2(d)
 		case "IndexHNSW":
-			idx, _ = NewIndexHNSWFlat(d, 16, MetricL2)
+			idx, _ = faiss.NewIndexHNSWFlat(d, 16, faiss.MetricL2)
 		}
 		b.StartTimer()
 
@@ -158,7 +159,7 @@ func benchmarkIndexSearch(b *testing.B, indexType string, d, nb, k, nq int) {
 	case "IndexFlatL2":
 		idx, _ = NewIndexFlatL2(d)
 	case "IndexHNSW":
-		idx, _ = NewIndexHNSWFlat(d, 16, MetricL2)
+		idx, _ = faiss.NewIndexHNSWFlat(d, 16, faiss.MetricL2)
 	}
 	defer idx.Close()
 
@@ -184,7 +185,7 @@ func benchmarkIndexIVFFlatSearch(b *testing.B, d, nb, k, nq, nprobe int) {
 	quantizer, _ := NewIndexFlatL2(d)
 	defer quantizer.Close()
 
-	idx, _ := NewIndexIVFFlat(quantizer, d, nlist, MetricL2)
+	idx, _ := faiss.NewIndexIVFFlat(quantizer, d, nlist, faiss.MetricL2)
 	defer idx.Close()
 
 	idx.Train(vectors)
@@ -218,7 +219,7 @@ func BenchmarkIndexIVFFlat_Train_10K(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
-		idx, _ := NewIndexIVFFlat(quantizer, d, nlist, MetricL2)
+		idx, _ := faiss.NewIndexIVFFlat(quantizer, d, nlist, faiss.MetricL2)
 		b.StartTimer()
 
 		idx.Train(vectors)
@@ -239,7 +240,7 @@ func BenchmarkIndexPQ_Train_10K(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
-		idx, _ := NewIndexPQ(d, M, nbits, MetricL2)
+		idx, _ := NewIndexPQ(d, M, nbits, faiss.MetricL2)
 		b.StartTimer()
 
 		idx.Train(vectors)
