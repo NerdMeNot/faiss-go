@@ -56,19 +56,17 @@ type RecallTestResult struct {
 	Error   error
 }
 
-// RunRecallTest executes a single recall validation test
-func RunRecallTest(t *testing.T, config RecallTestConfig) RecallTestResult {
-	t.Helper()
+// datasetResult contains loaded/generated dataset
+type datasetResult struct {
+	vectors        []float32
+	queries        []float32
+	groundTruth    []helpers.GroundTruth
+	n, nq, d       int
+}
 
-	result := RecallTestResult{
-		Config: config,
-		Passed: false,
-	}
-
-	// Load or generate dataset
-	var vectors, queries []float32
-	var groundTruthData []helpers.GroundTruth
-	var n, nq, d int
+// loadOrGenerateDataset loads a real dataset or generates synthetic data
+func loadOrGenerateDataset(t *testing.T, config RecallTestConfig) (datasetResult, error) {
+	var res datasetResult
 
 	if config.UseDataset != "" {
 		// Load real dataset
@@ -77,23 +75,20 @@ func RunRecallTest(t *testing.T, config RecallTestConfig) RecallTestResult {
 			if config.SkipIfNoData {
 				t.Skipf("Dataset %s not available: %v. Run: ./scripts/download_test_datasets.sh",
 					config.UseDataset, err)
-				return result
 			}
-			result.Error = fmt.Errorf("failed to load dataset: %w", err)
-			t.Error(result.Error)
-			return result
+			return res, fmt.Errorf("failed to load dataset: %w", err)
 		}
 
-		vectors = dataset.Vectors
-		queries = dataset.Queries
-		n = dataset.N
-		nq = dataset.NQ
-		d = dataset.D
+		res.vectors = dataset.Vectors
+		res.queries = dataset.Queries
+		res.n = dataset.N
+		res.nq = dataset.NQ
+		res.d = dataset.D
 
 		// Convert ground truth format
-		groundTruthData = make([]helpers.GroundTruth, nq)
-		for i := 0; i < nq && i < len(dataset.GroundTruth); i++ {
-			groundTruthData[i] = helpers.GroundTruth{
+		res.groundTruth = make([]helpers.GroundTruth, res.nq)
+		for i := 0; i < res.nq && i < len(dataset.GroundTruth); i++ {
+			res.groundTruth[i] = helpers.GroundTruth{
 				IDs: dataset.GroundTruth[i],
 			}
 		}
@@ -110,26 +105,99 @@ func RunRecallTest(t *testing.T, config RecallTestConfig) RecallTestResult {
 		synData := datasets.GenerateSyntheticData(genConfig)
 		synData.GenerateQueries(config.NQ, config.Distribution)
 
-		vectors = synData.Vectors
-		queries = synData.Queries
-		n = config.N
-		nq = config.NQ
-		d = config.D
+		res.vectors = synData.Vectors
+		res.queries = synData.Queries
+		res.n = config.N
+		res.nq = config.NQ
+		res.d = config.D
 
 		// Compute ground truth
-		var err error
-		groundTruthData, err = helpers.ComputeGroundTruth(vectors, queries, d, config.K, config.Metric)
+		groundTruth, err := helpers.ComputeGroundTruth(res.vectors, res.queries, res.d, config.K, config.Metric)
 		if err != nil {
-			result.Error = fmt.Errorf("failed to compute ground truth: %w", err)
-			t.Error(result.Error)
-			return result
+			return res, fmt.Errorf("failed to compute ground truth: %w", err)
 		}
+		res.groundTruth = groundTruth
 	}
 
-	t.Logf("Testing %s with %d vectors (%d-dim), %d queries", config.Name, n, d, nq)
+	return res, nil
+}
+
+// trainIndexIfNeeded trains the index if required by configuration
+func trainIndexIfNeeded(t *testing.T, index faiss.Index, config RecallTestConfig, vectors []float32, n int) error {
+	if !config.NeedsTraining {
+		return nil
+	}
+
+	trainVectors := vectors
+	if config.TrainSize > 0 && config.TrainSize < n {
+		trainVectors = vectors[:config.TrainSize*config.D]
+	}
+
+	t.Logf("Training index with %d vectors...", len(trainVectors)/config.D)
+	if err := index.Train(trainVectors); err != nil {
+		return fmt.Errorf("training failed: %w", err)
+	}
+
+	if !index.IsTrained() {
+		return fmt.Errorf("index not trained after Train() call")
+	}
+
+	return nil
+}
+
+// validateTargets checks if results meet quality and performance targets
+func validateTargets(t *testing.T, config RecallTestConfig, metrics helpers.RecallMetrics, perf helpers.PerformanceMetrics) bool {
+	passed := true
+
+	if config.MinRecall1 > 0 && metrics.Recall1 < config.MinRecall1 {
+		t.Errorf("Recall@1 too low: %.4f < %.4f", metrics.Recall1, config.MinRecall1)
+		passed = false
+	}
+
+	if config.MinRecall10 > 0 && metrics.Recall10 < config.MinRecall10 {
+		t.Errorf("Recall@10 too low: %.4f < %.4f", metrics.Recall10, config.MinRecall10)
+		passed = false
+	}
+
+	if config.MinRecall100 > 0 && metrics.Recall100 < config.MinRecall100 {
+		t.Errorf("Recall@100 too low: %.4f < %.4f", metrics.Recall100, config.MinRecall100)
+		passed = false
+	}
+
+	if config.MaxP99Latency > 0 && perf.P99Latency > config.MaxP99Latency {
+		t.Errorf("P99 latency too high: %v > %v", perf.P99Latency, config.MaxP99Latency)
+		passed = false
+	}
+
+	if config.MinQPS > 0 && perf.QPS < config.MinQPS {
+		t.Errorf("QPS too low: %.0f < %.0f", perf.QPS, config.MinQPS)
+		passed = false
+	}
+
+	return passed
+}
+
+// RunRecallTest executes a single recall validation test
+func RunRecallTest(t *testing.T, config RecallTestConfig) RecallTestResult {
+	t.Helper()
+
+	result := RecallTestResult{
+		Config: config,
+		Passed: false,
+	}
+
+	// Load or generate dataset
+	data, err := loadOrGenerateDataset(t, config)
+	if err != nil {
+		result.Error = err
+		t.Error(err)
+		return result
+	}
+
+	t.Logf("Testing %s with %d vectors (%d-dim), %d queries", config.Name, data.n, data.d, data.nq)
 
 	// Build approximate index
-	index, err := config.BuildIndex(d, config.Metric)
+	index, err := config.BuildIndex(data.d, config.Metric)
 	if err != nil {
 		result.Error = fmt.Errorf("failed to create index: %w", err)
 		t.Error(result.Error)
@@ -138,36 +206,22 @@ func RunRecallTest(t *testing.T, config RecallTestConfig) RecallTestResult {
 	defer index.Close()
 
 	// Train if needed
-	if config.NeedsTraining {
-		trainVectors := vectors
-		if config.TrainSize > 0 && config.TrainSize < n {
-			trainVectors = vectors[:config.TrainSize*d]
-		}
-
-		t.Logf("Training index with %d vectors...", len(trainVectors)/d)
-		if err := index.Train(trainVectors); err != nil {
-			result.Error = fmt.Errorf("training failed: %w", err)
-			t.Error(result.Error)
-			return result
-		}
-
-		if !index.IsTrained() {
-			result.Error = fmt.Errorf("index not trained after Train() call")
-			t.Error(result.Error)
-			return result
-		}
+	if err := trainIndexIfNeeded(t, index, config, data.vectors, data.n); err != nil {
+		result.Error = err
+		t.Error(err)
+		return result
 	}
 
 	// Add vectors
-	t.Logf("Adding %d vectors to index...", n)
-	if err := index.Add(vectors); err != nil {
+	t.Logf("Adding %d vectors to index...", data.n)
+	if err := index.Add(data.vectors); err != nil {
 		result.Error = fmt.Errorf("add failed: %w", err)
 		t.Error(result.Error)
 		return result
 	}
 
-	if index.Ntotal() != int64(n) {
-		result.Error = fmt.Errorf("expected %d vectors in index, got %d", n, index.Ntotal())
+	if index.Ntotal() != int64(data.n) {
+		result.Error = fmt.Errorf("expected %d vectors in index, got %d", data.n, index.Ntotal())
 		t.Error(result.Error)
 		return result
 	}
@@ -176,8 +230,8 @@ func RunRecallTest(t *testing.T, config RecallTestConfig) RecallTestResult {
 	result.Memory = helpers.MeasureIndexMemory(index)
 
 	// Search and measure performance
-	t.Logf("Searching %d queries...", nq)
-	results, latencies, err := helpers.SearchWithTiming(index, queries, config.K)
+	t.Logf("Searching %d queries...", data.nq)
+	results, latencies, err := helpers.SearchWithTiming(index, data.queries, config.K)
 	if err != nil {
 		result.Error = fmt.Errorf("search failed: %w", err)
 		t.Error(result.Error)
@@ -185,7 +239,7 @@ func RunRecallTest(t *testing.T, config RecallTestConfig) RecallTestResult {
 	}
 
 	// Calculate metrics
-	result.Metrics = helpers.CalculateAllMetrics(groundTruthData, results, config.K)
+	result.Metrics = helpers.CalculateAllMetrics(data.groundTruth, results, config.K)
 	result.Perf = helpers.MeasureLatencies(latencies)
 
 	// Log results
@@ -194,38 +248,10 @@ func RunRecallTest(t *testing.T, config RecallTestConfig) RecallTestResult {
 	t.Logf("  Performance: %s", result.Perf.String())
 	t.Logf("  Memory:      %d MB", result.Memory/(1024*1024))
 
-	// Validate quality targets
-	passed := true
+	// Validate targets
+	result.Passed = validateTargets(t, config, result.Metrics, result.Perf)
 
-	if config.MinRecall1 > 0 && result.Metrics.Recall1 < config.MinRecall1 {
-		t.Errorf("Recall@1 too low: %.4f < %.4f", result.Metrics.Recall1, config.MinRecall1)
-		passed = false
-	}
-
-	if config.MinRecall10 > 0 && result.Metrics.Recall10 < config.MinRecall10 {
-		t.Errorf("Recall@10 too low: %.4f < %.4f", result.Metrics.Recall10, config.MinRecall10)
-		passed = false
-	}
-
-	if config.MinRecall100 > 0 && result.Metrics.Recall100 < config.MinRecall100 {
-		t.Errorf("Recall@100 too low: %.4f < %.4f", result.Metrics.Recall100, config.MinRecall100)
-		passed = false
-	}
-
-	// Validate performance targets
-	if config.MaxP99Latency > 0 && result.Perf.P99Latency > config.MaxP99Latency {
-		t.Errorf("P99 latency too high: %v > %v", result.Perf.P99Latency, config.MaxP99Latency)
-		passed = false
-	}
-
-	if config.MinQPS > 0 && result.Perf.QPS < config.MinQPS {
-		t.Errorf("QPS too low: %.0f < %.0f", result.Perf.QPS, config.MinQPS)
-		passed = false
-	}
-
-	result.Passed = passed
-
-	if passed {
+	if result.Passed {
 		t.Logf("✓ %s passed all targets", config.Name)
 	} else {
 		t.Logf("✗ %s failed some targets", config.Name)

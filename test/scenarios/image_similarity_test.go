@@ -277,6 +277,9 @@ func TestImageSimilarity_ThumbnailSearch(t *testing.T) {
 
 	// Use HNSW for fast search
 	index, err := faiss.NewIndexHNSWFlat(dim, 32, faiss.MetricInnerProduct)
+	if err != nil {
+		t.Fatalf("Failed to create index: %v", err)
+	}
 	index.SetEfSearch(64)
 	defer index.Close()
 

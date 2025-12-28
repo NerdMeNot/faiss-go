@@ -41,9 +41,6 @@ func TestSemanticSearch_DocumentRetrieval(t *testing.T) {
 			name: "HNSW_M32_efSearch64",
 			buildIndex: func() faiss.Index {
 				index, err := faiss.NewIndexHNSWFlat(dim, 32, faiss.MetricInnerProduct)
-			if err != nil {
-				t.Fatalf("Failed to create index: %v", err)
-			}
 				if err != nil {
 					t.Fatalf("Failed to create HNSW index: %v", err)
 				}
@@ -57,16 +54,10 @@ func TestSemanticSearch_DocumentRetrieval(t *testing.T) {
 			name: "IVF1000_nprobe20",
 			buildIndex: func() faiss.Index {
 				quantizer, err := faiss.NewIndexFlatIP(dim)
-			if err != nil {
-				t.Fatalf("Failed to create quantizer: %v", err)
-			}
 				if err != nil {
 					t.Fatalf("Failed to create quantizer: %v", err)
 				}
 				index, err := faiss.NewIndexIVFFlat(quantizer, dim, 1000, faiss.MetricInnerProduct)
-			if err != nil {
-				t.Fatalf("Failed to create index: %v", err)
-			}
 				if err != nil {
 					t.Fatalf("Failed to create IVF index: %v", err)
 				}
@@ -80,16 +71,10 @@ func TestSemanticSearch_DocumentRetrieval(t *testing.T) {
 			name: "IVFPQ_nlist1000_M48",
 			buildIndex: func() faiss.Index {
 				quantizer, err := faiss.NewIndexFlatIP(dim)
-			if err != nil {
-				t.Fatalf("Failed to create quantizer: %v", err)
-			}
 				if err != nil {
 					t.Fatalf("Failed to create quantizer: %v", err)
 				}
 				index, err := faiss.NewIndexIVFPQ(quantizer, dim, 1000, 48, 8)
-			if err != nil {
-				t.Fatalf("Failed to create index: %v", err)
-			}
 				if err != nil {
 					t.Fatalf("Failed to create IVFPQ index: %v", err)
 				}

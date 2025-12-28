@@ -51,9 +51,9 @@ func TestStreaming_ConcurrentAddAndSearch(t *testing.T) {
 	// Test with HNSW (best for dynamic updates)
 	t.Run("HNSW_Dynamic", func(t *testing.T) {
 		index, err := faiss.NewIndexHNSWFlat(dim, 32, faiss.MetricL2)
-	if err != nil {
-		t.Fatalf("Failed to create index: %v", err)
-	}
+		if err != nil {
+			t.Fatalf("Failed to create index: %v", err)
+		}
 		index.SetEfSearch(64)
 		defer index.Close()
 
@@ -288,6 +288,9 @@ func TestStreaming_IDMapping(t *testing.T) {
 
 	// Use IndexIDMap for custom IDs
 	baseIndex, err := faiss.NewIndexFlatL2(dim)
+	if err != nil {
+		t.Fatalf("Failed to create base index: %v", err)
+	}
 	index, err := faiss.NewIndexIDMap(baseIndex)
 	if err != nil {
 		t.Fatalf("Failed to create index: %v", err)

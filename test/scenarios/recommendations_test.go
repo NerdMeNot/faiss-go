@@ -36,13 +36,13 @@ func TestRecommendations_ItemToItem(t *testing.T) {
 
 		// Build IVFPQ: nlist=16384, M=16, nprobe=64
 		quantizer, err := faiss.NewIndexFlatIP(dim)
-	if err != nil {
-		t.Fatalf("Failed to create quantizer: %v", err)
-	}
+		if err != nil {
+			t.Fatalf("Failed to create quantizer: %v", err)
+		}
 		index, err := faiss.NewIndexIVFPQ(quantizer, dim, 16384, 16, 8)
-	if err != nil {
-		t.Fatalf("Failed to create index: %v", err)
-	}
+		if err != nil {
+			t.Fatalf("Failed to create index: %v", err)
+		}
 		index.SetNprobe(64)
 		defer index.Close()
 
@@ -168,6 +168,9 @@ func TestRecommendations_ContentBased(t *testing.T) {
 
 	// Use HNSW for high-quality recommendations
 	index, err := faiss.NewIndexHNSWFlat(dim, 32, faiss.MetricInnerProduct)
+	if err != nil {
+		t.Fatalf("Failed to create index: %v", err)
+	}
 	index.SetEfSearch(64)
 	defer index.Close()
 
@@ -286,7 +289,13 @@ func TestRecommendations_CollaborativeFiltering(t *testing.T) {
 
 	// Use IVF for good balance
 	quantizer, err := faiss.NewIndexFlatIP(dim)
+	if err != nil {
+		t.Fatalf("Failed to create quantizer: %v", err)
+	}
 	index, err := faiss.NewIndexIVFFlat(quantizer, dim, 1000, faiss.MetricInnerProduct)
+	if err != nil {
+		t.Fatalf("Failed to create index: %v", err)
+	}
 	index.SetNprobe(20)
 	defer index.Close()
 
