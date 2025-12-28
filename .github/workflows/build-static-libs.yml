@@ -1,0 +1,243 @@
+name: Build Static Libraries
+
+on:
+  workflow_dispatch:
+    inputs:
+      faiss_version:
+        description: 'FAISS version tag (e.g., v1.8.0)'
+        required: true
+        default: 'v1.8.0'
+      platforms:
+        description: 'Platforms to build (comma-separated: linux-amd64,linux-arm64,darwin-amd64,darwin-arm64,windows-amd64 or "all")'
+        required: true
+        default: 'all'
+
+jobs:
+  build-linux-amd64:
+    if: contains(github.event.inputs.platforms, 'linux-amd64') || github.event.inputs.platforms == 'all'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            git \
+            libopenblas-dev \
+            libomp-dev
+
+      - name: Build FAISS static library
+        run: |
+          chmod +x scripts/build_static_lib.sh
+          ./scripts/build_static_lib.sh linux-amd64 ${{ github.event.inputs.faiss_version }}
+
+      - name: Verify library
+        run: |
+          ls -lh libs/linux_amd64/
+          file libs/linux_amd64/libfaiss.a
+          nm -g libs/linux_amd64/libfaiss.a | grep -i faiss | head -10
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: faiss-static-linux-amd64
+          path: libs/linux_amd64/
+          retention-days: 90
+
+  build-linux-arm64:
+    if: contains(github.event.inputs.platforms, 'linux-arm64') || github.event.inputs.platforms == 'all'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Build in Docker for ARM64
+        run: |
+          docker run --rm --platform linux/arm64 \
+            -v $PWD:/workspace \
+            -w /workspace \
+            arm64v8/ubuntu:22.04 \
+            bash -c "
+              apt-get update && \
+              apt-get install -y build-essential cmake git libopenblas-dev && \
+              chmod +x scripts/build_static_lib.sh && \
+              ./scripts/build_static_lib.sh linux-arm64 ${{ github.event.inputs.faiss_version }}
+            "
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: faiss-static-linux-arm64
+          path: libs/linux_arm64/
+          retention-days: 90
+
+  build-darwin-amd64:
+    if: contains(github.event.inputs.platforms, 'darwin-amd64') || github.event.inputs.platforms == 'all'
+    runs-on: macos-13  # Intel Mac
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          brew install cmake openblas libomp
+
+      - name: Build FAISS static library
+        run: |
+          chmod +x scripts/build_static_lib.sh
+          ./scripts/build_static_lib.sh darwin-amd64 ${{ github.event.inputs.faiss_version }}
+
+      - name: Verify library
+        run: |
+          ls -lh libs/darwin_amd64/
+          file libs/darwin_amd64/libfaiss.a
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: faiss-static-darwin-amd64
+          path: libs/darwin_amd64/
+          retention-days: 90
+
+  build-darwin-arm64:
+    if: contains(github.event.inputs.platforms, 'darwin-arm64') || github.event.inputs.platforms == 'all'
+    runs-on: macos-14  # M1 Mac
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          brew install cmake openblas libomp
+
+      - name: Build FAISS static library
+        run: |
+          chmod +x scripts/build_static_lib.sh
+          ./scripts/build_static_lib.sh darwin-arm64 ${{ github.event.inputs.faiss_version }}
+
+      - name: Verify library
+        run: |
+          ls -lh libs/darwin_arm64/
+          file libs/darwin_arm64/libfaiss.a
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: faiss-static-darwin-arm64
+          path: libs/darwin_arm64/
+          retention-days: 90
+
+  build-windows-amd64:
+    if: contains(github.event.inputs.platforms, 'windows-amd64') || github.event.inputs.platforms == 'all'
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up MSVC
+        uses: microsoft/setup-msbuild@v1.1
+
+      - name: Install vcpkg dependencies
+        run: |
+          vcpkg install openblas:x64-windows
+          vcpkg integrate install
+
+      - name: Build FAISS static library
+        shell: bash
+        run: |
+          chmod +x scripts/build_static_lib.sh
+          ./scripts/build_static_lib.sh windows-amd64 ${{ github.event.inputs.faiss_version }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: faiss-static-windows-amd64
+          path: libs/windows_amd64/
+          retention-days: 90
+
+  create-pr:
+    needs: [build-linux-amd64, build-linux-arm64, build-darwin-amd64, build-darwin-arm64, build-windows-amd64]
+    if: always()
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: libs-artifacts
+
+      - name: Organize libraries
+        run: |
+          mkdir -p libs
+          # Copy each platform's libraries
+          for platform in linux-amd64 linux-arm64 darwin-amd64 darwin-arm64 windows-amd64; do
+            if [ -d "libs-artifacts/faiss-static-$platform" ]; then
+              cp -r "libs-artifacts/faiss-static-$platform" "libs/${platform//-/_}"
+            fi
+          done
+
+          # Show what we have
+          ls -R libs/
+
+      - name: Generate checksums
+        run: |
+          for dir in libs/*/; do
+            if [ -f "$dir/libfaiss.a" ] || [ -f "$dir/faiss.lib" ]; then
+              (cd "$dir" && sha256sum * > checksums.txt)
+            fi
+          done
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          commit-message: "feat: Add pre-built FAISS static libraries ${{ github.event.inputs.faiss_version }}"
+          title: "Add pre-built FAISS static libraries ${{ github.event.inputs.faiss_version }}"
+          body: |
+            ## Pre-built FAISS Static Libraries
+
+            This PR adds pre-compiled FAISS static libraries for all supported platforms.
+
+            **FAISS Version**: ${{ github.event.inputs.faiss_version }}
+
+            ### Platforms Included
+            - ✅ Linux AMD64
+            - ✅ Linux ARM64
+            - ✅ macOS AMD64 (Intel)
+            - ✅ macOS ARM64 (Apple Silicon)
+            - ✅ Windows AMD64
+
+            ### Build Mode
+            This enables the fast build mode with pre-built libraries:
+            ```bash
+            go build -tags=faiss_use_lib  # Uses pre-built libraries
+            ```
+
+            ### Library Sizes
+            ```
+            $(du -sh libs/*/libfaiss.a libs/*/faiss.lib 2>/dev/null || echo "Calculating...")
+            ```
+
+            ### Testing
+            - [ ] Builds successfully on Linux with `-tags=faiss_use_lib`
+            - [ ] Builds successfully on macOS with `-tags=faiss_use_lib`
+            - [ ] Builds successfully on Windows with `-tags=faiss_use_lib`
+            - [ ] All tests pass
+
+            Generated by GitHub Actions workflow.
+          branch: faiss-static-libs-${{ github.event.inputs.faiss_version }}
+          delete-branch: true
