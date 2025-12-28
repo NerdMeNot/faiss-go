@@ -507,7 +507,7 @@ func BenchmarkKmeans_Train_1K(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
-		km, _ := NewKmeans(d, k, 25)
+		km, _ := faiss.NewKmeans(d, k, 25)
 		b.StartTimer()
 
 		km.Train(vectors)
@@ -527,7 +527,7 @@ func BenchmarkKmeans_Assign_1K(b *testing.B) {
 	trainingVectors := helpers.GenerateVectors(nb, d)
 	assignVectors := helpers.GenerateVectors(nAssign, d)
 
-	km, _ := NewKmeans(d, k, 25)
+	km, _ := faiss.NewKmeans(d, k, 25)
 	defer km.Close()
 	km.Train(trainingVectors)
 
@@ -554,7 +554,7 @@ func BenchmarkIndexFlat_Serialize(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		data, _ := SerializeIndex(idx)
+		data, _ := faiss.SerializeIndex(idx)
 		b.SetBytes(int64(len(data)))
 	}
 }
@@ -566,13 +566,13 @@ func BenchmarkIndexFlat_Deserialize(b *testing.B) {
 
 	idx, _ := faiss.NewIndexFlatL2(d)
 	idx.Add(vectors)
-	data, _ := SerializeIndex(idx)
+	data, _ := faiss.SerializeIndex(idx)
 	idx.Close()
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
-		newIdx, _ := DeserializeIndex(data)
+		newIdx, _ := faiss.DeserializeIndex(data)
 		b.StartTimer()
 
 		b.StopTimer()
