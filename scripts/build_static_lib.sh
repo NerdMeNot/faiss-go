@@ -87,6 +87,7 @@ CMAKE_FLAGS=(
     -DBUILD_SHARED_LIBS=OFF
     -DFAISS_ENABLE_C_API=ON
     -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+    -DFAISS_OPT_LEVEL=generic  # Use generic optimizations for faster builds
 )
 
 # Platform-specific flags
@@ -141,23 +142,54 @@ echo -e "${GREEN}✓ Configured${NC}"
 
 # Build
 echo "Building FAISS (this may take 10-20 minutes)..."
-cmake --build . -j$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
+
+# Determine number of parallel jobs
+if [[ "$PLATFORM" == "linux-arm64" ]] && [ "$(uname -m)" != "aarch64" ]; then
+    # Cross-compiling ARM64 via QEMU - use fewer jobs to avoid QEMU overhead
+    JOBS=2
+    echo "Note: Using reduced parallelism (j=${JOBS}) for QEMU emulation"
+else
+    # Native builds can use more parallelism
+    JOBS=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
+fi
+
+if [[ "$PLATFORM" == windows-* ]]; then
+    # Windows requires --config for multi-config generators
+    cmake --build . --config Release -j${JOBS}
+else
+    cmake --build . -j${JOBS}
+fi
 echo -e "${GREEN}✓ Built FAISS${NC}"
 
 # Create output directory
 mkdir -p "$OUTPUT_DIR"
 
-# Copy static library
-echo "Copying static library..."
+# Copy static libraries
+echo "Copying static libraries..."
 if [ -f "faiss/libfaiss.a" ]; then
+    # Unix-like systems (Linux, macOS)
     cp "faiss/libfaiss.a" "$OUTPUT_DIR/"
     echo -e "${GREEN}✓ Copied libfaiss.a${NC}"
+
+    # Copy C API library if it exists
+    if [ -f "c_api/libfaiss_c.a" ]; then
+        cp "c_api/libfaiss_c.a" "$OUTPUT_DIR/"
+        echo -e "${GREEN}✓ Copied libfaiss_c.a${NC}"
+    fi
 elif [ -f "faiss/Release/faiss.lib" ]; then
+    # Windows Release build
     cp "faiss/Release/faiss.lib" "$OUTPUT_DIR/"
     echo -e "${GREEN}✓ Copied faiss.lib${NC}"
+
+    # Copy C API library if it exists
+    if [ -f "c_api/Release/faiss_c.lib" ]; then
+        cp "c_api/Release/faiss_c.lib" "$OUTPUT_DIR/"
+        echo -e "${GREEN}✓ Copied faiss_c.lib${NC}"
+    fi
 else
     echo -e "${RED}Failed to find built library${NC}"
-    find . -name "libfaiss.a" -o -name "faiss.lib"
+    echo "Searching for libraries..."
+    find . -name "libfaiss.a" -o -name "faiss.lib" -o -name "libfaiss_c.a" -o -name "faiss_c.lib"
     exit 1
 fi
 
