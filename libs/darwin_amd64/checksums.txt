@@ -1,0 +1,4 @@
+a81a0ef5fa7e2369fe85ac0e0495c183a3c8ecdad613448f570195b2854c67f0  ./build_info.json
+7960bd8f625aaad98f84da2dfc0fe1d434a55f88e5b5936b868fabb0bcc72242  ./libfaiss.a
+a6d2d1b40482fa1f072b70d38e2c7e2b474e23d545a979bc4313ffd195f5ef14  ./libfaiss_c.a
+6beae196e1ec25f0b2a1a84353dcaf02e46a7dded3fdfcdf2d4fa14541e589f7  ./checksums.txt
