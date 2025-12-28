@@ -2,20 +2,10 @@
 package faiss
 
 import (
-	"math/rand"
 	"runtime"
 	"testing"
 	"time"
 )
-
-// generateVectors creates random test vectors (inlined to avoid import cycle)
-func generateVectors(n, d int) []float32 {
-	vectors := make([]float32, n*d)
-	for i := range vectors {
-		vectors[i] = rand.Float32()
-	}
-	return vectors
-}
 
 // ========================================
 // Memory Leak Detection Tests

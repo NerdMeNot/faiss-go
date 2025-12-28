@@ -1,18 +1,8 @@
 package faiss
 
 import (
-	"math/rand"
 	"testing"
 )
-
-// generateVectors creates random test vectors (inlined to avoid import cycle)
-func generateVectors(n, d int) []float32 {
-	vectors := make([]float32, n*d)
-	for i := range vectors {
-		vectors[i] = rand.Float32()
-	}
-	return vectors
-}
 
 // ========================================
 // IndexRefine Tests
