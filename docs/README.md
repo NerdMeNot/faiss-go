@@ -10,7 +10,8 @@ Welcome to the comprehensive documentation for faiss-go, production-ready Go bin
 
 Perfect for new users looking to get up and running quickly:
 
-- **[Installation Guide](getting-started/installation.md)** - Platform-specific installation instructions
+- **[Installation Guide](getting-started/installation.md)** - CPU installation for all platforms
+- **[GPU Installation](getting-started/gpu-installation.md)** - 🚀 GPU/CUDA setup for 10-100x faster search
 - **[Quick Start](getting-started/quickstart.md)** - Your first similarity search in 5 minutes
 - **[Your First Index](getting-started/first-index.md)** - Step-by-step tutorial
 - **[Choosing an Index](getting-started/choosing-an-index.md)** - Decision trees and index comparison
