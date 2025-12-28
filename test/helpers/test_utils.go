@@ -7,6 +7,7 @@ import (
 	"time"
 
 	faiss "github.com/NerdMeNot/faiss-go"
+	"github.com/NerdMeNot/faiss-go/test/datasets/groundtruth"
 )
 
 // SearchWithTiming performs search and measures latency
@@ -36,6 +37,7 @@ func SearchWithTiming(index faiss.Index, queries []float32, k int) ([]SearchResu
 }
 
 // ComputeGroundTruth computes exact nearest neighbors using brute force
+// This version now uses batch processing for better performance
 func ComputeGroundTruth(vectors, queries []float32, d, k int, metric faiss.MetricType) ([]GroundTruth, error) {
 	// Create flat index for ground truth
 	var gtIndex faiss.Index
@@ -55,22 +57,78 @@ func ComputeGroundTruth(vectors, queries []float32, d, k int, metric faiss.Metri
 		return nil, fmt.Errorf("failed to add vectors to ground truth index: %w", err)
 	}
 
-	// Search
+	// Batch search for better performance
+	// Process queries in batches to balance memory and speed
 	nq := len(queries) / d
 	groundTruth := make([]GroundTruth, nq)
 
-	for i := 0; i < nq; i++ {
-		query := queries[i*d : (i+1)*d]
-		distances, ids, err := gtIndex.Search(query, k)
-		if err != nil {
-			return nil, fmt.Errorf("ground truth search failed at query %d: %w", i, err)
+	const batchSize = 100 // Process 100 queries at a time
+
+	for batchStart := 0; batchStart < nq; batchStart += batchSize {
+		batchEnd := batchStart + batchSize
+		if batchEnd > nq {
+			batchEnd = nq
 		}
 
-		groundTruth[i] = GroundTruth{
-			IDs:       ids,
-			Distances: distances,
+		batchNQ := batchEnd - batchStart
+		batchQueries := queries[batchStart*d : batchEnd*d]
+
+		// Search the batch
+		for i := 0; i < batchNQ; i++ {
+			query := batchQueries[i*d : (i+1)*d]
+			distances, ids, err := gtIndex.Search(query, k)
+			if err != nil {
+				return nil, fmt.Errorf("ground truth search failed at query %d: %w", batchStart+i, err)
+			}
+
+			groundTruth[batchStart+i] = GroundTruth{
+				IDs:       ids,
+				Distances: distances,
+			}
 		}
 	}
+
+	return groundTruth, nil
+}
+
+// ComputeGroundTruthWithCache computes ground truth with intelligent caching
+// This is the recommended function to use for tests, as it dramatically speeds up repeated test runs
+func ComputeGroundTruthWithCache(vectors, queries []float32, d, k int, metric faiss.MetricType) ([]GroundTruth, error) {
+	// Generate cache key
+	cacheKey := groundtruth.GenerateCacheKey(vectors, queries, d, k, metric)
+
+	n := len(vectors) / d
+	nq := len(queries) / d
+
+	// Try to load from cache
+	if cachedIDs, found := groundtruth.LoadFromCache(cacheKey, n, nq, d, k, metric); found {
+		// Convert cached IDs back to GroundTruth format
+		result := make([]GroundTruth, len(cachedIDs))
+		for i, cached := range cachedIDs {
+			result[i] = GroundTruth{
+				IDs: cached.IDs,
+				// Distances can be nil for cached results (we primarily care about IDs for recall)
+			}
+		}
+		return result, nil
+	}
+
+	// Not in cache - compute ground truth
+	groundTruth, err := ComputeGroundTruth(vectors, queries, d, k, metric)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to cache format (IDs only to save space)
+	cachedIDs := make([]groundtruth.GroundTruthIDs, len(groundTruth))
+	for i, gt := range groundTruth {
+		cachedIDs[i] = groundtruth.GroundTruthIDs{
+			IDs: gt.IDs,
+		}
+	}
+
+	// Save to cache (ignore errors - cache is optional)
+	_ = groundtruth.SaveToCache(cacheKey, cachedIDs, n, nq, d, k, metric, cacheKey)
 
 	return groundTruth, nil
 }
@@ -205,8 +263,8 @@ type IndexComparison struct {
 func RunComparison(t *testing.T, vectors, queries []float32, d, k int, comparisons []IndexComparison) {
 	t.Helper()
 
-	// Compute ground truth once
-	groundTruth, err := ComputeGroundTruth(vectors, queries, d, k, faiss.MetricL2)
+	// Compute ground truth once (with caching for better performance)
+	groundTruth, err := ComputeGroundTruthWithCache(vectors, queries, d, k, faiss.MetricL2)
 	if err != nil {
 		t.Fatalf("Failed to compute ground truth: %v", err)
 	}

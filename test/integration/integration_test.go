@@ -1,8 +1,11 @@
-package faiss
+package integration_test
 
 import (
 	"os"
 	"testing"
+
+	faiss "github.com/NerdMeNot/faiss-go"
+	"github.com/NerdMeNot/faiss-go/test/helpers"
 )
 
 // ========================================
@@ -17,14 +20,14 @@ func TestCompleteIndexLifecycle(t *testing.T) {
 	k := 5
 
 	// Create index
-	index, err := NewIndexFlatL2(d)
+	index, err := faiss.NewIndexFlatL2(d)
 	if err != nil {
 		t.Fatalf("Failed to create index: %v", err)
 	}
 	defer index.Close()
 
 	// Generate and add vectors
-	vectors := generateVectors(nb, d)
+	vectors := helpers.GenerateVectors(nb, d)
 	if err := index.Add(vectors); err != nil {
 		t.Fatalf("Add failed: %v", err)
 	}
@@ -35,7 +38,7 @@ func TestCompleteIndexLifecycle(t *testing.T) {
 	}
 
 	// Perform search
-	queries := generateVectors(nq, d)
+	queries := helpers.GenerateVectors(nq, d)
 	distances, indices, err := index.Search(queries, k)
 	if err != nil {
 		t.Fatalf("Search failed: %v", err)
@@ -50,14 +53,14 @@ func TestCompleteIndexLifecycle(t *testing.T) {
 	filename := "/tmp/test_index_lifecycle.faiss"
 	defer os.Remove(filename)
 
-	if err := WriteIndex(index, filename); err != nil {
-		t.Fatalf("WriteIndex failed: %v", err)
+	if err := faiss.WriteIndex(index, filename); err != nil {
+		t.Fatalf("faiss.WriteIndex failed: %v", err)
 	}
 
 	// Load from file
-	loadedIndex, err := ReadIndex(filename)
+	loadedIndex, err := faiss.ReadIndex(filename)
 	if err != nil {
-		t.Fatalf("ReadIndex failed: %v", err)
+		t.Fatalf("faiss.ReadIndex failed: %v", err)
 	}
 	defer loadedIndex.Close()
 
@@ -77,7 +80,7 @@ func TestCompleteIndexLifecycle(t *testing.T) {
 
 	// Results should match
 	for i := range distances {
-		if !almostEqual(distances[i], distances2[i], 0.001) {
+		if !helpers.AlmostEqual(distances[i], distances2[i], 0.001) {
 			t.Errorf("Distance mismatch at %d: %f vs %f", i, distances[i], distances2[i])
 		}
 		if indices[i] != indices2[i] {
@@ -111,14 +114,14 @@ func TestIVFPipelineTrainAddSearch(t *testing.T) {
 	defer quantizer.Close()
 
 	// Create IVF index
-	index, err := NewIndexIVFFlat(quantizer, d, nlist, MetricL2)
+	index, err := faiss.NewIndexIVFFlat(quantizer, d, nlist, faiss.MetricL2)
 	if err != nil {
 		t.Fatalf("Failed to create IVF index: %v", err)
 	}
 	defer index.Close()
 
 	// Generate training data
-	trainingVectors := generateVectors(nTrain, d)
+	trainingVectors := helpers.GenerateVectors(nTrain, d)
 
 	// Train
 	if err := index.Train(trainingVectors); err != nil {
@@ -130,7 +133,7 @@ func TestIVFPipelineTrainAddSearch(t *testing.T) {
 	}
 
 	// Add vectors
-	addVectors := generateVectors(nAdd, d)
+	addVectors := helpers.GenerateVectors(nAdd, d)
 	if err := index.Add(addVectors); err != nil {
 		t.Fatalf("Add failed: %v", err)
 	}
@@ -145,7 +148,7 @@ func TestIVFPipelineTrainAddSearch(t *testing.T) {
 	}
 
 	// Search
-	queries := generateVectors(nq, d)
+	queries := helpers.GenerateVectors(nq, d)
 	distances, indices, err := index.Search(queries, k)
 	if err != nil {
 		t.Fatalf("Search failed: %v", err)
@@ -172,14 +175,14 @@ func TestPQCompressionPipeline(t *testing.T) {
 	nb := 10000 // PQ with nbits=8 requires 39 * 256 = 9984 training points
 
 	// Create index
-	index, err := NewIndexPQ(d, M, nbits, MetricL2)
+	index, err := faiss.NewIndexPQ(d, M, nbits, faiss.MetricL2)
 	if err != nil {
 		t.Fatalf("Failed to create PQ index: %v", err)
 	}
 	defer index.Close()
 
 	// Train
-	trainingVectors := generateVectors(nb, d)
+	trainingVectors := helpers.GenerateVectors(nb, d)
 	if err := index.Train(trainingVectors); err != nil {
 		t.Fatalf("Training failed: %v", err)
 	}
@@ -196,7 +199,7 @@ func TestPQCompressionPipeline(t *testing.T) {
 	}
 
 	// Search
-	queries := generateVectors(10, d)
+	queries := helpers.GenerateVectors(10, d)
 	distances, indices, err := index.Search(queries, 10)
 	if err != nil {
 		t.Fatalf("Search failed: %v", err)
@@ -210,13 +213,13 @@ func TestPQCompressionPipeline(t *testing.T) {
 	// filename := "/tmp/test_pq_pipeline.faiss"
 	// defer os.Remove(filename)
 	//
-	// if err := WriteIndex(index, filename); err != nil {
-	// 	t.Fatalf("WriteIndex failed: %v", err)
+	// if err := faiss.WriteIndex(index, filename); err != nil {
+	// 	t.Fatalf("faiss.WriteIndex failed: %v", err)
 	// }
 	//
-	// loadedIndex, err := ReadIndex(filename)
+	// loadedIndex, err := faiss.ReadIndex(filename)
 	// if err != nil {
-	// 	t.Fatalf("ReadIndex failed: %v", err)
+	// 	t.Fatalf("faiss.ReadIndex failed: %v", err)
 	// }
 	// defer loadedIndex.Close()
 	//
@@ -233,8 +236,8 @@ func TestMultiMetricSearch(t *testing.T) {
 	nb := 1000
 	k := 5
 
-	vectors := generateVectors(nb, d)
-	queries := generateVectors(5, d)
+	vectors := helpers.GenerateVectors(nb, d)
+	queries := helpers.GenerateVectors(5, d)
 
 	// Test L2
 	indexL2, _ := NewIndexFlatL2(d)
@@ -246,7 +249,7 @@ func TestMultiMetricSearch(t *testing.T) {
 	}
 
 	// Test Inner Product
-	indexIP, _ := NewIndexFlatIP(d)
+	indexIP, _ := faiss.NewIndexFlatIP(d)
 	defer indexIP.Close()
 	indexIP.Add(vectors)
 	distIP, _, err := indexIP.Search(queries, k)
@@ -257,7 +260,7 @@ func TestMultiMetricSearch(t *testing.T) {
 	// Distances should be different for different metrics
 	allSame := true
 	for i := range distL2 {
-		if !almostEqual(distL2[i], distIP[i], 0.001) {
+		if !helpers.AlmostEqual(distL2[i], distIP[i], 0.001) {
 			allSame = false
 			break
 		}
@@ -275,20 +278,20 @@ func TestBinarySearchPipeline(t *testing.T) {
 	k := 5
 
 	// Create index
-	index, err := NewIndexBinaryFlat(d)
+	index, err := faiss.NewIndexBinaryFlat(d)
 	if err != nil {
 		t.Fatalf("Failed to create binary index: %v", err)
 	}
 	defer index.Close()
 
 	// Add binary vectors
-	vectors := generateBinaryVectors(nb, d)
+	vectors := helpers.GenerateBinaryVectors(nb, d)
 	if err := index.Add(vectors); err != nil {
 		t.Fatalf("Add failed: %v", err)
 	}
 
 	// Search
-	queries := generateBinaryVectors(nq, d)
+	queries := helpers.GenerateBinaryVectors(nq, d)
 	distances, indices, err := index.Search(queries, k)
 	if err != nil {
 		t.Fatalf("Search failed: %v", err)
@@ -333,10 +336,10 @@ func TestClusteringIntegration(t *testing.T) {
 	nb := 1000
 	nCentroids := 10
 
-	vectors := generateVectors(nb, d)
+	vectors := helpers.GenerateVectors(nb, d)
 
 	// Create clustering
-	clustering, err := NewClustering(d, nCentroids)
+	clustering, err := faiss.NewClustering(d, nCentroids)
 	if err != nil {
 		t.Fatalf("Failed to create clustering: %v", err)
 	}
@@ -366,20 +369,20 @@ func TestTransformPipeline(t *testing.T) {
 	nb := 500
 
 	// Create PCA
-	pca, err := NewPCAMatrix(dIn, dOut)
+	pca, err := faiss.NewPCAMatrix(dIn, dOut)
 	if err != nil {
 		t.Fatalf("Failed to create PCA: %v", err)
 	}
 	defer pca.Close()
 
 	// Train PCA
-	trainingVectors := generateVectors(nb, dIn)
+	trainingVectors := helpers.GenerateVectors(nb, dIn)
 	if err := pca.Train(trainingVectors); err != nil {
 		t.Fatalf("PCA training failed: %v", err)
 	}
 
 	// Transform vectors
-	testVectors := generateVectors(100, dIn)
+	testVectors := helpers.GenerateVectors(100, dIn)
 	transformed, err := pca.Apply(testVectors)
 	if err != nil {
 		t.Fatalf("PCA apply failed: %v", err)
@@ -399,7 +402,7 @@ func TestTransformPipeline(t *testing.T) {
 	}
 
 	// Transform and search
-	queries := generateVectors(5, dIn)
+	queries := helpers.GenerateVectors(5, dIn)
 	transformedQueries, _ := pca.Apply(queries)
 	distances, indices, err := index.Search(transformedQueries, 10)
 	if err != nil {
@@ -429,14 +432,14 @@ func TestFactoryString(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			index, err := IndexFactory(d, tt.factory, MetricL2)
+			index, err := faiss.IndexFactory(d, tt.factory, faiss.MetricL2)
 			if err != nil {
-				t.Fatalf("IndexFactory failed for %s: %v", tt.factory, err)
+				t.Fatalf("faiss.IndexFactory failed for %s: %v", tt.factory, err)
 			}
 			defer index.Close()
 
 			// Generate training vectors
-			trainingVectors := generateVectors(nb, d)
+			trainingVectors := helpers.GenerateVectors(nb, d)
 
 			// Train if needed
 			if !index.IsTrained() {
@@ -451,7 +454,7 @@ func TestFactoryString(t *testing.T) {
 			}
 
 			// Search
-			queries := generateVectors(5, d)
+			queries := helpers.GenerateVectors(5, d)
 			_, _, err = index.Search(queries, 10)
 			if err != nil {
 				t.Fatalf("Search failed: %v", err)

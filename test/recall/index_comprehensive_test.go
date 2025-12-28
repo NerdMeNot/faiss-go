@@ -1,36 +1,12 @@
-package faiss
+package recall_test
 
 import (
-	"math"
-	"math/rand"
 	"os"
 	"testing"
+
+	faiss "github.com/NerdMeNot/faiss-go"
+	"github.com/NerdMeNot/faiss-go/test/helpers"
 )
-
-// ========================================
-// Test Utilities
-// ========================================
-
-func generateVectors(n, d int) []float32 {
-	vectors := make([]float32, n*d)
-	for i := range vectors {
-		vectors[i] = rand.Float32()
-	}
-	return vectors
-}
-
-func generateBinaryVectors(n, d int) []uint8 {
-	bytesPerVec := d / 8
-	vectors := make([]uint8, n*bytesPerVec)
-	for i := range vectors {
-		vectors[i] = uint8(rand.Intn(256))
-	}
-	return vectors
-}
-
-func almostEqual(a, b float32, tolerance float32) bool {
-	return math.Abs(float64(a-b)) < float64(tolerance)
-}
 
 // ========================================
 // IndexFlat Tests
@@ -42,7 +18,7 @@ func TestIndexFlatL2(t *testing.T) {
 	nq := 10
 	k := 5
 
-	index, err := NewIndexFlatL2(d)
+	index, err := faiss.NewIndexFlatL2(d)
 	if err != nil {
 		t.Fatalf("Failed to create IndexFlatL2: %v", err)
 	}
@@ -58,12 +34,12 @@ func TestIndexFlatL2(t *testing.T) {
 	if !index.IsTrained() {
 		t.Error("Flat index should be trained by default")
 	}
-	if index.MetricType() != MetricL2 {
-		t.Errorf("Expected MetricL2, got %v", index.MetricType())
+	if index.MetricType() != faiss.MetricL2 {
+		t.Errorf("Expected faiss.MetricL2, got %v", index.MetricType())
 	}
 
 	// Add vectors
-	vectors := generateVectors(nb, d)
+	vectors := helpers.GenerateVectors(nb, d)
 	if err := index.Add(vectors); err != nil {
 		t.Fatalf("Failed to add vectors: %v", err)
 	}
@@ -72,7 +48,7 @@ func TestIndexFlatL2(t *testing.T) {
 	}
 
 	// Search
-	queries := generateVectors(nq, d)
+	queries := helpers.GenerateVectors(nq, d)
 	distances, indices, err := index.Search(queries, k)
 	if err != nil {
 		t.Fatalf("Search failed: %v", err)
@@ -104,22 +80,22 @@ func TestIndexFlatIP(t *testing.T) {
 	d := 64
 	nb := 500
 
-	index, err := NewIndexFlatIP(d)
+	index, err := faiss.NewIndexFlatIP(d)
 	if err != nil {
 		t.Fatalf("Failed to create IndexFlatIP: %v", err)
 	}
 	defer index.Close()
 
-	if index.MetricType() != MetricInnerProduct {
-		t.Errorf("Expected MetricInnerProduct, got %v", index.MetricType())
+	if index.MetricType() != faiss.MetricInnerProduct {
+		t.Errorf("Expected faiss.MetricInnerProduct, got %v", index.MetricType())
 	}
 
-	vectors := generateVectors(nb, d)
+	vectors := helpers.GenerateVectors(nb, d)
 	if err := index.Add(vectors); err != nil {
 		t.Fatalf("Failed to add vectors: %v", err)
 	}
 
-	queries := generateVectors(1, d)
+	queries := helpers.GenerateVectors(1, d)
 	distances, indices, err := index.Search(queries, 10)
 	if err != nil {
 		t.Fatalf("Search failed: %v", err)
@@ -142,14 +118,14 @@ func TestIndexIVFFlat(t *testing.T) {
 	k := 10
 
 	// Create quantizer
-	quantizer, err := NewIndexFlatL2(d)
+	quantizer, err := faiss.NewIndexFlatL2(d)
 	if err != nil {
 		t.Fatalf("Failed to create quantizer: %v", err)
 	}
 	defer quantizer.Close()
 
 	// Create IVF index
-	index, err := NewIndexIVFFlat(quantizer, d, nlist, MetricL2)
+	index, err := faiss.NewIndexIVFFlat(quantizer, d, nlist, faiss.MetricL2)
 	if err != nil {
 		t.Fatalf("Failed to create IndexIVFFlat: %v", err)
 	}
@@ -167,7 +143,7 @@ func TestIndexIVFFlat(t *testing.T) {
 	}
 
 	// Train
-	trainingVectors := generateVectors(nb, d)
+	trainingVectors := helpers.GenerateVectors(nb, d)
 	if err := index.Train(trainingVectors); err != nil {
 		t.Fatalf("Training failed: %v", err)
 	}
@@ -189,7 +165,7 @@ func TestIndexIVFFlat(t *testing.T) {
 	}
 
 	// Search
-	queries := generateVectors(nq, d)
+	queries := helpers.GenerateVectors(nq, d)
 	distances, indices, err := index.Search(queries, k)
 	if err != nil {
 		t.Fatalf("Search failed: %v", err)
@@ -210,7 +186,7 @@ func TestIndexPQ(t *testing.T) {
 	nbits := 8
 	nb := 10000 // PQ with nbits=8 requires 39 * 256 = 9984 training points
 
-	index, err := NewIndexPQ(d, M, nbits, MetricL2)
+	index, err := faiss.NewIndexPQ(d, M, nbits, faiss.MetricL2)
 	if err != nil {
 		t.Fatalf("Failed to create IndexPQ: %v", err)
 	}
@@ -224,7 +200,7 @@ func TestIndexPQ(t *testing.T) {
 	}
 
 	// Train
-	trainingVectors := generateVectors(nb, d)
+	trainingVectors := helpers.GenerateVectors(nb, d)
 	if err := index.Train(trainingVectors); err != nil {
 		t.Fatalf("Training failed: %v", err)
 	}
@@ -235,7 +211,7 @@ func TestIndexPQ(t *testing.T) {
 	}
 
 	// Search
-	queries := generateVectors(5, d)
+	queries := helpers.GenerateVectors(5, d)
 	distances, indices, err := index.Search(queries, 10)
 	if err != nil {
 		t.Fatalf("Search failed: %v", err)
@@ -263,7 +239,7 @@ func TestIndexIVFPQ(t *testing.T) {
 	nbits := 8
 	nb := 10000 // IVFPQ with nbits=8 requires 39 * 256 = 9984 training points
 
-	quantizer, err := NewIndexFlatL2(d)
+	quantizer, err := faiss.NewIndexFlatL2(d)
 	if err != nil {
 		t.Fatalf("Failed to create quantizer: %v", err)
 	}
@@ -276,7 +252,7 @@ func TestIndexIVFPQ(t *testing.T) {
 	defer index.Close()
 
 	// Train
-	trainingVectors := generateVectors(nb, d)
+	trainingVectors := helpers.GenerateVectors(nb, d)
 	if err := index.Train(trainingVectors); err != nil {
 		t.Fatalf("Training failed: %v", err)
 	}
@@ -290,7 +266,7 @@ func TestIndexIVFPQ(t *testing.T) {
 	index.SetNprobe(3)
 
 	// Search
-	queries := generateVectors(5, d)
+	queries := helpers.GenerateVectors(5, d)
 	distances, indices, err := index.Search(queries, 10)
 	if err != nil {
 		t.Fatalf("Search failed: %v", err)
@@ -310,7 +286,7 @@ func TestIndexHNSW(t *testing.T) {
 	M := 16
 	nb := 500
 
-	index, err := NewIndexHNSWFlat(d, M, MetricL2)
+	index, err := faiss.NewIndexHNSWFlat(d, M, faiss.MetricL2)
 	if err != nil {
 		t.Fatalf("Failed to create IndexHNSW: %v", err)
 	}
@@ -321,7 +297,7 @@ func TestIndexHNSW(t *testing.T) {
 	}
 
 	// Add vectors
-	vectors := generateVectors(nb, d)
+	vectors := helpers.GenerateVectors(nb, d)
 	if err := index.Add(vectors); err != nil {
 		t.Fatalf("Add failed: %v", err)
 	}
@@ -332,7 +308,7 @@ func TestIndexHNSW(t *testing.T) {
 	}
 
 	// Search
-	queries := generateVectors(5, d)
+	queries := helpers.GenerateVectors(5, d)
 	distances, indices, err := index.Search(queries, 10)
 	if err != nil {
 		t.Fatalf("Search failed: %v", err)
@@ -351,7 +327,7 @@ func TestIndexScalarQuantizer(t *testing.T) {
 	d := 64
 	nb := 500
 
-	index, err := NewIndexScalarQuantizer(d, QT_8bit, MetricL2)
+	index, err := NewIndexScalarQuantizer(d, QT_8bit, faiss.MetricL2)
 	if err != nil {
 		t.Fatalf("Failed to create IndexScalarQuantizer: %v", err)
 	}
@@ -362,7 +338,7 @@ func TestIndexScalarQuantizer(t *testing.T) {
 	}
 
 	// Train
-	trainingVectors := generateVectors(nb, d)
+	trainingVectors := helpers.GenerateVectors(nb, d)
 	if err := index.Train(trainingVectors); err != nil {
 		t.Fatalf("Training failed: %v", err)
 	}
@@ -373,7 +349,7 @@ func TestIndexScalarQuantizer(t *testing.T) {
 	}
 
 	// Search
-	queries := generateVectors(5, d)
+	queries := helpers.GenerateVectors(5, d)
 	distances, indices, err := index.Search(queries, 10)
 	if err != nil {
 		t.Fatalf("Search failed: %v", err)
@@ -395,20 +371,20 @@ func TestIndexIVFScalarQuantizer(t *testing.T) {
 	nlist := 10
 	nb := 500
 
-	quantizer, err := NewIndexFlatL2(d)
+	quantizer, err := faiss.NewIndexFlatL2(d)
 	if err != nil {
 		t.Fatalf("Failed to create quantizer: %v", err)
 	}
 	defer quantizer.Close()
 
-	index, err := NewIndexIVFScalarQuantizer(quantizer, d, nlist, QT_8bit, MetricL2)
+	index, err := NewIndexIVFScalarQuantizer(quantizer, d, nlist, QT_8bit, faiss.MetricL2)
 	if err != nil {
 		t.Fatalf("Failed to create IndexIVFScalarQuantizer: %v", err)
 	}
 	defer index.Close()
 
 	// Train
-	trainingVectors := generateVectors(nb, d)
+	trainingVectors := helpers.GenerateVectors(nb, d)
 	if err := index.Train(trainingVectors); err != nil {
 		t.Fatalf("Training failed: %v", err)
 	}
@@ -420,7 +396,7 @@ func TestIndexIVFScalarQuantizer(t *testing.T) {
 
 	// Search
 	index.SetNprobe(3)
-	queries := generateVectors(5, d)
+	queries := helpers.GenerateVectors(5, d)
 	_, _, err = index.Search(queries, 10)
 	if err != nil {
 		t.Fatalf("Search failed: %v", err)
@@ -447,13 +423,13 @@ func TestIndexLSH(t *testing.T) {
 	}
 
 	// Add vectors
-	vectors := generateVectors(nb, d)
+	vectors := helpers.GenerateVectors(nb, d)
 	if err := index.Add(vectors); err != nil {
 		t.Fatalf("Add failed: %v", err)
 	}
 
 	// Search
-	queries := generateVectors(5, d)
+	queries := helpers.GenerateVectors(5, d)
 	distances, indices, err := index.Search(queries, 10)
 	if err != nil {
 		t.Fatalf("Search failed: %v", err)
@@ -474,7 +450,7 @@ func TestIndexBinaryFlat(t *testing.T) {
 	nq := 5
 	k := 10
 
-	index, err := NewIndexBinaryFlat(d)
+	index, err := faiss.NewIndexBinaryFlat(d)
 	if err != nil {
 		t.Fatalf("Failed to create IndexBinaryFlat: %v", err)
 	}
@@ -485,7 +461,7 @@ func TestIndexBinaryFlat(t *testing.T) {
 	}
 
 	// Add binary vectors
-	vectors := generateBinaryVectors(nb, d)
+	vectors := helpers.GenerateBinaryVectors(nb, d)
 	if err := index.Add(vectors); err != nil {
 		t.Fatalf("Add failed: %v", err)
 	}
@@ -495,7 +471,7 @@ func TestIndexBinaryFlat(t *testing.T) {
 	}
 
 	// Search
-	queries := generateBinaryVectors(nq, d)
+	queries := helpers.GenerateBinaryVectors(nq, d)
 	distances, indices, err := index.Search(queries, k)
 	if err != nil {
 		t.Fatalf("Search failed: %v", err)
@@ -518,7 +494,7 @@ func TestIndexBinaryIVF(t *testing.T) {
 	nlist := 10
 	nb := 500
 
-	quantizer, err := NewIndexBinaryFlat(d)
+	quantizer, err := faiss.NewIndexBinaryFlat(d)
 	if err != nil {
 		t.Fatalf("Failed to create quantizer: %v", err)
 	}
@@ -531,7 +507,7 @@ func TestIndexBinaryIVF(t *testing.T) {
 	defer index.Close()
 
 	// Train
-	trainingVectors := generateBinaryVectors(nb, d)
+	trainingVectors := helpers.GenerateBinaryVectors(nb, d)
 	if err := index.Train(trainingVectors); err != nil {
 		t.Fatalf("Training failed: %v", err)
 	}
@@ -543,7 +519,7 @@ func TestIndexBinaryIVF(t *testing.T) {
 
 	// Search
 	index.SetNprobe(3)
-	queries := generateBinaryVectors(5, d)
+	queries := helpers.GenerateBinaryVectors(5, d)
 	_, _, err = index.Search(queries, 10)
 	if err != nil {
 		t.Fatalf("Search failed: %v", err)
@@ -560,7 +536,7 @@ func TestIndexPQFastScan(t *testing.T) {
 	nbits := 4 // Optimal for FastScan
 	nb := 1000 // Sufficient for nbits=4 (16 centroids per subquantizer)
 
-	index, err := NewIndexPQFastScan(d, M, nbits, MetricL2)
+	index, err := faiss.NewIndexPQFastScan(d, M, nbits, faiss.MetricL2)
 	if err != nil {
 		t.Fatalf("Failed to create IndexPQFastScan: %v", err)
 	}
@@ -571,7 +547,7 @@ func TestIndexPQFastScan(t *testing.T) {
 	}
 
 	// Train
-	trainingVectors := generateVectors(nb, d)
+	trainingVectors := helpers.GenerateVectors(nb, d)
 	if err := index.Train(trainingVectors); err != nil {
 		t.Fatalf("Training failed: %v", err)
 	}
@@ -582,7 +558,7 @@ func TestIndexPQFastScan(t *testing.T) {
 	}
 
 	// Search
-	queries := generateVectors(5, d)
+	queries := helpers.GenerateVectors(5, d)
 	_, _, err = index.Search(queries, 10)
 	if err != nil {
 		t.Fatalf("Search failed: %v", err)
@@ -596,20 +572,20 @@ func TestIndexIVFPQFastScan(t *testing.T) {
 	nbits := 4
 	nb := 1000 // Sufficient for nlist=10 + nbits=4
 
-	quantizer, err := NewIndexFlatL2(d)
+	quantizer, err := faiss.NewIndexFlatL2(d)
 	if err != nil {
 		t.Fatalf("Failed to create quantizer: %v", err)
 	}
 	defer quantizer.Close()
 
-	index, err := NewIndexIVFPQFastScan(quantizer, d, nlist, M, nbits, MetricL2)
+	index, err := NewIndexIVFPQFastScan(quantizer, d, nlist, M, nbits, faiss.MetricL2)
 	if err != nil {
 		t.Fatalf("Failed to create IndexIVFPQFastScan: %v", err)
 	}
 	defer index.Close()
 
 	// Train
-	trainingVectors := generateVectors(nb, d)
+	trainingVectors := helpers.GenerateVectors(nb, d)
 	if err := index.Train(trainingVectors); err != nil {
 		t.Fatalf("Training failed: %v", err)
 	}
@@ -621,7 +597,7 @@ func TestIndexIVFPQFastScan(t *testing.T) {
 
 	// Search
 	index.SetNprobe(3)
-	queries := generateVectors(5, d)
+	queries := helpers.GenerateVectors(5, d)
 	_, _, err = index.Search(queries, 10)
 	if err != nil {
 		t.Fatalf("Search failed: %v", err)
@@ -639,13 +615,13 @@ func TestIndexIVFFlatOnDisk(t *testing.T) {
 	filename := "/tmp/test_ivfflat_ondisk.ivfdata"
 	defer os.Remove(filename)
 
-	quantizer, err := NewIndexFlatL2(d)
+	quantizer, err := faiss.NewIndexFlatL2(d)
 	if err != nil {
 		t.Fatalf("Failed to create quantizer: %v", err)
 	}
 	defer quantizer.Close()
 
-	index, err := NewIndexIVFFlatOnDisk(quantizer, d, nlist, filename, MetricL2)
+	index, err := faiss.NewIndexIVFFlatOnDisk(quantizer, d, nlist, filename, faiss.MetricL2)
 	if err != nil {
 		t.Fatalf("Failed to create IndexIVFFlatOnDisk: %v", err)
 	}
@@ -656,7 +632,7 @@ func TestIndexIVFFlatOnDisk(t *testing.T) {
 	}
 
 	// Train
-	trainingVectors := generateVectors(nb, d)
+	trainingVectors := helpers.GenerateVectors(nb, d)
 	if err := index.Train(trainingVectors); err != nil {
 		t.Fatalf("Training failed: %v", err)
 	}
@@ -668,7 +644,7 @@ func TestIndexIVFFlatOnDisk(t *testing.T) {
 
 	// Search
 	index.SetNprobe(3)
-	queries := generateVectors(5, d)
+	queries := helpers.GenerateVectors(5, d)
 	_, _, err = index.Search(queries, 10)
 	if err != nil {
 		t.Fatalf("Search failed: %v", err)
@@ -684,20 +660,20 @@ func TestIndexIVFPQOnDisk(t *testing.T) {
 	filename := "/tmp/test_ivfpq_ondisk.ivfpq"
 	defer os.Remove(filename)
 
-	quantizer, err := NewIndexFlatL2(d)
+	quantizer, err := faiss.NewIndexFlatL2(d)
 	if err != nil {
 		t.Fatalf("Failed to create quantizer: %v", err)
 	}
 	defer quantizer.Close()
 
-	index, err := NewIndexIVFPQOnDisk(quantizer, d, nlist, M, nbits, filename, MetricL2)
+	index, err := NewIndexIVFPQOnDisk(quantizer, d, nlist, M, nbits, filename, faiss.MetricL2)
 	if err != nil {
 		t.Fatalf("Failed to create IndexIVFPQOnDisk: %v", err)
 	}
 	defer index.Close()
 
 	// Train
-	trainingVectors := generateVectors(nb, d)
+	trainingVectors := helpers.GenerateVectors(nb, d)
 	if err := index.Train(trainingVectors); err != nil {
 		t.Fatalf("Training failed: %v", err)
 	}
@@ -709,7 +685,7 @@ func TestIndexIVFPQOnDisk(t *testing.T) {
 
 	// Search
 	index.SetNprobe(3)
-	queries := generateVectors(5, d)
+	queries := helpers.GenerateVectors(5, d)
 	_, _, err = index.Search(queries, 10)
 	if err != nil {
 		t.Fatalf("Search failed: %v", err)
@@ -727,12 +703,12 @@ func TestIndexIVFPQOnDisk(t *testing.T) {
 // ========================================
 
 func TestInvalidDimensions(t *testing.T) {
-	_, err := NewIndexFlatL2(0)
+	_, err := faiss.NewIndexFlatL2(0)
 	if err == nil {
 		t.Error("Expected error for dimension 0")
 	}
 
-	_, err = NewIndexFlatL2(-10)
+	_, err = faiss.NewIndexFlatL2(-10)
 	if err == nil {
 		t.Error("Expected error for negative dimension")
 	}
@@ -740,23 +716,23 @@ func TestInvalidDimensions(t *testing.T) {
 
 func TestInvalidPQParameters(t *testing.T) {
 	// d not divisible by M
-	_, err := NewIndexPQ(100, 7, 8, MetricL2)
+	_, err := faiss.NewIndexPQ(100, 7, 8, faiss.MetricL2)
 	if err == nil {
 		t.Error("Expected error for d not divisible by M")
 	}
 
 	// Invalid nbits
-	_, err = NewIndexPQ(128, 8, 0, MetricL2)
+	_, err = faiss.NewIndexPQ(128, 8, 0, faiss.MetricL2)
 	if err == nil {
 		t.Error("Expected error for invalid nbits")
 	}
 }
 
 func TestSearchBeforeAdd(t *testing.T) {
-	index, _ := NewIndexFlatL2(64)
+	index, _ := faiss.NewIndexFlatL2(64)
 	defer index.Close()
 
-	queries := generateVectors(1, 64)
+	queries := helpers.GenerateVectors(1, 64)
 	_, _, err := index.Search(queries, 10)
 
 	// Should not error, but return no results or handle gracefully
@@ -765,13 +741,13 @@ func TestSearchBeforeAdd(t *testing.T) {
 }
 
 func TestAddBeforeTrain(t *testing.T) {
-	quantizer, _ := NewIndexFlatL2(64)
+	quantizer, _ := faiss.NewIndexFlatL2(64)
 	defer quantizer.Close()
 
-	index, _ := NewIndexIVFFlat(quantizer, 64, 10, MetricL2)
+	index, _ := faiss.NewIndexIVFFlat(quantizer, 64, 10, faiss.MetricL2)
 	defer index.Close()
 
-	vectors := generateVectors(100, 64)
+	vectors := helpers.GenerateVectors(100, 64)
 	err := index.Add(vectors)
 	if err == nil {
 		t.Error("Expected error when adding before training")
@@ -779,7 +755,7 @@ func TestAddBeforeTrain(t *testing.T) {
 }
 
 func TestWrongVectorDimension(t *testing.T) {
-	index, _ := NewIndexFlatL2(64)
+	index, _ := faiss.NewIndexFlatL2(64)
 	defer index.Close()
 
 	// Wrong dimension - create vectors that don't divide evenly

@@ -1,8 +1,11 @@
-package faiss
+package scenarios_test
 
 import (
 	"math"
 	"testing"
+
+	faiss "github.com/NerdMeNot/faiss-go"
+	"github.com/NerdMeNot/faiss-go/test/helpers"
 )
 
 // ========================================
@@ -240,7 +243,7 @@ func TestSearchQuality_SemanticRetrieval(t *testing.T) {
 	d := 24
 
 	// Create index with animal embeddings
-	index, err := NewIndexFlatL2(d)
+	index, err := faiss.NewIndexFlatL2(d)
 	if err != nil {
 		t.Fatalf("Failed to create index: %v", err)
 	}
@@ -282,7 +285,7 @@ func TestSearchQuality_SemanticRetrieval(t *testing.T) {
 func TestSearchQuality_RangeSearch(t *testing.T) {
 	d := 24
 
-	index, err := NewIndexFlatL2(d)
+	index, err := faiss.NewIndexFlatL2(d)
 	if err != nil {
 		t.Fatalf("Failed to create index: %v", err)
 	}
@@ -323,7 +326,7 @@ func TestSearchQuality_RangeSearch(t *testing.T) {
 func TestSearchQuality_TopKAccuracy(t *testing.T) {
 	d := 16
 
-	index, err := NewIndexFlatL2(d)
+	index, err := faiss.NewIndexFlatL2(d)
 	if err != nil {
 		t.Fatalf("Failed to create index: %v", err)
 	}
@@ -370,20 +373,20 @@ func TestRecallPrecision_IVFIndex(t *testing.T) {
 	nlist := 2
 
 	// Create ground truth index (flat, exhaustive search)
-	groundTruth, err := NewIndexFlatL2(d)
+	groundTruth, err := faiss.NewIndexFlatL2(d)
 	if err != nil {
 		t.Fatalf("Failed to create ground truth index: %v", err)
 	}
 	defer groundTruth.Close()
 
 	// Create IVF index (approximate search)
-	quantizer, err := NewIndexFlatL2(d)
+	quantizer, err := faiss.NewIndexFlatL2(d)
 	if err != nil {
 		t.Fatalf("Failed to create quantizer: %v", err)
 	}
 	defer quantizer.Close()
 
-	ivfIndex, err := NewIndexIVFFlat(quantizer, d, nlist, MetricL2)
+	ivfIndex, err := faiss.NewIndexIVFFlat(quantizer, d, nlist, faiss.MetricL2)
 	if err != nil {
 		t.Fatalf("Failed to create IVF index: %v", err)
 	}
@@ -398,7 +401,7 @@ func TestRecallPrecision_IVFIndex(t *testing.T) {
 
 	// IVF needs sufficient training data (at least 39*nlist samples)
 	// Generate additional training vectors based on existing patterns
-	trainingVectors := generateVectors(100, d)
+	trainingVectors := helpers.GenerateVectors(100, d)
 	if err := ivfIndex.Train(trainingVectors); err != nil {
 		t.Fatalf("Failed to train IVF: %v", err)
 	}
@@ -552,7 +555,7 @@ func TestBatchDistance_QualityCheck(t *testing.T) {
 func TestQualitative_EmptyQuery(t *testing.T) {
 	d := 24
 
-	index, err := NewIndexFlatL2(d)
+	index, err := faiss.NewIndexFlatL2(d)
 	if err != nil {
 		t.Fatalf("Failed to create index: %v", err)
 	}
@@ -576,7 +579,7 @@ func TestQualitative_EmptyQuery(t *testing.T) {
 func TestQualitative_IdenticalVectors(t *testing.T) {
 	d := 16
 
-	index, err := NewIndexFlatL2(d)
+	index, err := faiss.NewIndexFlatL2(d)
 	if err != nil {
 		t.Fatalf("Failed to create index: %v", err)
 	}
