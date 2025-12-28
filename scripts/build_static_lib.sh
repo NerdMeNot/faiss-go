@@ -7,7 +7,7 @@
 set -euo pipefail
 
 PLATFORM="${1:-}"
-FAISS_VERSION="${2:-v1.8.0}"
+FAISS_VERSION="${2:-v1.13.2}"
 
 if [ -z "$PLATFORM" ]; then
     echo "Usage: $0 <platform> [faiss_version]"

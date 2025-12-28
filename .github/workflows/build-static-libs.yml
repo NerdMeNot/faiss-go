@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       faiss_version:
-        description: 'FAISS version tag (e.g., v1.8.0)'
+        description: 'FAISS version tag (e.g., v1.13.2)'
         required: true
-        default: 'v1.8.0'
+        default: 'v1.13.2'
       platforms:
         description: 'Platforms to build (comma-separated: linux-amd64,linux-arm64,darwin-amd64,darwin-arm64,windows-amd64 or "all")'
         required: true
