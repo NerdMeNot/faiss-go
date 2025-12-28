@@ -98,6 +98,39 @@ if [ -n "${CMAKE_OSX_ARCHITECTURES:-}" ]; then
     CMAKE_FLAGS+=(-DCMAKE_OSX_ARCHITECTURES="$CMAKE_OSX_ARCHITECTURES")
 fi
 
+# macOS OpenMP detection
+if [[ "$PLATFORM" == darwin-* ]]; then
+    # Help CMake find OpenMP on macOS (installed via Homebrew)
+    if [ -d "/opt/homebrew/opt/libomp" ]; then
+        # Apple Silicon (M1/M2)
+        CMAKE_FLAGS+=(
+            -DOpenMP_C_FLAGS="-Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include"
+            -DOpenMP_C_LIB_NAMES="omp"
+            -DOpenMP_CXX_FLAGS="-Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include"
+            -DOpenMP_CXX_LIB_NAMES="omp"
+            -DOpenMP_omp_LIBRARY="/opt/homebrew/opt/libomp/lib/libomp.dylib"
+        )
+    elif [ -d "/usr/local/opt/libomp" ]; then
+        # Intel Mac
+        CMAKE_FLAGS+=(
+            -DOpenMP_C_FLAGS="-Xpreprocessor -fopenmp -I/usr/local/opt/libomp/include"
+            -DOpenMP_C_LIB_NAMES="omp"
+            -DOpenMP_CXX_FLAGS="-Xpreprocessor -fopenmp -I/usr/local/opt/libomp/include"
+            -DOpenMP_CXX_LIB_NAMES="omp"
+            -DOpenMP_omp_LIBRARY="/usr/local/opt/libomp/lib/libomp.dylib"
+        )
+    fi
+fi
+
+# Windows vcpkg toolchain
+if [[ "$PLATFORM" == windows-* ]]; then
+    # Check for vcpkg toolchain file
+    VCPKG_ROOT="${VCPKG_INSTALLATION_ROOT:-C:/vcpkg}"
+    if [ -f "$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" ]; then
+        CMAKE_FLAGS+=(-DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake")
+    fi
+fi
+
 # Build
 cmake .. "${CMAKE_FLAGS[@]}" || {
     echo -e "${RED}CMake configuration failed${NC}"
@@ -148,7 +181,11 @@ EOF
 
 # Generate checksums
 cd "$OUTPUT_DIR"
-sha256sum * > checksums.txt 2>/dev/null || shasum -a 256 * > checksums.txt
+if command -v sha256sum >/dev/null 2>&1; then
+    find . -maxdepth 1 -type f -exec sha256sum {} \; > checksums.txt
+else
+    find . -maxdepth 1 -type f -exec shasum -a 256 {} \; > checksums.txt
+fi
 
 # Show results
 echo ""
