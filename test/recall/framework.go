@@ -11,6 +11,21 @@ import (
 	"github.com/NerdMeNot/faiss-go/test/helpers"
 )
 
+// RecallThresholds defines recall targets for CI vs Local environments
+type RecallThresholds struct {
+	CI    RecallTargets // Relaxed thresholds for CI (fast validation)
+	Local RecallTargets // Strict thresholds for local testing (production quality)
+}
+
+// RecallTargets defines the specific recall and performance targets
+type RecallTargets struct {
+	MinRecall1    float64       // Minimum recall@1 (0.0 = skip check)
+	MinRecall10   float64       // Minimum recall@10
+	MinRecall100  float64       // Minimum recall@100 (0.0 = skip check)
+	MaxP99Latency time.Duration // Maximum P99 latency (0 = skip check)
+	MinQPS        float64       // Minimum queries per second (0 = skip check)
+}
+
 // RecallTestConfig configures a recall validation test
 type RecallTestConfig struct {
 	// Test identification
@@ -30,14 +45,17 @@ type RecallTestConfig struct {
 	D          int    // Dimension (for synthetic data)
 	NQ         int    // Number of queries (for synthetic data)
 
-	// Quality targets
-	MinRecall1   float64 // Minimum recall@1 (0.0 = skip check)
-	MinRecall10  float64 // Minimum recall@10
-	MinRecall100 float64 // Minimum recall@100 (0.0 = skip check)
+	// Quality targets (DEPRECATED - use Thresholds instead)
+	MinRecall1   float64 // Minimum recall@1 (0.0 = skip check) - DEPRECATED
+	MinRecall10  float64 // Minimum recall@10 - DEPRECATED
+	MinRecall100 float64 // Minimum recall@100 (0.0 = skip check) - DEPRECATED
 
-	// Performance targets (0 = skip check)
-	MaxP99Latency time.Duration // Maximum P99 latency
-	MinQPS        float64       // Minimum queries per second
+	// Performance targets (DEPRECATED - use Thresholds instead)
+	MaxP99Latency time.Duration // Maximum P99 latency - DEPRECATED
+	MinQPS        float64       // Minimum queries per second - DEPRECATED
+
+	// New dual-threshold system (preferred)
+	Thresholds RecallThresholds // CI and Local thresholds
 
 	// Test configuration
 	K            int                       // Number of neighbors to retrieve
@@ -94,13 +112,15 @@ func loadOrGenerateDataset(t *testing.T, config RecallTestConfig) (datasetResult
 			}
 		}
 	} else {
-		// Generate synthetic dataset
+		// Generate synthetic dataset with fixed seed for reproducibility
+		// Note: Even with fixed data seed, ANN algorithms (IVF k-means, HNSW graph)
+		// have internal randomness that can cause result variations
 		genConfig := datasets.GeneratorConfig{
 			N:            config.N,
 			D:            config.D,
 			Distribution: config.Distribution,
 			NumClusters:  int(float64(config.N) * 0.1), // ~10% clusters
-			Seed:         42,                           // Reproducible
+			Seed:         42,                           // Fixed seed for data generation
 		}
 
 		synData := datasets.GenerateSyntheticData(genConfig)
@@ -112,8 +132,8 @@ func loadOrGenerateDataset(t *testing.T, config RecallTestConfig) (datasetResult
 		res.nq = config.NQ
 		res.d = config.D
 
-		// Compute ground truth
-		groundTruth, err := helpers.ComputeGroundTruth(res.vectors, res.queries, res.d, config.K, config.Metric)
+		// Compute ground truth with caching for better performance
+		groundTruth, err := helpers.ComputeGroundTruthWithCache(res.vectors, res.queries, res.d, config.K, config.Metric)
 		if err != nil {
 			return res, fmt.Errorf("failed to compute ground truth: %w", err)
 		}
@@ -121,6 +141,28 @@ func loadOrGenerateDataset(t *testing.T, config RecallTestConfig) (datasetResult
 	}
 
 	return res, nil
+}
+
+// getActiveThresholds returns the appropriate thresholds based on environment
+func (c *RecallTestConfig) getActiveThresholds() RecallTargets {
+	// If new threshold system is not set, fall back to legacy fields
+	if c.Thresholds.CI.MinRecall10 == 0 && c.Thresholds.Local.MinRecall10 == 0 {
+		return RecallTargets{
+			MinRecall1:    c.MinRecall1,
+			MinRecall10:   c.MinRecall10,
+			MinRecall100:  c.MinRecall100,
+			MaxP99Latency: c.MaxP99Latency,
+			MinQPS:        c.MinQPS,
+		}
+	}
+
+	// Use CI thresholds if in CI or short mode
+	if datasets.IsCI() || testing.Short() {
+		return c.Thresholds.CI
+	}
+
+	// Use local thresholds for full testing
+	return c.Thresholds.Local
 }
 
 // trainIndexIfNeeded trains the index if required by configuration
@@ -150,28 +192,38 @@ func trainIndexIfNeeded(t *testing.T, index faiss.Index, config RecallTestConfig
 func validateTargets(t *testing.T, config RecallTestConfig, metrics helpers.RecallMetrics, perf helpers.PerformanceMetrics) bool {
 	passed := true
 
-	if config.MinRecall1 > 0 && metrics.Recall1 < config.MinRecall1 {
-		t.Errorf("Recall@1 too low: %.4f < %.4f", metrics.Recall1, config.MinRecall1)
+	// Get active thresholds based on environment
+	thresholds := config.getActiveThresholds()
+
+	// Log which threshold mode we're using
+	if datasets.IsCI() || testing.Short() {
+		t.Logf("Using CI thresholds (relaxed for fast validation)")
+	} else {
+		t.Logf("Using Local thresholds (strict for production quality)")
+	}
+
+	if thresholds.MinRecall1 > 0 && metrics.Recall1 < thresholds.MinRecall1 {
+		t.Errorf("Recall@1 too low: %.4f < %.4f", metrics.Recall1, thresholds.MinRecall1)
 		passed = false
 	}
 
-	if config.MinRecall10 > 0 && metrics.Recall10 < config.MinRecall10 {
-		t.Errorf("Recall@10 too low: %.4f < %.4f", metrics.Recall10, config.MinRecall10)
+	if thresholds.MinRecall10 > 0 && metrics.Recall10 < thresholds.MinRecall10 {
+		t.Errorf("Recall@10 too low: %.4f < %.4f", metrics.Recall10, thresholds.MinRecall10)
 		passed = false
 	}
 
-	if config.MinRecall100 > 0 && metrics.Recall100 < config.MinRecall100 {
-		t.Errorf("Recall@100 too low: %.4f < %.4f", metrics.Recall100, config.MinRecall100)
+	if thresholds.MinRecall100 > 0 && metrics.Recall100 < thresholds.MinRecall100 {
+		t.Errorf("Recall@100 too low: %.4f < %.4f", metrics.Recall100, thresholds.MinRecall100)
 		passed = false
 	}
 
-	if config.MaxP99Latency > 0 && perf.P99Latency > config.MaxP99Latency {
-		t.Errorf("P99 latency too high: %v > %v", perf.P99Latency, config.MaxP99Latency)
+	if thresholds.MaxP99Latency > 0 && perf.P99Latency > thresholds.MaxP99Latency {
+		t.Errorf("P99 latency too high: %v > %v", perf.P99Latency, thresholds.MaxP99Latency)
 		passed = false
 	}
 
-	if config.MinQPS > 0 && perf.QPS < config.MinQPS {
-		t.Errorf("QPS too low: %.0f < %.0f", perf.QPS, config.MinQPS)
+	if thresholds.MinQPS > 0 && perf.QPS < thresholds.MinQPS {
+		t.Errorf("QPS too low: %.0f < %.0f", perf.QPS, thresholds.MinQPS)
 		passed = false
 	}
 

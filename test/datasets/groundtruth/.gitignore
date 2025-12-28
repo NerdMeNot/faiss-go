@@ -1,0 +1,2 @@
+# Ignore all cached ground truth files
+gt_cache_*.json

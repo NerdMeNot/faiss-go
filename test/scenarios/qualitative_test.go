@@ -1,8 +1,11 @@
-package faiss
+package scenarios_test
 
 import (
 	"math"
 	"testing"
+
+	faiss "github.com/NerdMeNot/faiss-go"
+	"github.com/NerdMeNot/faiss-go/test/helpers"
 )
 
 // ========================================
@@ -126,15 +129,15 @@ func TestSemanticSimilarity_AnimalSentences(t *testing.T) {
 	carHighway := animalEmbeddings["Cars drive on highways"]
 
 	// Distance between similar sentences (cat/feline)
-	distSimilar, err := L2Distance(catMat, felineRug)
+	distSimilar, err := faiss.L2Distance(catMat, felineRug)
 	if err != nil {
-		t.Fatalf("L2Distance failed: %v", err)
+		t.Fatalf("faiss.L2Distance failed: %v", err)
 	}
 
 	// Distance between dissimilar sentences (cat/cars)
-	distDissimilar, err := L2Distance(catMat, carHighway)
+	distDissimilar, err := faiss.L2Distance(catMat, carHighway)
 	if err != nil {
-		t.Fatalf("L2Distance failed: %v", err)
+		t.Fatalf("faiss.L2Distance failed: %v", err)
 	}
 
 	if distSimilar >= distDissimilar {
@@ -154,15 +157,15 @@ func TestSemanticSimilarity_TechnicalContent(t *testing.T) {
 	kitten := technicalEmbeddings["The kitten chased the yarn"]
 
 	// Technical content should be similar to each other
-	distTechnical, err := L2Distance(mlAlgo, neuralNet)
+	distTechnical, err := faiss.L2Distance(mlAlgo, neuralNet)
 	if err != nil {
-		t.Fatalf("L2Distance failed: %v", err)
+		t.Fatalf("faiss.L2Distance failed: %v", err)
 	}
 
 	// Technical vs casual should be dissimilar
-	distMixed, err := L2Distance(mlAlgo, kitten)
+	distMixed, err := faiss.L2Distance(mlAlgo, kitten)
 	if err != nil {
-		t.Fatalf("L2Distance failed: %v", err)
+		t.Fatalf("faiss.L2Distance failed: %v", err)
 	}
 
 	if distTechnical >= distMixed {
@@ -178,19 +181,19 @@ func TestSemanticSimilarity_Synonyms(t *testing.T) {
 	cat := wordEmbeddings["cat"]
 	feline := wordEmbeddings["feline"]
 
-	distCarAuto, err := L2Distance(car, automobile)
+	distCarAuto, err := faiss.L2Distance(car, automobile)
 	if err != nil {
-		t.Fatalf("L2Distance failed: %v", err)
+		t.Fatalf("faiss.L2Distance failed: %v", err)
 	}
-	distCatFeline, err := L2Distance(cat, feline)
+	distCatFeline, err := faiss.L2Distance(cat, feline)
 	if err != nil {
-		t.Fatalf("L2Distance failed: %v", err)
+		t.Fatalf("faiss.L2Distance failed: %v", err)
 	}
 
 	// Synonym pairs should be closer than unrelated words
-	distCarCat, err := L2Distance(car, cat)
+	distCarCat, err := faiss.L2Distance(car, cat)
 	if err != nil {
-		t.Fatalf("L2Distance failed: %v", err)
+		t.Fatalf("faiss.L2Distance failed: %v", err)
 	}
 
 	if distCarAuto >= distCarCat || distCatFeline >= distCarCat {
@@ -213,17 +216,17 @@ func TestSemanticSimilarity_AnalogyRelationships(t *testing.T) {
 	}
 
 	// Distance to queen should be smaller than to other words
-	distToQueen, err := L2Distance(analogy, queen)
+	distToQueen, err := faiss.L2Distance(analogy, queen)
 	if err != nil {
-		t.Fatalf("L2Distance failed: %v", err)
+		t.Fatalf("faiss.L2Distance failed: %v", err)
 	}
-	distToKing, err := L2Distance(analogy, king)
+	distToKing, err := faiss.L2Distance(analogy, king)
 	if err != nil {
-		t.Fatalf("L2Distance failed: %v", err)
+		t.Fatalf("faiss.L2Distance failed: %v", err)
 	}
-	distToCar, err := L2Distance(analogy, wordEmbeddings["car"])
+	distToCar, err := faiss.L2Distance(analogy, wordEmbeddings["car"])
 	if err != nil {
-		t.Fatalf("L2Distance failed: %v", err)
+		t.Fatalf("faiss.L2Distance failed: %v", err)
 	}
 
 	if distToQueen >= distToKing || distToQueen >= distToCar {
@@ -240,7 +243,7 @@ func TestSearchQuality_SemanticRetrieval(t *testing.T) {
 	d := 24
 
 	// Create index with animal embeddings
-	index, err := NewIndexFlatL2(d)
+	index, err := faiss.NewIndexFlatL2(d)
 	if err != nil {
 		t.Fatalf("Failed to create index: %v", err)
 	}
@@ -282,7 +285,7 @@ func TestSearchQuality_SemanticRetrieval(t *testing.T) {
 func TestSearchQuality_RangeSearch(t *testing.T) {
 	d := 24
 
-	index, err := NewIndexFlatL2(d)
+	index, err := faiss.NewIndexFlatL2(d)
 	if err != nil {
 		t.Fatalf("Failed to create index: %v", err)
 	}
@@ -323,7 +326,7 @@ func TestSearchQuality_RangeSearch(t *testing.T) {
 func TestSearchQuality_TopKAccuracy(t *testing.T) {
 	d := 16
 
-	index, err := NewIndexFlatL2(d)
+	index, err := faiss.NewIndexFlatL2(d)
 	if err != nil {
 		t.Fatalf("Failed to create index: %v", err)
 	}
@@ -370,20 +373,20 @@ func TestRecallPrecision_IVFIndex(t *testing.T) {
 	nlist := 2
 
 	// Create ground truth index (flat, exhaustive search)
-	groundTruth, err := NewIndexFlatL2(d)
+	groundTruth, err := faiss.NewIndexFlatL2(d)
 	if err != nil {
 		t.Fatalf("Failed to create ground truth index: %v", err)
 	}
 	defer groundTruth.Close()
 
 	// Create IVF index (approximate search)
-	quantizer, err := NewIndexFlatL2(d)
+	quantizer, err := faiss.NewIndexFlatL2(d)
 	if err != nil {
 		t.Fatalf("Failed to create quantizer: %v", err)
 	}
 	defer quantizer.Close()
 
-	ivfIndex, err := NewIndexIVFFlat(quantizer, d, nlist, MetricL2)
+	ivfIndex, err := faiss.NewIndexIVFFlat(quantizer, d, nlist, faiss.MetricL2)
 	if err != nil {
 		t.Fatalf("Failed to create IVF index: %v", err)
 	}
@@ -398,7 +401,7 @@ func TestRecallPrecision_IVFIndex(t *testing.T) {
 
 	// IVF needs sufficient training data (at least 39*nlist samples)
 	// Generate additional training vectors based on existing patterns
-	trainingVectors := generateVectors(100, d)
+	trainingVectors := helpers.GenerateVectors(100, d)
 	if err := ivfIndex.Train(trainingVectors); err != nil {
 		t.Fatalf("Failed to train IVF: %v", err)
 	}
@@ -458,13 +461,13 @@ func TestCosineSimilarity_SemanticMatching(t *testing.T) {
 	carHighway := animalEmbeddings["Cars drive on highways"]
 
 	// Higher cosine similarity = more similar
-	simSimilar, err := CosineSimilarity(catMat, felineRug)
+	simSimilar, err := faiss.CosineSimilarity(catMat, felineRug)
 	if err != nil {
-		t.Fatalf("CosineSimilarity failed: %v", err)
+		t.Fatalf("faiss.CosineSimilarity failed: %v", err)
 	}
-	simDissimilar, err := CosineSimilarity(catMat, carHighway)
+	simDissimilar, err := faiss.CosineSimilarity(catMat, carHighway)
 	if err != nil {
-		t.Fatalf("CosineSimilarity failed: %v", err)
+		t.Fatalf("faiss.CosineSimilarity failed: %v", err)
 	}
 
 	if simSimilar <= simDissimilar {
@@ -498,9 +501,9 @@ func TestBatchDistance_QualityCheck(t *testing.T) {
 	database = append(database, dbVectors...)
 
 	// Compute batch distances
-	distances, err := BatchL2Distance(queries, database, d)
+	distances, err := faiss.BatchL2Distance(queries, database, d)
 	if err != nil {
-		t.Fatalf("BatchL2Distance failed: %v", err)
+		t.Fatalf("faiss.BatchL2Distance failed: %v", err)
 	}
 
 	// First query (cat) should be closest to itself
@@ -552,7 +555,7 @@ func TestBatchDistance_QualityCheck(t *testing.T) {
 func TestQualitative_EmptyQuery(t *testing.T) {
 	d := 24
 
-	index, err := NewIndexFlatL2(d)
+	index, err := faiss.NewIndexFlatL2(d)
 	if err != nil {
 		t.Fatalf("Failed to create index: %v", err)
 	}
@@ -576,7 +579,7 @@ func TestQualitative_EmptyQuery(t *testing.T) {
 func TestQualitative_IdenticalVectors(t *testing.T) {
 	d := 16
 
-	index, err := NewIndexFlatL2(d)
+	index, err := faiss.NewIndexFlatL2(d)
 	if err != nil {
 		t.Fatalf("Failed to create index: %v", err)
 	}

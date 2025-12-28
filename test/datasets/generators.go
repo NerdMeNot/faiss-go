@@ -3,6 +3,8 @@ package datasets
 import (
 	"math"
 	"math/rand"
+	"os"
+	"testing"
 )
 
 // DataDistribution represents different data distribution types
@@ -300,6 +302,97 @@ func GenerateStandardSizes() []struct {
 		{"openai-small", 10_000, 1536},
 		{"resnet-small", 10_000, 2048},
 	}
+}
+
+// DatasetConfig defines the size parameters for a dataset
+type DatasetConfig struct {
+	N   int // Number of vectors
+	D   int // Dimension
+	NQ  int // Number of queries
+	K   int // Number of neighbors for recall
+}
+
+// CI-friendly dataset sizes (small, fast tests)
+var CIDatasetConfigs = map[string]DatasetConfig{
+	// Recall tests - small datasets for quick validation
+	"ivf_recall":        {N: 5000, D: 128, NQ: 50, K: 10},
+	"hnsw_recall":       {N: 5000, D: 128, NQ: 50, K: 10},
+	"pq_recall":         {N: 5000, D: 128, NQ: 50, K: 10},
+	"ivfpq_best":        {N: 10000, D: 256, NQ: 100, K: 10},
+	"ivf_optimal":       {N: 10000, D: 256, NQ: 100, K: 10},
+	"ivf_training":      {N: 10000, D: 128, NQ: 100, K: 10},
+
+	// Scenario tests - reduced for CI
+	"semantic_search":   {N: 10000, D: 384, NQ: 100, K: 10},
+	"image_similarity":  {N: 10000, D: 512, NQ: 50, K: 10},
+	"recommendations":   {N: 10000, D: 256, NQ: 50, K: 50},
+
+	// Parameter sweeps - minimal datasets
+	"param_sweep":       {N: 5000, D: 128, NQ: 50, K: 10},
+	"high_dimensional":  {N: 5000, D: 1536, NQ: 50, K: 10},
+}
+
+// Local testing dataset sizes (medium, realistic tests)
+var LocalDatasetConfigs = map[string]DatasetConfig{
+	// Recall tests - medium datasets for quality validation
+	"ivf_recall":        {N: 10000, D: 128, NQ: 100, K: 10},
+	"hnsw_recall":       {N: 10000, D: 256, NQ: 100, K: 10},
+	"pq_recall":         {N: 10000, D: 128, NQ: 100, K: 10},
+	"ivfpq_best":        {N: 100000, D: 256, NQ: 100, K: 10},
+	"ivf_optimal":       {N: 100000, D: 256, NQ: 100, K: 10},
+	"ivf_training":      {N: 50000, D: 128, NQ: 100, K: 10},
+
+	// Scenario tests - realistic sizes
+	"semantic_search":   {N: 50000, D: 768, NQ: 500, K: 10},
+	"image_similarity":  {N: 50000, D: 2048, NQ: 100, K: 10},
+	"recommendations":   {N: 50000, D: 256, NQ: 100, K: 50},
+
+	// Parameter sweeps - full testing
+	"param_sweep":       {N: 10000, D: 256, NQ: 100, K: 10},
+	"high_dimensional":  {N: 10000, D: 1536, NQ: 100, K: 10},
+}
+
+// IsCI detects if running in a CI environment
+func IsCI() bool {
+	// Check common CI environment variables
+	ciEnvVars := []string{
+		"CI",
+		"CONTINUOUS_INTEGRATION",
+		"GITHUB_ACTIONS",
+		"GITLAB_CI",
+		"CIRCLECI",
+		"TRAVIS",
+		"JENKINS_URL",
+	}
+
+	for _, envVar := range ciEnvVars {
+		if os.Getenv(envVar) != "" {
+			return true
+		}
+	}
+
+	return false
+}
+
+// GetDatasetConfig returns the appropriate dataset configuration based on environment
+// If name is not found, returns a default small configuration
+func GetDatasetConfig(name string) DatasetConfig {
+	// Check if we're in CI mode or short test mode
+	if IsCI() || testing.Short() {
+		if config, ok := CIDatasetConfigs[name]; ok {
+			return config
+		}
+		// Default CI config if name not found
+		return DatasetConfig{N: 5000, D: 128, NQ: 50, K: 10}
+	}
+
+	// Local/full test mode
+	if config, ok := LocalDatasetConfigs[name]; ok {
+		return config
+	}
+
+	// Default local config if name not found
+	return DatasetConfig{N: 10000, D: 256, NQ: 100, K: 10}
 }
 
 // Helper function to find max in slice

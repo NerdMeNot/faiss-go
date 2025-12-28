@@ -94,8 +94,9 @@ jobs:
         CGO_LDFLAGS: "-L/usr/local/lib -lfaiss -lgomp -lstdc++ -lm -lopenblas"
         CGO_CFLAGS: "-I/usr/local/include"
         LD_LIBRARY_PATH: "/usr/local/lib:$LD_LIBRARY_PATH"
+      timeout-minutes: 15
       run: |
-        go test -v -tags nogpu -timeout 10m -coverprofile=coverage.out -covermode=atomic ./...
+        go test -short -v -tags nogpu -timeout 10m -coverprofile=coverage.out -covermode=atomic ./...
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
@@ -146,8 +147,9 @@ jobs:
         CGO_LDFLAGS: "-L/opt/homebrew/lib -lfaiss -lomp"
         CGO_CFLAGS: "-I/opt/homebrew/include"
         DYLD_LIBRARY_PATH: "/opt/homebrew/lib:$DYLD_LIBRARY_PATH"
+      timeout-minutes: 15
       run: |
-        go test -v -tags nogpu -timeout 10m ./...
+        go test -short -v -tags nogpu -timeout 10m ./...
 
   lint:
     name: Lint
