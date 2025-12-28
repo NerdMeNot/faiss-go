@@ -7,10 +7,6 @@ on:
         description: 'FAISS version tag (e.g., v1.8.0)'
         required: true
         default: 'v1.8.0'
-  push:
-    paths:
-      - 'scripts/build_amalgamation.sh'
-      - '.github/workflows/build-amalgamation.yml'
 
 jobs:
   build-amalgamation:

@@ -32,6 +32,16 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Verify running on main branch
+        run: |
+          CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+          if [ "$CURRENT_BRANCH" != "main" ]; then
+            echo "Error: Releases can only be created from the main branch"
+            echo "Current branch: $CURRENT_BRANCH"
+            exit 1
+          fi
+          echo "✓ Running on main branch"
+
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
