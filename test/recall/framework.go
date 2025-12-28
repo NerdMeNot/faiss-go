@@ -112,13 +112,15 @@ func loadOrGenerateDataset(t *testing.T, config RecallTestConfig) (datasetResult
 			}
 		}
 	} else {
-		// Generate synthetic dataset
+		// Generate synthetic dataset with fixed seed for reproducibility
+		// Note: Even with fixed data seed, ANN algorithms (IVF k-means, HNSW graph)
+		// have internal randomness that can cause result variations
 		genConfig := datasets.GeneratorConfig{
 			N:            config.N,
 			D:            config.D,
 			Distribution: config.Distribution,
 			NumClusters:  int(float64(config.N) * 0.1), // ~10% clusters
-			Seed:         42,                           // Reproducible
+			Seed:         42,                           // Fixed seed for data generation
 		}
 
 		synData := datasets.GenerateSyntheticData(genConfig)

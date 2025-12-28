@@ -2,6 +2,8 @@ package faiss
 
 import (
 	"testing"
+
+	"github.com/NerdMeNot/faiss-go/test/helpers"
 )
 
 // ========================================
@@ -49,7 +51,7 @@ func TestIndexRefine(t *testing.T) {
 	}
 
 	// Train
-	trainingVectors := generateVectors(nb, d)
+	trainingVectors := helpers.GenerateVectors(nb, d)
 	if err := index.Train(trainingVectors); err != nil {
 		t.Fatalf("Training failed: %v", err)
 	}
@@ -221,7 +223,7 @@ func TestIndexShards(t *testing.T) {
 	}
 
 	// Train to trigger syncWithSubIndexes() which sets is_trained from child shards
-	vectors := generateVectors(nb, d)
+	vectors := helpers.GenerateVectors(nb, d)
 	if err := shards.Train(vectors); err != nil {
 		t.Fatalf("Training failed: %v", err)
 	}

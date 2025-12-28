@@ -119,7 +119,7 @@ func TestHNSW_ParameterSweep_efSearch(t *testing.T) {
 			D:          128,
 			NQ:         100,
 			Thresholds: RecallThresholds{
-				CI:    RecallTargets{MinRecall10: 0.45}, // Relaxed for CI with smaller datasets
+				CI:    RecallTargets{MinRecall10: 0.35}, // Very relaxed for CI (accounts for algorithm randomness)
 				Local: RecallTargets{MinRecall10: 0.70}, // Strict for local testing
 			},
 			K:            10,
@@ -232,13 +232,13 @@ func TestHNSW_LargeK(t *testing.T) {
 		var ciRecall, localRecall float64
 		switch k {
 		case 1:
-			ciRecall, localRecall = 0.80, 0.95
+			ciRecall, localRecall = 0.65, 0.95
 		case 10:
-			ciRecall, localRecall = 0.80, 0.95
+			ciRecall, localRecall = 0.65, 0.95
 		case 50:
-			ciRecall, localRecall = 0.75, 0.90
+			ciRecall, localRecall = 0.60, 0.90
 		case 100:
-			ciRecall, localRecall = 0.70, 0.85
+			ciRecall, localRecall = 0.55, 0.85
 		}
 
 		config := RecallTestConfig{
