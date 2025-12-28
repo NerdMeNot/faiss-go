@@ -3,7 +3,7 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/NerdMeNot/faiss-go.svg)](https://pkg.go.dev/github.com/NerdMeNot/faiss-go)
 [![Go Report Card](https://goreportcard.com/badge/github.com/NerdMeNot/faiss-go)](https://goreportcard.com/report/github.com/NerdMeNot/faiss-go)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![CI Status](https://github.com/NerdMeNot/faiss-go/workflows/CI/badge.svg)](https://github.com/NerdMeNot/faiss-go/actions)
+[![CI Status](https://github.com/NerdMeNot/faiss-go/workflows/CI/badge.svg)](https://github.com/NerdMeNot/faiss-go/actions/workflows/ci.yml)
 [![Go Version](https://img.shields.io/github/go-mod/go-version/NerdMeNot/faiss-go)](https://github.com/NerdMeNot/faiss-go)
 [![Release](https://img.shields.io/github/v/release/NerdMeNot/faiss-go)](https://github.com/NerdMeNot/faiss-go/releases)
 
