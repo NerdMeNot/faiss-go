@@ -81,12 +81,18 @@ func TestIVF_ParameterSweep_nlist(t *testing.T) {
 			nprobe = 1
 		}
 
+		// FAISS needs ~30x nlist training vectors (e.g., nlist=400 needs 12K vectors)
+		n := nlist * 30
+		if n < 10000 {
+			n = 10000
+		}
+
 		config := RecallTestConfig{
 			Name:          fmt.Sprintf("IVF%d_nprobe%d", nlist, nprobe),
 			IndexType:     "IndexIVFFlat",
 			BuildIndex:    buildIVF(nlist, nprobe),
 			NeedsTraining: true,
-			N:             10000,
+			N:             n, // Dynamic based on nlist
 			D:             128,
 			NQ:            100,
 			MinRecall10:   0.40, // Lower target for sweep
