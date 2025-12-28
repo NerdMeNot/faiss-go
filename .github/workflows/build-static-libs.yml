@@ -82,7 +82,7 @@ jobs:
 
   build-darwin-amd64:
     if: contains(github.event.inputs.platforms, 'darwin-amd64') || github.event.inputs.platforms == 'all'
-    runs-on: macos-13  # Intel Mac
+    runs-on: macos-15-intel  # Intel Mac
 
     steps:
       - name: Checkout repository
