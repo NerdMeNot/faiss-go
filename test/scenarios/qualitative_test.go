@@ -461,13 +461,13 @@ func TestCosineSimilarity_SemanticMatching(t *testing.T) {
 	carHighway := animalEmbeddings["Cars drive on highways"]
 
 	// Higher cosine similarity = more similar
-	simSimilar, err := CosineSimilarity(catMat, felineRug)
+	simSimilar, err := faiss.CosineSimilarity(catMat, felineRug)
 	if err != nil {
-		t.Fatalf("CosineSimilarity failed: %v", err)
+		t.Fatalf("faiss.CosineSimilarity failed: %v", err)
 	}
-	simDissimilar, err := CosineSimilarity(catMat, carHighway)
+	simDissimilar, err := faiss.CosineSimilarity(catMat, carHighway)
 	if err != nil {
-		t.Fatalf("CosineSimilarity failed: %v", err)
+		t.Fatalf("faiss.CosineSimilarity failed: %v", err)
 	}
 
 	if simSimilar <= simDissimilar {
@@ -501,9 +501,9 @@ func TestBatchDistance_QualityCheck(t *testing.T) {
 	database = append(database, dbVectors...)
 
 	// Compute batch distances
-	distances, err := Batchfaiss.L2Distance(queries, database, d)
+	distances, err := faiss.BatchL2Distance(queries, database, d)
 	if err != nil {
-		t.Fatalf("Batchfaiss.L2Distance failed: %v", err)
+		t.Fatalf("faiss.BatchL2Distance failed: %v", err)
 	}
 
 	// First query (cat) should be closest to itself
