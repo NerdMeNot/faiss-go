@@ -2,12 +2,20 @@
 package faiss
 
 import (
+	"math/rand"
 	"runtime"
 	"testing"
 	"time"
-
-	"github.com/NerdMeNot/faiss-go/test/helpers"
 )
+
+// generateVectors creates random test vectors (inlined to avoid import cycle)
+func generateVectors(n, d int) []float32 {
+	vectors := make([]float32, n*d)
+	for i := range vectors {
+		vectors[i] = rand.Float32()
+	}
+	return vectors
+}
 
 // ========================================
 // Memory Leak Detection Tests
@@ -22,7 +30,7 @@ func TestFinalizerExecution(t *testing.T) {
 			t.Fatalf("Failed to create index: %v", err)
 		}
 		// Add some data
-		vectors := helpers.GenerateVectors(100, 64)
+		vectors := generateVectors(100, 64)
 		index.Add(vectors)
 		// Index goes out of scope, finalizer should run
 	}
@@ -62,7 +70,7 @@ func TestExplicitClose(t *testing.T) {
 func TestCloseAllIndexTypes(t *testing.T) {
 	d := 64
 	nb := 100
-	vectors := helpers.GenerateVectors(nb, d)
+	vectors := generateVectors(nb, d)
 
 	tests := []struct {
 		name  string
@@ -191,7 +199,7 @@ func TestConcurrentIndexCreation(t *testing.T) {
 					done <- false
 					return
 				}
-				vectors := helpers.GenerateVectors(50, 64)
+				vectors := generateVectors(50, 64)
 				if err := index.Add(vectors); err != nil {
 					t.Errorf("Failed to add vectors: %v", err)
 				}
@@ -266,7 +274,7 @@ func TestBinaryIndexMemory(t *testing.T) {
 func TestNestedIndexMemory(t *testing.T) {
 	d := 64
 	nb := 100
-	vectors := helpers.GenerateVectors(nb, d)
+	vectors := generateVectors(nb, d)
 
 	t.Run("IndexIVFFlat_with_quantizer", func(t *testing.T) {
 		quantizer, _ := NewIndexFlatL2(d)
@@ -332,7 +340,7 @@ func TestResetDoesNotLeak(t *testing.T) {
 
 	// Add and reset multiple times
 	for i := 0; i < 100; i++ {
-		vectors := helpers.GenerateVectors(100, 64)
+		vectors := generateVectors(100, 64)
 		index.Add(vectors)
 
 		if index.Ntotal() != 100 {
@@ -367,13 +375,13 @@ func TestLargeIndexMemory(t *testing.T) {
 	}
 	defer index.Close()
 
-	vectors := helpers.GenerateVectors(nb, d)
+	vectors := generateVectors(nb, d)
 	if err := index.Add(vectors); err != nil {
 		t.Fatalf("Add failed: %v", err)
 	}
 
 	// Search to ensure index is working
-	queries := helpers.GenerateVectors(10, d)
+	queries := generateVectors(10, d)
 	_, _, err = index.Search(queries, 10)
 	if err != nil {
 		t.Fatalf("Search failed: %v", err)

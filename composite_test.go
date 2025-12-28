@@ -1,10 +1,18 @@
 package faiss
 
 import (
+	"math/rand"
 	"testing"
-
-	"github.com/NerdMeNot/faiss-go/test/helpers"
 )
+
+// generateVectors creates random test vectors (inlined to avoid import cycle)
+func generateVectors(n, d int) []float32 {
+	vectors := make([]float32, n*d)
+	for i := range vectors {
+		vectors[i] = rand.Float32()
+	}
+	return vectors
+}
 
 // ========================================
 // IndexRefine Tests
@@ -51,7 +59,7 @@ func TestIndexRefine(t *testing.T) {
 	}
 
 	// Train
-	trainingVectors := helpers.GenerateVectors(nb, d)
+	trainingVectors := generateVectors(nb, d)
 	if err := index.Train(trainingVectors); err != nil {
 		t.Fatalf("Training failed: %v", err)
 	}
@@ -223,7 +231,7 @@ func TestIndexShards(t *testing.T) {
 	}
 
 	// Train to trigger syncWithSubIndexes() which sets is_trained from child shards
-	vectors := helpers.GenerateVectors(nb, d)
+	vectors := generateVectors(nb, d)
 	if err := shards.Train(vectors); err != nil {
 		t.Fatalf("Training failed: %v", err)
 	}
