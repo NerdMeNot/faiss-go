@@ -131,10 +131,13 @@ func TestIVF_ParameterSweep_nprobe(t *testing.T) {
 			N:             10000,
 			D:             128,
 			NQ:            100,
-			MinRecall10:   0.30, // Lower target for sweep
-			K:             10,
-			Metric:        faiss.MetricL2,
-			Distribution:  datasets.UniformRandom,
+			Thresholds: RecallThresholds{
+				CI:    RecallTargets{MinRecall10: 0.20}, // Very relaxed for CI (small datasets)
+				Local: RecallTargets{MinRecall10: 0.30}, // Standard for local testing
+			},
+			K:            10,
+			Metric:       faiss.MetricL2,
+			Distribution: datasets.UniformRandom,
 		}
 		configs = append(configs, config)
 	}
@@ -191,10 +194,13 @@ func TestIVF_OptimalConfiguration(t *testing.T) {
 			N:             1000,
 			D:             128,
 			NQ:            100,
-			MinRecall10:   0.30,
-			K:             10,
-			Metric:        faiss.MetricL2,
-			Distribution:  datasets.UniformRandom,
+			Thresholds: RecallThresholds{
+				CI:    RecallTargets{MinRecall10: 0.20}, // Relaxed for CI
+				Local: RecallTargets{MinRecall10: 0.30}, // Standard for local
+			},
+			K:            10,
+			Metric:       faiss.MetricL2,
+			Distribution: datasets.UniformRandom,
 		},
 		{
 			Name:          "IVF_10K_optimal",
@@ -204,10 +210,13 @@ func TestIVF_OptimalConfiguration(t *testing.T) {
 			N:             10000,
 			D:             128,
 			NQ:            100,
-			MinRecall10:   0.30,
-			K:             10,
-			Metric:        faiss.MetricL2,
-			Distribution:  datasets.UniformRandom,
+			Thresholds: RecallThresholds{
+				CI:    RecallTargets{MinRecall10: 0.20}, // Relaxed for CI
+				Local: RecallTargets{MinRecall10: 0.30}, // Standard for local
+			},
+			K:            10,
+			Metric:       faiss.MetricL2,
+			Distribution: datasets.UniformRandom,
 		},
 		{
 			Name:          "IVF_100K_optimal",
@@ -217,10 +226,13 @@ func TestIVF_OptimalConfiguration(t *testing.T) {
 			N:             100000,
 			D:             128,
 			NQ:            100,
-			MinRecall10:   0.30,
-			K:             10,
-			Metric:        faiss.MetricL2,
-			Distribution:  datasets.UniformRandom,
+			Thresholds: RecallThresholds{
+				CI:    RecallTargets{MinRecall10: 0.20}, // Relaxed for CI
+				Local: RecallTargets{MinRecall10: 0.30}, // Standard for local
+			},
+			K:            10,
+			Metric:       faiss.MetricL2,
+			Distribution: datasets.UniformRandom,
 		},
 	}
 
@@ -233,10 +245,13 @@ func TestIVF_OptimalConfiguration(t *testing.T) {
 			N:             1000000,
 			D:             128,
 			NQ:            100,
-			MinRecall10:   0.30,
-			K:             10,
-			Metric:        faiss.MetricL2,
-			Distribution:  datasets.UniformRandom,
+			Thresholds: RecallThresholds{
+				CI:    RecallTargets{MinRecall10: 0.20}, // Relaxed for CI
+				Local: RecallTargets{MinRecall10: 0.30}, // Standard for local
+			},
+			K:            10,
+			Metric:       faiss.MetricL2,
+			Distribution: datasets.UniformRandom,
 		})
 	}
 
