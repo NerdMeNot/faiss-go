@@ -1,7 +1,7 @@
 {
   "platform": "darwin-amd64",
-  "faiss_version": "v1.8.0",
-  "build_date": "2025-12-28T16:09:52Z",
+  "faiss_version": "v1.13.2",
+  "build_date": "2025-12-28T19:08:24Z",
   "cmake_system_processor": "x86_64",
   "cmake_osx_architectures": "x86_64",
   "builder": "GitHub Actions"
