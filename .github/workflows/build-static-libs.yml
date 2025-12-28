@@ -65,10 +65,10 @@ jobs:
           docker run --rm --platform linux/arm64 \
             -v $PWD:/workspace \
             -w /workspace \
-            arm64v8/ubuntu:22.04 \
+            arm64v8/ubuntu:24.04 \
             bash -c "
               apt-get update && \
-              apt-get install -y build-essential cmake git libopenblas-dev && \
+              apt-get install -y build-essential cmake git libopenblas-dev libomp-dev && \
               chmod +x scripts/build_static_lib.sh && \
               ./scripts/build_static_lib.sh linux-arm64 ${{ github.event.inputs.faiss_version }}
             "
@@ -82,7 +82,7 @@ jobs:
 
   build-darwin-amd64:
     if: contains(github.event.inputs.platforms, 'darwin-amd64') || github.event.inputs.platforms == 'all'
-    runs-on: macos-13  # Intel Mac
+    runs-on: macos-15-intel  # Intel Mac
 
     steps:
       - name: Checkout repository
@@ -151,7 +151,7 @@ jobs:
 
       - name: Install vcpkg dependencies
         run: |
-          vcpkg install openblas:x64-windows
+          vcpkg install openblas:x64-windows lapack:x64-windows
           vcpkg integrate install
 
       - name: Build FAISS static library
@@ -198,7 +198,7 @@ jobs:
         run: |
           for dir in libs/*/; do
             if [ -f "$dir/libfaiss.a" ] || [ -f "$dir/faiss.lib" ]; then
-              (cd "$dir" && sha256sum * > checksums.txt)
+              (cd "$dir" && find . -maxdepth 1 -type f -exec sha256sum {} \; > checksums.txt)
             fi
           done
 
