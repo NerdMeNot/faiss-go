@@ -1,7 +1,6 @@
 package scenarios
 
 import (
-	"fmt"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -52,10 +51,10 @@ func TestStreaming_ConcurrentAddAndSearch(t *testing.T) {
 	// Test with HNSW (best for dynamic updates)
 	t.Run("HNSW_Dynamic", func(t *testing.T) {
 		index, err := faiss.NewIndexHNSWFlat(dim, 32, faiss.MetricL2)
-	if err != nil {
-		t.Fatalf("Failed to create index: %v", err)
-	}
-		index.HnswSetEfSearch(64)
+		if err != nil {
+			t.Fatalf("Failed to create index: %v", err)
+		}
+		index.SetEfSearch(64)
 		defer index.Close()
 
 		// Add initial vectors
@@ -211,7 +210,13 @@ func TestStreaming_BatchUpdates(t *testing.T) {
 
 	// Use IVF for batch updates
 	quantizer, err := faiss.NewIndexFlatL2(dim)
+	if err != nil {
+		t.Fatalf("Failed to create quantizer: %v", err)
+	}
 	index, err := faiss.NewIndexIVFFlat(quantizer, dim, 1000, faiss.MetricL2)
+	if err != nil {
+		t.Fatalf("Failed to create index: %v", err)
+	}
 	index.SetNprobe(20)
 	defer index.Close()
 
@@ -260,7 +265,7 @@ func TestStreaming_BatchUpdates(t *testing.T) {
 	t.Logf("Average throughput: %.0f vectors/sec",
 		float64(batchSize*nBatches)/totalAddTime.Seconds())
 
-	if finalSize != expectedSize {
+	if finalSize != int64(expectedSize) {
 		t.Errorf("Final size mismatch: got %d, expected %d", finalSize, expectedSize)
 	}
 
@@ -283,6 +288,9 @@ func TestStreaming_IDMapping(t *testing.T) {
 
 	// Use IndexIDMap for custom IDs
 	baseIndex, err := faiss.NewIndexFlatL2(dim)
+	if err != nil {
+		t.Fatalf("Failed to create base index: %v", err)
+	}
 	index, err := faiss.NewIndexIDMap(baseIndex)
 	if err != nil {
 		t.Fatalf("Failed to create index: %v", err)
@@ -366,7 +374,7 @@ func TestStreaming_LatencyDegradation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create index: %v", err)
 	}
-		index.HnswSetEfSearch(64)
+		index.SetEfSearch(64)
 
 		if err := index.Add(data.Vectors); err != nil {
 			t.Fatalf("Add failed: %v", err)
