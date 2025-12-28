@@ -1,5 +1,3 @@
-version: "2"
-
 linters-settings:
   govet:
     enable-all: true
@@ -29,11 +27,6 @@ linters:
     - unconvert
     - gocyclo
     - goconst
-
-formatters:
-  enable:
-    - gofmt
-    - goimports
 
 issues:
   exclude-rules:
