@@ -3,399 +3,203 @@ name: CI
 on:
   pull_request:
     branches: [ main ]
-  push:
-    branches: [ main ]
 
 jobs:
-  # Test with pre-built static libraries (fast path for users)
-  test-static-libs:
-    name: Static Libs (${{ matrix.os-name }}, Go ${{ matrix.go-version }})
-    runs-on: ${{ matrix.os }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          # Linux AMD64 - Full Go version coverage
-          - os: ubuntu-latest
-            os-name: Linux-AMD64
-            arch: amd64
-            go-version: '1.21'
-          - os: ubuntu-latest
-            os-name: Linux-AMD64
-            arch: amd64
-            go-version: '1.22'
-          - os: ubuntu-latest
-            os-name: Linux-AMD64
-            arch: amd64
-            go-version: '1.23'
-          - os: ubuntu-latest
-            os-name: Linux-AMD64
-            arch: amd64
-            go-version: '1.24'
-          - os: ubuntu-latest
-            os-name: Linux-AMD64
-            arch: amd64
-            go-version: '1.25'
-
-          # macOS ARM64 - Full Go version coverage
-          - os: macos-14
-            os-name: macOS-ARM64
-            arch: arm64
-            go-version: '1.21'
-          - os: macos-14
-            os-name: macOS-ARM64
-            arch: arm64
-            go-version: '1.22'
-          - os: macos-14
-            os-name: macOS-ARM64
-            arch: arm64
-            go-version: '1.23'
-          - os: macos-14
-            os-name: macOS-ARM64
-            arch: arm64
-            go-version: '1.24'
-          - os: macos-14
-            os-name: macOS-ARM64
-            arch: arm64
-            go-version: '1.25'
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ matrix.go-version }}
-
-      - name: Install dependencies (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libopenblas-dev libgomp1
-
-      - name: Install dependencies (macOS)
-        if: runner.os == 'macOS'
-        run: brew install openblas libomp
-
-      - name: Verify static libraries exist
-        run: |
-          if [ "${{ runner.os }}" = "Linux" ]; then
-            PLATFORM="linux_amd64"
-          elif [ "${{ runner.os }}" = "macOS" ]; then
-            PLATFORM="darwin_arm64"
-          fi
-
-          echo "Checking for static library at libs/${PLATFORM}/libfaiss.a"
-          if [ ! -f "libs/${PLATFORM}/libfaiss.a" ]; then
-            echo "ERROR: Static library not found at libs/${PLATFORM}/libfaiss.a"
-            echo "Available files:"
-            ls -la "libs/${PLATFORM}/" || echo "Directory does not exist"
-            exit 1
-          fi
-
-          ls -lh "libs/${PLATFORM}/libfaiss.a"
-          file "libs/${PLATFORM}/libfaiss.a"
-
-      - name: Build with static libraries
-        run: |
-          echo "Building with pre-built static FAISS libraries..."
-          go build -v -tags=faiss_use_lib,nogpu ./...
-
-      - name: Run tests
-        timeout-minutes: 15
-        run: |
-          echo "Testing with pre-built static FAISS libraries..."
-          go test -short -v -tags=faiss_use_lib,nogpu \
-            -timeout 10m -coverprofile=coverage-static-${{ matrix.go-version }}.out \
-            -covermode=atomic ./...
-
-      - name: Upload coverage
-        uses: codecov/codecov-action@v4
-        with:
-          files: ./coverage-static-${{ matrix.go-version }}.out
-          flags: static-lib,go-${{ matrix.go-version }},${{ matrix.os-name }}
-          name: static-${{ matrix.os-name }}-go${{ matrix.go-version }}
-
-  # Test Linux ARM64 with static libraries (QEMU emulation)
-  test-linux-arm64:
-    name: Static Libs (Linux-ARM64, Go ${{ matrix.go-version }})
+  build-and-test:
+    name: Build and Test (Ubuntu)
     runs-on: ubuntu-latest
 
     strategy:
-      fail-fast: false
       matrix:
-        go-version: ['1.21', '1.23', '1.25']  # Strategic subset for ARM64
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Verify ARM64 static library exists
-        run: |
-          echo "Checking for ARM64 static library..."
-          if [ ! -f "libs/linux_arm64/libfaiss.a" ]; then
-            echo "ERROR: ARM64 static library not found at libs/linux_arm64/libfaiss.a"
-            echo "Available files:"
-            ls -la "libs/linux_arm64/" || echo "Directory does not exist"
-            exit 1
-          fi
-          ls -lh libs/linux_arm64/libfaiss.a
-
-      - name: Build and test in ARM64 container
-        run: |
-          docker run --rm --platform linux/arm64 \
-            -v $PWD:/workspace \
-            -w /workspace \
-            golang:${{ matrix.go-version }}-alpine \
-            sh -c "
-              echo '=== Installing dependencies ===' && \
-              apk add --no-cache gcc g++ musl-dev openblas-dev libc6-compat && \
-              echo '=== Building with ARM64 static libraries ===' && \
-              go build -v -tags=faiss_use_lib,nogpu ./... && \
-              echo '=== Running tests ===' && \
-              go test -short -v -tags=faiss_use_lib,nogpu -timeout 10m ./...
-            "
-
-  # Regression testing: Build FAISS from source (legacy approach)
-  # This validates compatibility with system-installed FAISS
-  test-source-build:
-    name: Source Build (Ubuntu-AMD64, Go ${{ matrix.go-version }})
-    runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        go-version: ['1.21', '1.23', '1.25']  # Strategic subset
+        go-version: ['1.22', '1.23']
         faiss-version: ['1.8.0']
+        # Reduced matrix for faster CI - expand later if needed
+        # Full matrix: go-version: ['1.21', '1.22', '1.23'], faiss-version: ['1.7.4', '1.8.0']
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ matrix.go-version }}
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ matrix.go-version }}
 
-      - name: Cache FAISS build
-        id: cache-faiss
-        uses: actions/cache@v4
-        with:
-          path: |
-            /usr/local/lib/libfaiss*
-            /usr/local/include/faiss
-          key: faiss-${{ matrix.faiss-version }}-${{ runner.os }}-${{ matrix.go-version }}
+    - name: Cache FAISS build
+      id: cache-faiss
+      uses: actions/cache@v4
+      with:
+        path: |
+          /usr/local/lib/libfaiss*
+          /usr/local/include/faiss
+        key: faiss-${{ matrix.faiss-version }}-${{ runner.os }}
 
-      - name: Install dependencies
-        if: steps.cache-faiss.outputs.cache-hit != 'true'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            cmake \
-            g++ \
-            libopenblas-dev \
-            libgomp1 \
-            libomp-dev \
-            swig
+    - name: Install dependencies
+      if: steps.cache-faiss.outputs.cache-hit != 'true'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          cmake \
+          g++ \
+          libopenblas-dev \
+          libgomp1 \
+          libomp-dev \
+          swig
 
-      - name: Build and install FAISS from source
-        if: steps.cache-faiss.outputs.cache-hit != 'true'
-        timeout-minutes: 30
-        run: |
-          cd /tmp
-          wget -q https://github.com/facebookresearch/faiss/archive/refs/tags/v${{ matrix.faiss-version }}.tar.gz
-          tar -xzf v${{ matrix.faiss-version }}.tar.gz
-          cd faiss-${{ matrix.faiss-version }}
+    - name: Build and install FAISS
+      if: steps.cache-faiss.outputs.cache-hit != 'true'
+      timeout-minutes: 30
+      run: |
+        cd /tmp
+        wget -q https://github.com/facebookresearch/faiss/archive/refs/tags/v${{ matrix.faiss-version }}.tar.gz
+        tar -xzf v${{ matrix.faiss-version }}.tar.gz
+        cd faiss-${{ matrix.faiss-version }}
 
-          cmake -B build \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DFAISS_ENABLE_GPU=OFF \
-            -DFAISS_ENABLE_PYTHON=OFF \
-            -DBUILD_TESTING=OFF \
-            -DBUILD_SHARED_LIBS=ON \
-            -DCMAKE_INSTALL_PREFIX=/usr/local \
-            .
+        # Build FAISS C library (limit to 2 parallel jobs to avoid OOM)
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DFAISS_ENABLE_GPU=OFF \
+          -DFAISS_ENABLE_PYTHON=OFF \
+          -DBUILD_TESTING=OFF \
+          -DBUILD_SHARED_LIBS=ON \
+          -DCMAKE_INSTALL_PREFIX=/usr/local \
+          .
 
-          make -C build -j4
-          sudo make -C build install
-          sudo ldconfig
+        # Use all available cores (2 vCPU × 2 hyperthreads = 4 threads)
+        make -C build -j4
+        sudo make -C build install
+        sudo ldconfig
 
-      - name: Verify FAISS installation
-        run: |
-          ls -la /usr/local/lib/libfaiss* || true
-          ls -la /usr/local/include/faiss || true
-          ldconfig -p | grep faiss || true
+    - name: Verify FAISS installation
+      run: |
+        ls -la /usr/local/lib/libfaiss* || true
+        ls -la /usr/local/include/faiss || true
+        ldconfig -p | grep faiss || true
 
-      - name: Build Go project with system FAISS
-        env:
-          CGO_LDFLAGS: "-L/usr/local/lib -lfaiss -lgomp -lstdc++ -lm -lopenblas"
-          CGO_CFLAGS: "-I/usr/local/include"
-          LD_LIBRARY_PATH: "/usr/local/lib:$LD_LIBRARY_PATH"
-        run: |
-          echo "Building with system-installed FAISS..."
-          go build -tags nogpu -v ./...
+    - name: Build Go project
+      env:
+        CGO_LDFLAGS: "-L/usr/local/lib -lfaiss -lgomp -lstdc++ -lm -lopenblas"
+        CGO_CFLAGS: "-I/usr/local/include"
+        LD_LIBRARY_PATH: "/usr/local/lib:$LD_LIBRARY_PATH"
+      run: |
+        go build -tags nogpu -v ./...
 
-      - name: Run tests with system FAISS
-        env:
-          CGO_LDFLAGS: "-L/usr/local/lib -lfaiss -lgomp -lstdc++ -lm -lopenblas"
-          CGO_CFLAGS: "-I/usr/local/include"
-          LD_LIBRARY_PATH: "/usr/local/lib:$LD_LIBRARY_PATH"
-        timeout-minutes: 15
-        run: |
-          echo "Testing with system-installed FAISS..."
-          go test -short -v -tags nogpu -timeout 10m \
-            -coverprofile=coverage-source-${{ matrix.go-version }}.out \
-            -covermode=atomic ./...
+    - name: Run tests
+      env:
+        CGO_LDFLAGS: "-L/usr/local/lib -lfaiss -lgomp -lstdc++ -lm -lopenblas"
+        CGO_CFLAGS: "-I/usr/local/include"
+        LD_LIBRARY_PATH: "/usr/local/lib:$LD_LIBRARY_PATH"
+      timeout-minutes: 15
+      run: |
+        go test -short -v -tags nogpu -timeout 10m -coverprofile=coverage.out -covermode=atomic ./...
 
-      - name: Upload coverage
-        uses: codecov/codecov-action@v4
-        with:
-          files: ./coverage-source-${{ matrix.go-version }}.out
-          flags: source-build,go-${{ matrix.go-version }}
-          name: source-build-go${{ matrix.go-version }}
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        files: ./coverage.out
+        flags: unittests
+        name: codecov-umbrella
 
-  # Lint with latest Go version
+    - name: Run benchmarks (sample)
+      env:
+        CGO_LDFLAGS: "-L/usr/local/lib -lfaiss -lgomp -lstdc++ -lm -lopenblas"
+        CGO_CFLAGS: "-I/usr/local/include"
+        LD_LIBRARY_PATH: "/usr/local/lib:$LD_LIBRARY_PATH"
+      run: |
+        go test -v -tags nogpu -bench=BenchmarkIndexFlatL2 -benchtime=1s -run=^$ ./...
+
+  build-macos:
+    name: Build and Test (macOS)
+    runs-on: macos-latest
+
+    strategy:
+      matrix:
+        go-version: ['1.22', '1.23']
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ matrix.go-version }}
+
+    - name: Install dependencies
+      run: |
+        brew install cmake openblas libomp faiss
+
+    - name: Build Go project
+      env:
+        CGO_LDFLAGS: "-L/opt/homebrew/lib -lfaiss -lomp"
+        CGO_CFLAGS: "-I/opt/homebrew/include"
+        DYLD_LIBRARY_PATH: "/opt/homebrew/lib:$DYLD_LIBRARY_PATH"
+      run: |
+        go build -tags nogpu -v ./...
+
+    - name: Run tests
+      env:
+        CGO_LDFLAGS: "-L/opt/homebrew/lib -lfaiss -lomp"
+        CGO_CFLAGS: "-I/opt/homebrew/include"
+        DYLD_LIBRARY_PATH: "/opt/homebrew/lib:$DYLD_LIBRARY_PATH"
+      timeout-minutes: 15
+      run: |
+        go test -short -v -tags nogpu -timeout 10m ./...
+
   lint:
     name: Lint
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.25'  # Use latest supported version for linting
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23'
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libopenblas-dev libgomp1
+    - name: Cache FAISS build
+      id: cache-faiss
+      uses: actions/cache@v4
+      with:
+        path: |
+          /usr/local/lib/libfaiss*
+          /usr/local/include/faiss
+        key: faiss-1.8.0-${{ runner.os }}-lint
 
-      - name: Verify static library exists
-        run: |
-          if [ ! -f "libs/linux_amd64/libfaiss.a" ]; then
-            echo "ERROR: Static library not found, needed for linting"
-            exit 1
-          fi
+    - name: Install dependencies
+      if: steps.cache-faiss.outputs.cache-hit != 'true'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake g++ libopenblas-dev libgomp1 libomp-dev
 
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v4
-        env:
-          CGO_ENABLED: "1"
-        with:
-          version: v1.62.2
-          args: --timeout=5m --build-tags=faiss_use_lib,nogpu
+    - name: Build and install FAISS
+      if: steps.cache-faiss.outputs.cache-hit != 'true'
+      timeout-minutes: 30
+      run: |
+        cd /tmp
+        wget -q https://github.com/facebookresearch/faiss/archive/refs/tags/v1.8.0.tar.gz
+        tar -xzf v1.8.0.tar.gz
+        cd faiss-1.8.0
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DFAISS_ENABLE_GPU=OFF \
+          -DFAISS_ENABLE_PYTHON=OFF \
+          -DBUILD_TESTING=OFF \
+          -DBUILD_SHARED_LIBS=ON \
+          -DCMAKE_INSTALL_PREFIX=/usr/local \
+          .
+        make -C build -j4
+        sudo make -C build install
+        sudo ldconfig
 
-  # Quick benchmark smoke test
-  benchmark:
-    name: Benchmark Smoke Test
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.23'
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libopenblas-dev libgomp1
-
-      - name: Verify static library exists
-        run: |
-          if [ ! -f "libs/linux_amd64/libfaiss.a" ]; then
-            echo "ERROR: Static library not found"
-            exit 1
-          fi
-
-      - name: Run benchmark samples
-        run: |
-          echo "Running benchmark smoke tests..."
-          go test -v -tags=faiss_use_lib,nogpu \
-            -bench=BenchmarkIndexFlatL2 \
-            -benchtime=1s \
-            -run=^$ \
-            ./...
-
-  # Verify pre-built assets exist and are valid
-  verify-assets:
-    name: Verify Pre-built Assets
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Verify all platform libraries exist
-        run: |
-          echo "Verifying pre-built static libraries..."
-
-          PLATFORMS="linux_amd64 linux_arm64 darwin_amd64 darwin_arm64 windows_amd64"
-          MISSING=0
-
-          for platform in $PLATFORMS; do
-            echo "Checking $platform..."
-
-            # Check for library file
-            if [ "$platform" = "windows_amd64" ]; then
-              LIB_FILE="libs/$platform/faiss.lib"
-            else
-              LIB_FILE="libs/$platform/libfaiss.a"
-            fi
-
-            if [ -f "$LIB_FILE" ]; then
-              SIZE=$(du -h "$LIB_FILE" | cut -f1)
-              echo "  ✓ $LIB_FILE ($SIZE)"
-            else
-              echo "  ✗ MISSING: $LIB_FILE"
-              MISSING=$((MISSING + 1))
-            fi
-
-            # Check for checksums
-            if [ -f "libs/$platform/checksums.txt" ]; then
-              echo "  ✓ checksums.txt exists"
-            else
-              echo "  ✗ MISSING: checksums.txt"
-            fi
-
-            # Check for build info
-            if [ -f "libs/$platform/build_info.json" ]; then
-              echo "  ✓ build_info.json exists"
-              cat "libs/$platform/build_info.json"
-            else
-              echo "  ✗ MISSING: build_info.json"
-            fi
-
-            echo ""
-          done
-
-          if [ $MISSING -gt 0 ]; then
-            echo "ERROR: $MISSING platform libraries are missing!"
-            echo ""
-            echo "Please run the 'Build Static Libraries' workflow to generate missing libraries:"
-            echo "  https://github.com/${{ github.repository }}/actions/workflows/build-static-libs.yml"
-            exit 1
-          fi
-
-          echo "✓ All platform libraries verified!"
-
-      - name: Verify checksums
-        run: |
-          echo "Verifying library checksums..."
-          for platform in linux_amd64 linux_arm64 darwin_amd64 darwin_arm64; do
-            if [ -f "libs/$platform/checksums.txt" ]; then
-              echo "Checking $platform checksums..."
-              (cd "libs/$platform" && sha256sum -c checksums.txt --ignore-missing) || true
-            fi
-          done
+    - name: golangci-lint
+      uses: golangci/golangci-lint-action@v4
+      env:
+        CGO_LDFLAGS: "-L/usr/local/lib -lfaiss -lgomp -lstdc++ -lm -lopenblas"
+        CGO_CFLAGS: "-I/usr/local/include"
+        LD_LIBRARY_PATH: "/usr/local/lib:$LD_LIBRARY_PATH"
+      with:
+        version: v1.62.2
+        args: --timeout=5m
