@@ -209,7 +209,7 @@ const (
 	// Version is the faiss-go binding version
 	Version = "0.1.0-alpha"
 	// FAISSVersion is the embedded FAISS library version
-	FAISSVersion = "1.8.0" // Will be updated when amalgamation is generated
+	FAISSVersion = "1.13.2" // Updated to match static library builds
 )
 
 var (
