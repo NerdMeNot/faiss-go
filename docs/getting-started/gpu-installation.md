@@ -4,6 +4,21 @@ Guide for installing and using faiss-go with GPU (CUDA) support.
 
 ---
 
+> **⚠️ Community Support Notice**
+>
+> GPU support in faiss-go is **community-supported** and **not officially tested** due to lack of GPU infrastructure and budget constraints. While the GPU code is maintained and functional, we cannot guarantee it works perfectly across all GPU configurations, CUDA versions, or edge cases.
+>
+> **What this means**:
+> - ✅ GPU code is included and maintained
+> - ✅ Community contributions and bug reports are welcome
+> - ❌ No official GPU CI testing
+> - ❌ No guarantee of compatibility across all GPU setups
+> - 🤝 Community-driven validation and improvements
+>
+> If you encounter issues with GPU support, please [open an issue](https://github.com/NerdMeNot/faiss-go/issues) with details about your GPU, CUDA version, and error messages.
+
+---
+
 ## Overview
 
 faiss-go supports GPU acceleration through CUDA, providing **10-100x faster** similarity search on NVIDIA GPUs. However, GPU support requires:
