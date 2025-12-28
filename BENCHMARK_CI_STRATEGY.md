@@ -28,7 +28,7 @@ faiss-go supports three build modes:
 
 **When:** On every push to `main` branch
 **Duration:** ~10-15 minutes
-**Go Versions:** 1.22, 1.23 (latest stable versions)
+**Go Versions:** 1.23, 1.24, 1.25 (latest stable versions)
 **Architectures:** AMD64, ARM64
 **Benchtime:** 1 second
 **Scope:** Fast benchmarks only (IndexFlatL2, IndexIVFFlat_Search, IndexHNSW)
@@ -48,7 +48,7 @@ go test -tags nogpu \
 - Manual trigger via GitHub Actions UI
 
 **Duration:** ~25-30 minutes
-**Go Versions:** 1.21, 1.22, 1.23 (all supported versions)
+**Go Versions:** 1.21, 1.22, 1.23, 1.24, 1.25 (all supported versions)
 **Architectures:** AMD64, ARM64
 **Benchtime:** 5 seconds (configurable via workflow input)
 **Scope:** All benchmarks
@@ -67,11 +67,11 @@ The workflow uses GitHub Actions matrix strategy to test all combinations:
 
 ```yaml
 matrix:
-  go-version: ['1.21', '1.22', '1.23']
+  go-version: ['1.21', '1.22', '1.23', '1.24', '1.25']
   arch: ['amd64', 'arm64']
 ```
 
-This creates **6 parallel jobs** for comprehensive benchmarks:
+This creates **10 parallel jobs** for comprehensive benchmarks:
 - Go 1.21 on AMD64
 - Go 1.21 on ARM64
 - Go 1.22 on AMD64
@@ -98,7 +98,7 @@ The workflow automatically generates comparisons using `benchstat`:
 1. **AMD64 vs ARM64** (Go 1.23)
    - Shows performance differences between architectures
 
-2. **Go 1.21 vs Go 1.23** (AMD64)
+2. **Go 1.21 vs Go 1.25** (AMD64)
    - Shows performance impact of Go version upgrades
 
 Example output:
@@ -229,7 +229,7 @@ This strategy provides:
 ✅ **Fast feedback** - Quick benchmarks on every push (10-15 min)
 ✅ **Comprehensive coverage** - Weekly full benchmarks (25-30 min)
 ✅ **Multi-platform** - AMD64 and ARM64 support
-✅ **Multi-version** - Go 1.21, 1.22, 1.23 (update as new versions release)
+✅ **Multi-version** - Go 1.21 through 1.25 (5 versions tested)
 ✅ **Automated comparison** - benchstat reports
 ✅ **Regression detection** - Alerts on 150% slowdowns
 ✅ **Artifact retention** - 30-90 days of history

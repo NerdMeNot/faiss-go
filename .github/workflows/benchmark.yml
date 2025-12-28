@@ -24,7 +24,7 @@ jobs:
       fail-fast: false
       matrix:
         # Test recent Go versions (update as new versions release)
-        go-version: ['1.22', '1.23']
+        go-version: ['1.23', '1.24', '1.25']
         arch: ['amd64', 'arm64']
         include:
           - arch: amd64
@@ -87,7 +87,7 @@ jobs:
       fail-fast: false
       matrix:
         # Test all supported Go versions (update as new versions release)
-        go-version: ['1.21', '1.22', '1.23']
+        go-version: ['1.21', '1.22', '1.23', '1.24', '1.25']
         arch: ['amd64', 'arm64']
         include:
           - arch: amd64
@@ -203,12 +203,12 @@ jobs:
 
         # Compare Go versions on AMD64
         if [ -f "benchmarks/benchmark-comprehensive-go1.21-amd64-${{ github.sha }}/benchmark-comprehensive-1.21-amd64.txt" ] && \
-           [ -f "benchmarks/benchmark-comprehensive-go1.23-amd64-${{ github.sha }}/benchmark-comprehensive-1.23-amd64.txt" ]; then
-          echo "## Go 1.21 vs Go 1.23 (AMD64)" >> comparison.md
+           [ -f "benchmarks/benchmark-comprehensive-go1.25-amd64-${{ github.sha }}/benchmark-comprehensive-1.25-amd64.txt" ]; then
+          echo "## Go 1.21 vs Go 1.25 (AMD64)" >> comparison.md
           echo '```' >> comparison.md
           benchstat \
             "benchmarks/benchmark-comprehensive-go1.21-amd64-${{ github.sha }}/benchmark-comprehensive-1.21-amd64.txt" \
-            "benchmarks/benchmark-comprehensive-go1.23-amd64-${{ github.sha }}/benchmark-comprehensive-1.23-amd64.txt" \
+            "benchmarks/benchmark-comprehensive-go1.25-amd64-${{ github.sha }}/benchmark-comprehensive-1.25-amd64.txt" \
             >> comparison.md || echo "Comparison failed" >> comparison.md
           echo '```' >> comparison.md
         fi
