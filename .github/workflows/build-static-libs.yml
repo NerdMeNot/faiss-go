@@ -198,7 +198,7 @@ jobs:
         run: |
           for dir in libs/*/; do
             if [ -f "$dir/libfaiss.a" ] || [ -f "$dir/faiss.lib" ]; then
-              (cd "$dir" && sha256sum * > checksums.txt)
+              (cd "$dir" && find . -maxdepth 1 -type f -exec sha256sum {} \; > checksums.txt)
             fi
           done
 
