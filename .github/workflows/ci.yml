@@ -11,10 +11,10 @@ jobs:
 
     strategy:
       matrix:
-        go-version: ['1.22', '1.23']
+        go-version: ['1.23', '1.24', '1.25']
         faiss-version: ['1.8.0']
-        # Reduced matrix for faster CI - expand later if needed
-        # Full matrix: go-version: ['1.21', '1.22', '1.23'], faiss-version: ['1.7.4', '1.8.0']
+        # Reduced matrix for faster CI - testing latest 3 Go versions
+        # Full matrix: go-version: ['1.21', '1.22', '1.23', '1.24', '1.25'], faiss-version: ['1.7.4', '1.8.0']
 
     steps:
     - name: Checkout code
@@ -114,7 +114,7 @@ jobs:
 
     strategy:
       matrix:
-        go-version: ['1.22', '1.23']
+        go-version: ['1.23', '1.24', '1.25']
 
     steps:
     - name: Checkout code

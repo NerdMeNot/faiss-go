@@ -98,7 +98,6 @@ func benchmarkIndexAdd(b *testing.B, indexType string, d, nb int) {
 
 		b.StopTimer()
 		idx.Close()
-		b.StartTimer()
 	}
 
 	// Report throughput
@@ -226,7 +225,6 @@ func BenchmarkIndexIVFFlat_Train_10K(b *testing.B) {
 
 		b.StopTimer()
 		idx.Close()
-		b.StartTimer()
 	}
 }
 
@@ -247,7 +245,6 @@ func BenchmarkIndexPQ_Train_10K(b *testing.B) {
 
 		b.StopTimer()
 		idx.Close()
-		b.StartTimer()
 	}
 }
 
@@ -318,7 +315,6 @@ func BenchmarkIndexBinaryFlat_Add_1K(b *testing.B) {
 
 		b.StopTimer()
 		idx.Close()
-		b.StartTimer()
 	}
 
 	b.ReportMetric(float64(nb*b.N)/b.Elapsed().Seconds(), "vectors/sec")
@@ -366,7 +362,6 @@ func BenchmarkPCAMatrix_Train(b *testing.B) {
 
 		b.StopTimer()
 		pca.Close()
-		b.StartTimer()
 	}
 }
 
@@ -407,7 +402,6 @@ func BenchmarkOPQMatrix_Train(b *testing.B) {
 
 		b.StopTimer()
 		opq.Close()
-		b.StartTimer()
 	}
 }
 
@@ -514,7 +508,6 @@ func BenchmarkKmeans_Train_1K(b *testing.B) {
 
 		b.StopTimer()
 		km.Close()
-		b.StartTimer()
 	}
 }
 
@@ -577,7 +570,6 @@ func BenchmarkIndexFlat_Deserialize(b *testing.B) {
 
 		b.StopTimer()
 		newIdx.Close()
-		b.StartTimer()
 	}
 	b.SetBytes(int64(len(data)))
 }
