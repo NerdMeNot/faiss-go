@@ -78,6 +78,8 @@ faiss-go brings FAISS to Go's production-ready ecosystem:
 
 faiss-go requires FAISS to be installed on your system.
 
+> **🚀 GPU Acceleration**: For 10-100x faster search with CUDA, see [GPU Installation Guide](docs/getting-started/gpu-installation.md). The instructions below are for CPU-only builds.
+
 **Linux (Ubuntu/Debian)**:
 ```bash
 sudo apt-get update
@@ -94,8 +96,11 @@ sudo dnf install -y faiss-devel openblas-devel
 brew install faiss openblas
 ```
 
-**From Source**:
+**From Source (CPU)**:
 See [FAISS Installation Guide](https://github.com/facebookresearch/faiss/blob/main/INSTALL.md)
+
+**From Source (GPU)**:
+See [GPU Installation Guide](docs/getting-started/gpu-installation.md) for CUDA-enabled builds
 
 ### Install faiss-go
 
@@ -217,7 +222,8 @@ _, recommendedItems, _ := index.Search(userEmbedding, 50)
 Comprehensive documentation available:
 
 ### 🎓 Getting Started
-- **[Installation Guide](docs/getting-started/installation.md)** - Platform-specific setup
+- **[Installation Guide](docs/getting-started/installation.md)** - CPU installation for all platforms
+- **[GPU Installation](docs/getting-started/gpu-installation.md)** - 🚀 CUDA setup for 10-100x speedup
 - **[Quick Start](docs/getting-started/quickstart.md)** - Your first search in 5 minutes
 - **[Choosing an Index](docs/getting-started/choosing-an-index.md)** - Index selection guide
 - **[First Index Tutorial](docs/getting-started/first-index.md)** - Hands-on walkthrough
