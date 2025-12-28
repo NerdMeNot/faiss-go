@@ -16,7 +16,7 @@ func BenchmarkIndexFlatL2_Create(b *testing.B) {
 	d := 128
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		idx, _ := faiss.NewIndexFlatL2(d)
+		idx, _ := faiss.faiss.NewIndexFlatL2(d)
 		idx.Close()
 	}
 }
@@ -24,7 +24,7 @@ func BenchmarkIndexFlatL2_Create(b *testing.B) {
 func BenchmarkIndexIVFFlat_Create(b *testing.B) {
 	d := 128
 	nlist := 100
-	quantizer, _ := NewIndexFlatL2(d)
+	quantizer, _ := faiss.NewIndexFlatL2(d)
 	defer quantizer.Close()
 
 	b.ResetTimer()
@@ -50,7 +50,7 @@ func BenchmarkIndexPQ_Create(b *testing.B) {
 	nbits := 8
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		idx, _ := NewIndexPQ(d, M, nbits, faiss.MetricL2)
+		idx, _ := faiss.NewIndexPQ(d, M, nbits, faiss.MetricL2)
 		idx.Close()
 	}
 }
@@ -85,10 +85,10 @@ func benchmarkIndexAdd(b *testing.B, indexType string, d, nb int) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
-		var idx Index
+		var idx faiss.Index
 		switch indexType {
 		case "IndexFlatL2":
-			idx, _ = NewIndexFlatL2(d)
+			idx, _ = faiss.NewIndexFlatL2(d)
 		case "IndexHNSW":
 			idx, _ = faiss.NewIndexHNSWFlat(d, 16, faiss.MetricL2)
 		}
@@ -154,10 +154,10 @@ func benchmarkIndexSearch(b *testing.B, indexType string, d, nb, k, nq int) {
 	vectors := helpers.GenerateVectors(nb, d)
 	queries := helpers.GenerateVectors(nq, d)
 
-	var idx Index
+	var idx faiss.Index
 	switch indexType {
 	case "IndexFlatL2":
-		idx, _ = NewIndexFlatL2(d)
+		idx, _ = faiss.NewIndexFlatL2(d)
 	case "IndexHNSW":
 		idx, _ = faiss.NewIndexHNSWFlat(d, 16, faiss.MetricL2)
 	}
@@ -182,7 +182,7 @@ func benchmarkIndexIVFFlatSearch(b *testing.B, d, nb, k, nq, nprobe int) {
 	vectors := helpers.GenerateVectors(nb, d)
 	queries := helpers.GenerateVectors(nq, d)
 
-	quantizer, _ := NewIndexFlatL2(d)
+	quantizer, _ := faiss.NewIndexFlatL2(d)
 	defer quantizer.Close()
 
 	idx, _ := faiss.NewIndexIVFFlat(quantizer, d, nlist, faiss.MetricL2)
@@ -213,7 +213,7 @@ func BenchmarkIndexIVFFlat_Train_10K(b *testing.B) {
 	nb := 10000
 	vectors := helpers.GenerateVectors(nb, d)
 
-	quantizer, _ := NewIndexFlatL2(d)
+	quantizer, _ := faiss.NewIndexFlatL2(d)
 	defer quantizer.Close()
 
 	b.ResetTimer()
@@ -240,7 +240,7 @@ func BenchmarkIndexPQ_Train_10K(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
-		idx, _ := NewIndexPQ(d, M, nbits, faiss.MetricL2)
+		idx, _ := faiss.NewIndexPQ(d, M, nbits, faiss.MetricL2)
 		b.StartTimer()
 
 		idx.Train(vectors)
@@ -264,7 +264,7 @@ func BenchmarkIndexFlatL2_RangeSearch_1K(b *testing.B) {
 	vectors := helpers.GenerateVectors(nb, d)
 	queries := helpers.GenerateVectors(nq, d)
 
-	idx, _ := NewIndexFlatL2(d)
+	idx, _ := faiss.NewIndexFlatL2(d)
 	defer idx.Close()
 	idx.Add(vectors)
 
@@ -286,7 +286,7 @@ func BenchmarkIndexFlatL2_RangeSearch_10K(b *testing.B) {
 	vectors := helpers.GenerateVectors(nb, d)
 	queries := helpers.GenerateVectors(nq, d)
 
-	idx, _ := NewIndexFlatL2(d)
+	idx, _ := faiss.NewIndexFlatL2(d)
 	defer idx.Close()
 	idx.Add(vectors)
 
@@ -548,7 +548,7 @@ func BenchmarkIndexFlat_Serialize(b *testing.B) {
 	nb := 10000
 	vectors := helpers.GenerateVectors(nb, d)
 
-	idx, _ := NewIndexFlatL2(d)
+	idx, _ := faiss.NewIndexFlatL2(d)
 	defer idx.Close()
 	idx.Add(vectors)
 
@@ -564,7 +564,7 @@ func BenchmarkIndexFlat_Deserialize(b *testing.B) {
 	nb := 10000
 	vectors := helpers.GenerateVectors(nb, d)
 
-	idx, _ := NewIndexFlatL2(d)
+	idx, _ := faiss.NewIndexFlatL2(d)
 	idx.Add(vectors)
 	data, _ := SerializeIndex(idx)
 	idx.Close()
@@ -594,7 +594,7 @@ func BenchmarkIndexFlat_MemoryAllocation(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		idx, _ := NewIndexFlatL2(d)
+		idx, _ := faiss.NewIndexFlatL2(d)
 		idx.Add(vectors)
 		idx.Close()
 	}
@@ -609,7 +609,7 @@ func BenchmarkSearch_MemoryAllocation(b *testing.B) {
 	vectors := helpers.GenerateVectors(nb, d)
 	queries := helpers.GenerateVectors(nq, d)
 
-	idx, _ := NewIndexFlatL2(d)
+	idx, _ := faiss.NewIndexFlatL2(d)
 	defer idx.Close()
 	idx.Add(vectors)
 
