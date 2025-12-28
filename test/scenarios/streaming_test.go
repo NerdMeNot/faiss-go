@@ -1,7 +1,6 @@
 package scenarios
 
 import (
-	"fmt"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -211,7 +210,13 @@ func TestStreaming_BatchUpdates(t *testing.T) {
 
 	// Use IVF for batch updates
 	quantizer, err := faiss.NewIndexFlatL2(dim)
+	if err != nil {
+		t.Fatalf("Failed to create quantizer: %v", err)
+	}
 	index, err := faiss.NewIndexIVFFlat(quantizer, dim, 1000, faiss.MetricL2)
+	if err != nil {
+		t.Fatalf("Failed to create index: %v", err)
+	}
 	index.SetNprobe(20)
 	defer index.Close()
 
@@ -260,7 +265,7 @@ func TestStreaming_BatchUpdates(t *testing.T) {
 	t.Logf("Average throughput: %.0f vectors/sec",
 		float64(batchSize*nBatches)/totalAddTime.Seconds())
 
-	if finalSize != expectedSize {
+	if finalSize != int64(expectedSize) {
 		t.Errorf("Final size mismatch: got %d, expected %d", finalSize, expectedSize)
 	}
 

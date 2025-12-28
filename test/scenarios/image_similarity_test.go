@@ -1,7 +1,6 @@
 package scenarios
 
 import (
-	"fmt"
 	"testing"
 	"time"
 

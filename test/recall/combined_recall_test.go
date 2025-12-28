@@ -89,7 +89,7 @@ func TestScalarQuantizer_Recall(t *testing.T) {
 	config := RecallTestConfig{
 		Name:          "SQ8",
 		IndexType:     "IndexScalarQuantizer",
-		BuildIndex:    buildSQ(faiss.QuantizerType_QT_8bit),
+		BuildIndex:    buildSQ(faiss.QT_8bit),
 		NeedsTraining: true,
 		N:             10000,
 		D:             128,
@@ -108,7 +108,7 @@ func TestIVFSQ_Recall(t *testing.T) {
 	config := RecallTestConfig{
 		Name:          "IVFSQ_nlist100_nprobe10",
 		IndexType:     "IndexIVFScalarQuantizer",
-		BuildIndex:    buildIVFSQ(100, faiss.QuantizerType_QT_8bit, 10),
+		BuildIndex:    buildIVFSQ(100, faiss.QT_8bit, 10),
 		NeedsTraining: true,
 		N:             10000,
 		D:             128,
@@ -252,7 +252,7 @@ func buildIVFPQ(nlist int, m int, nbits int, nprobe int) func(d int, metric fais
 		if err != nil {
 			return nil, err
 		}
-		index, err := faiss.NewIndexIVFPQ(quantizer, d, nlist, m, nbits, metric)
+		index, err := faiss.NewIndexIVFPQ(quantizer, d, nlist, m, nbits)
 		if err != nil {
 			return nil, err
 		}

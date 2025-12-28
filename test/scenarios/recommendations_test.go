@@ -245,7 +245,7 @@ func TestRecommendations_PersonalizedRanking(t *testing.T) {
 	}
 
 	// Rank for each user
-	results, latencies, err := helpers.SearchWithTiming(index, itemEmbeddings.Queries, k)
+	_, latencies, err := helpers.SearchWithTiming(index, itemEmbeddings.Queries, k)
 	if err != nil {
 		t.Fatalf("Ranking failed: %v", err)
 	}
