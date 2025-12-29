@@ -1,174 +1,234 @@
 # faiss-go Documentation
 
-Welcome to the comprehensive documentation for faiss-go, production-ready Go bindings for Facebook's FAISS library.
-
----
-
-## 📚 Documentation Structure
-
-### 🎓 Getting Started
-
-Perfect for new users looking to get up and running quickly:
-
-- **[Installation Guide](getting-started/installation.md)** - CPU installation for all platforms
-- **[GPU Installation](getting-started/gpu-installation.md)** - 🚀 GPU/CUDA setup for 10-100x faster search
-- **[Quick Start](getting-started/quickstart.md)** - Your first similarity search in 5 minutes
-- **[Your First Index](getting-started/first-index.md)** - Step-by-step tutorial
-- **[Choosing an Index](getting-started/choosing-an-index.md)** - Decision trees and index comparison
-- **[Migration Guide](getting-started/migration-guide.md)** - Migrating from Python FAISS to faiss-go
-
-### 📖 Comprehensive Guides
-
-In-depth guides for production usage:
-
-- **[Architecture Overview](guides/architecture.md)** - How faiss-go works under the hood
-- **[Index Types Catalog](guides/index-types.md)** - Complete reference for all 18+ index types
-- **[Performance Tuning](guides/performance-tuning.md)** - Optimize for your specific workload
-- **[Production Deployment](guides/production-deployment.md)** - Kubernetes, Docker, monitoring, and scaling
-- **[GPU Acceleration](guides/gpu-acceleration.md)** - CUDA setup and GPU index usage
-- **[Memory Optimization](guides/memory-optimization.md)** - Strategies for large-scale datasets
-- **[Troubleshooting](guides/troubleshooting.md)** - Common issues and solutions
-- **[Benchmarking](guides/benchmarking.md)** - Performance testing and baselines
-
-### 💻 API Reference
-
-Detailed API documentation:
-
-- **[Complete API Reference](https://pkg.go.dev/github.com/NerdMeNot/faiss-go)** - Auto-generated docs on pkg.go.dev
-- **[Index Operations](api/index-operations.md)** - Add, search, remove, reset operations
-- **[Search Operations](api/search-operations.md)** - Search, range search, batch search
-- **[Serialization](api/serialization.md)** - Save and load indexes
-- **[Preprocessing](api/preprocessing.md)** - Vector transforms and normalization
-- **[Factory Strings](api/factory-strings.md)** - Declarative index construction
-- **[API Completeness](api/completeness.md)** - Python FAISS parity tracking
-
-### 💡 Examples & Use Cases
-
-Real-world examples and patterns:
-
-- **[Semantic Search](examples/semantic-search.md)** - Document embeddings and text similarity
-- **[Image Similarity](examples/image-similarity.md)** - Visual search with CNN features
-- **[Recommendation Systems](examples/recommendation.md)** - Collaborative filtering patterns
-- **[Streaming Updates](examples/streaming-updates.md)** - Real-time index updates
-- **[Batch Processing](examples/batch-processing.md)** - Large-scale data pipelines
-- **[GPU Pipeline](examples/gpu-pipeline.md)** - End-to-end GPU-accelerated workflow
-- **[Kubernetes Deployment](examples/kubernetes-deployment.md)** - Cloud-native deployment
-
-### 🧪 Testing & Quality
-
-Comprehensive testing documentation:
-
-- **[Testing Strategy](testing/strategy.md)** - Philosophy and approach
-- **[Execution Guide](testing/execution-guide.md)** - How to run tests
-- **[Writing Tests](testing/writing-tests.md)** - Test authoring guidelines
-- **[Benchmarking Tests](testing/benchmarking.md)** - Performance test patterns
-- **[CI/CD Integration](testing/ci-cd.md)** - Continuous integration setup
-
-### 🔧 Development
-
-For contributors and advanced users:
-
-- **[Contributing Guide](development/contributing.md)** - How to contribute
-- **[Building from Source](development/building.md)** - Build system details
-- **[Versioning Strategy](development/versioning.md)** - Release process
-- **[Release Process](development/release-process.md)** - How releases work
-- **[Code Audit Findings](development/audit-findings.md)** - Quality improvements
-
-### 📚 Additional Resources
-
-- **[FAQ](faq.md)** - Frequently asked questions
-- **[Glossary](glossary.md)** - FAISS terminology explained
-- **[External Resources](resources.md)** - Papers, tutorials, and community links
+Welcome to the faiss-go documentation! This guide will help you get started with billion-scale vector similarity search in Go.
 
 ---
 
 ## 🚀 Quick Navigation
 
-### I want to...
+### New to faiss-go?
 
-**Get started quickly**
-→ [Quick Start Guide](getting-started/quickstart.md)
+Start here to get up and running in minutes:
 
-**Understand which index to use**
-→ [Choosing an Index](getting-started/choosing-an-index.md)
+1. **[Installation Guide](installation.md)** - Set up faiss-go (30 seconds with pre-built binaries!)
+2. **[Quickstart Tutorial](quickstart.md)** - Build your first search in 5 minutes
+3. **[Examples](examples.md)** - See real-world code examples
 
-**Migrate from Python FAISS**
-→ [Migration Guide](getting-started/migration-guide.md)
+### Understanding faiss-go
 
-**Deploy to production**
-→ [Production Deployment](guides/production-deployment.md)
+Learn how faiss-go works and how to use it effectively:
 
-**Optimize performance**
-→ [Performance Tuning](guides/performance-tuning.md)
+- **[Build Modes](build-modes.md)** - Pre-built binaries vs system FAISS (recommended reading!)
+- **[API Reference](api-reference.md)** - Complete API documentation
+- **[Index Types Guide](guides/choosing-indexes.md)** - Which index to use for your use case
 
-**Build semantic search**
-→ [Semantic Search Example](examples/semantic-search.md)
+### Performance & Quality
 
-**Troubleshoot an issue**
-→ [Troubleshooting Guide](guides/troubleshooting.md)
+See how faiss-go performs and how we ensure quality:
 
-**Contribute to the project**
-→ [Contributing Guide](development/contributing.md)
+- **[Benchmarks](benchmarks.md)** - Performance data and comparisons
+- **[Testing Strategy](testing.md)** - How we test faiss-go
+- **[CI/CD Workflows](workflows.md)** - Our comprehensive testing pipeline
 
----
+### Troubleshooting
 
-## 📖 Learning Path
+Having issues? Check these resources:
 
-### Beginner Path (0-2 hours)
+- **[Troubleshooting Guide](troubleshooting.md)** - Common issues and solutions
+- **[FAQ](faq.md)** - Frequently asked questions
+- **[GitHub Issues](https://github.com/NerdMeNot/faiss-go/issues)** - Report bugs or request features
 
-1. Read [Quick Start](getting-started/quickstart.md) - 15 min
-2. Complete [Your First Index](getting-started/first-index.md) tutorial - 30 min
-3. Review [Index Selection Guide](getting-started/choosing-an-index.md) - 20 min
-4. Try an [Example Use Case](examples/) - 30 min
+### Contributing
 
-### Intermediate Path (2-8 hours)
+Want to contribute? We'd love your help!
 
-1. Deep dive into [Architecture](guides/architecture.md) - 1 hour
-2. Study [Index Types Catalog](guides/index-types.md) - 2 hours
-3. Practice with [All Examples](examples/) - 3 hours
-4. Read [Performance Tuning](guides/performance-tuning.md) - 1 hour
-
-### Advanced Path (8+ hours)
-
-1. Master [Production Deployment](guides/production-deployment.md) - 3 hours
-2. Understand [Memory Optimization](guides/memory-optimization.md) - 2 hours
-3. Learn [GPU Acceleration](guides/gpu-acceleration.md) - 2 hours
-4. Implement [Custom Solution](examples/) - ongoing
+- **[Contributing Guide](../CONTRIBUTING.md)** - How to contribute
+- **[Code of Conduct](../CODE_OF_CONDUCT.md)** - Community guidelines
+- **[Development Setup](../CONTRIBUTING.md#development-setup)** - Get set up for development
 
 ---
 
-## 🔗 External Links
+## 📚 Documentation Index
 
-- **[GitHub Repository](https://github.com/NerdMeNot/faiss-go)** - Source code and issues
-- **[pkg.go.dev](https://pkg.go.dev/github.com/NerdMeNot/faiss-go)** - API documentation
-- **[FAISS GitHub](https://github.com/facebookresearch/faiss)** - Original FAISS library
-- **[FAISS Documentation](https://faiss.ai/)** - FAISS wiki and guides
+### Getting Started
+
+| Document | Description | Time to Read |
+|----------|-------------|--------------|
+| [Installation](installation.md) | Detailed setup for all platforms | 5 min |
+| [Quickstart](quickstart.md) | Build your first search | 10 min |
+| [Build Modes](build-modes.md) | Static libs vs system FAISS | 5 min |
+
+### Using faiss-go
+
+| Document | Description | Time to Read |
+|----------|-------------|--------------|
+| [API Reference](api-reference.md) | Complete API documentation | Reference |
+| [Examples](examples.md) | Real-world code examples | 15 min |
+| [Index Types](guides/choosing-indexes.md) | Choosing the right index | 10 min |
+
+### Performance & Testing
+
+| Document | Description | Time to Read |
+|----------|-------------|--------------|
+| [Benchmarks](benchmarks.md) | Performance data | 10 min |
+| [Testing](testing.md) | Testing strategy | 5 min |
+| [Workflows](workflows.md) | CI/CD documentation | 10 min |
+
+### Help & Support
+
+| Document | Description | Time to Read |
+|----------|-------------|--------------|
+| [Troubleshooting](troubleshooting.md) | Common issues | Reference |
+| [FAQ](faq.md) | Frequently asked questions | 10 min |
+| [Glossary](glossary.md) | FAISS terminology | Reference |
+
+### Development & Quality
+
+| Document | Description | Time to Read |
+|----------|-------------|--------------|
+| [Programming Guide](programming-guide.md) | Best practices & patterns | 20 min |
+| [Resources](resources.md) | External links and papers | 5 min |
+
+### Project Information
+
+| Document | Description | Time to Read |
+|----------|-------------|--------------|
+| [Changelog](../CHANGELOG.md) | Version history | Reference |
 
 ---
 
-## 💬 Getting Help
+## 🎯 Common Use Cases
 
-- **Questions?** Check the [FAQ](faq.md) first
-- **Issues?** See [Troubleshooting](guides/troubleshooting.md)
-- **Bugs?** [Report on GitHub](https://github.com/NerdMeNot/faiss-go/issues)
-- **Discussions?** [GitHub Discussions](https://github.com/NerdMeNot/faiss-go/discussions)
+Quick links to documentation for specific use cases:
+
+### Semantic Search
+- [Quickstart: Semantic Search](quickstart.md#semantic-search)
+- [Example: Document Search](examples.md#semantic-document-search)
+- [Index Choice: IndexFlatIP or IndexHNSW](guides/choosing-indexes.md#semantic-search)
+
+### Image Similarity
+- [Example: Image Search](examples.md#image-similarity)
+- [Index Choice: IndexPQ or IndexIVFPQ](guides/choosing-indexes.md#image-search)
+
+### Recommendation Systems
+- [Example: Product Recommendations](examples.md#product-recommendations)
+- [Index Choice: IndexIVFFlat](guides/choosing-indexes.md#recommendations)
+
+### Billion-Scale Search
+- [Guide: Billion-Scale Indexes](guides/billion-scale.md)
+- [Index Choice: IndexIVFPQ with OnDisk](guides/choosing-indexes.md#billion-scale)
+
+### GPU Acceleration
+- [Installation: GPU Setup](installation.md#gpu-support)
+- [Guide: GPU Indexes](guides/gpu-acceleration.md)
 
 ---
 
-## 📝 Documentation Contributions
+## 💡 Key Concepts
 
-Found an error or want to improve the docs? Contributions are welcome!
+### What is FAISS?
 
-1. Fork the repository
-2. Edit the documentation (all Markdown files in `/docs`)
-3. Submit a pull request
+FAISS (Facebook AI Similarity Search) is a library developed by Meta AI Research for efficient similarity search and clustering of dense vectors. It's used in production at Meta to search billions of vectors.
 
-See our [Contributing Guide](development/contributing.md) for details.
+**Key features:**
+- Exact and approximate nearest neighbor search
+- Scales to billions of vectors
+- GPU acceleration
+- Multiple index types optimized for speed/memory/accuracy tradeoffs
+
+### What is faiss-go?
+
+faiss-go provides production-ready Go bindings to FAISS, bringing billion-scale vector search to the Go ecosystem.
+
+**Key advantages:**
+- ⚡ **Pre-built binaries** - 30-second builds vs 15-30 minutes
+- 🔒 **Type-safe API** - Compile-time guarantees
+- 🚀 **True concurrency** - Go goroutines > Python's GIL
+- ✅ **Battle-tested** - Comprehensive CI testing Go 1.21-1.25
+
+### Core Operations
+
+**1. Creating an Index**
+```go
+index, err := faiss.NewIndexFlatL2(dimension)
+```
+
+**2. Adding Vectors**
+```go
+err = index.Add(vectors) // vectors: []float32
+```
+
+**3. Searching**
+```go
+distances, labels, err := index.Search(query, k)
+```
+
+**4. Saving/Loading**
+```go
+err = index.Write("index.faiss")
+index, err = faiss.ReadIndex("index.faiss")
+```
 
 ---
 
-<div align="center">
+## 🔍 Finding What You Need
 
-**Happy Searching!** 🚀
+### By Topic
 
-</div>
+- **Installation issues?** → [Installation Guide](installation.md) + [Troubleshooting](troubleshooting.md)
+- **How do I...?** → [Examples](examples.md) + [API Reference](api-reference.md)
+- **Which index type?** → [Choosing Indexes Guide](guides/choosing-indexes.md)
+- **Performance questions?** → [Benchmarks](benchmarks.md)
+- **Build failing?** → [Build Modes](build-modes.md) + [Troubleshooting](troubleshooting.md)
+- **Contributing?** → [Contributing Guide](../CONTRIBUTING.md)
+
+### By Experience Level
+
+**Beginners:**
+1. Read [Installation](installation.md)
+2. Follow [Quickstart](quickstart.md)
+3. Try [Examples](examples.md)
+4. Check [FAQ](faq.md)
+
+**Intermediate:**
+1. Read [Build Modes](build-modes.md)
+2. Study [Index Types Guide](guides/choosing-indexes.md)
+3. Review [API Reference](api-reference.md)
+4. Check [Benchmarks](benchmarks.md)
+
+**Advanced:**
+1. Read [Testing Strategy](testing.md)
+2. Study [CI/CD Workflows](workflows.md)
+3. Review source code
+4. Contribute! [Contributing Guide](../CONTRIBUTING.md)
+
+---
+
+## 📖 External Resources
+
+- **FAISS Documentation**: [https://github.com/facebookresearch/faiss](https://github.com/facebookresearch/faiss)
+- **FAISS Wiki**: [https://github.com/facebookresearch/faiss/wiki](https://github.com/facebookresearch/faiss/wiki)
+- **Research Paper**: [Billion-scale similarity search with GPUs](https://arxiv.org/abs/1702.08734)
+- **Go Package Docs**: [https://pkg.go.dev/github.com/NerdMeNot/faiss-go](https://pkg.go.dev/github.com/NerdMeNot/faiss-go)
+
+---
+
+## 🤝 Community
+
+- **GitHub**: [https://github.com/NerdMeNot/faiss-go](https://github.com/NerdMeNot/faiss-go)
+- **Issues**: [Report bugs or request features](https://github.com/NerdMeNot/faiss-go/issues)
+- **Discussions**: [Ask questions](https://github.com/NerdMeNot/faiss-go/discussions)
+
+---
+
+## 📝 Documentation Status
+
+**Status**: Active development
+**FAISS Version**: v1.13.2 (static libraries)
+**Last Updated**: December 2025
+
+**Contributing to docs?** See [Contributing Guide](../CONTRIBUTING.md#documentation).
+
+---
+
+**Ready to get started? Begin with the [Installation Guide](installation.md)!** 🚀

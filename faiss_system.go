@@ -1,19 +1,22 @@
-//go:build !faiss_use_lib
-// +build !faiss_use_lib
+//go:build faiss_use_system
+// +build faiss_use_system
 
 package faiss
 
 /*
-// FAISS Installation Requirements:
-// This build mode requires FAISS to be installed on your system.
+// System FAISS build mode (fallback)
+// Requires FAISS to be installed on your system.
+//
+// Build with: go build -tags=faiss_use_system
 //
 // Installation:
 //   Ubuntu/Debian: apt-get install libfaiss-dev
 //   macOS: brew install faiss
 //   From source: https://github.com/facebookresearch/faiss/blob/main/INSTALL.md
 //
-// The C++ bridge implementation (faiss/faiss_c_impl.cpp) will be compiled
-// and linked against your system's FAISS installation.
+// This mode compiles the C++ bridge (faiss_c_impl.cpp) and links against
+// your system's FAISS installation. Use this for platforms without pre-built
+// static libraries, or when you want to use your own FAISS build.
 
 #cgo CXXFLAGS: -std=c++17 -O3 -Wall -Wextra
 #cgo LDFLAGS: -lfaiss -lstdc++ -lm

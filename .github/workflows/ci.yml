@@ -9,9 +9,11 @@ on:
         default: ''
 
 jobs:
-  # Test with static libraries (fast builds ~30 seconds)
+  # Test with static libraries (default build mode, fast ~30 seconds)
+  # Uses pre-built static libraries from libs/ directory
+  # No build tags needed - this is the default!
   test-static-libs:
-    name: Test Static Libs (Go ${{ matrix.go-version }}, ${{ matrix.os }})
+    name: Test (Go ${{ matrix.go-version }}, ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
 
     strategy:
@@ -60,19 +62,19 @@ jobs:
           ls -lh libs/darwin_*/libfaiss.a || echo "⚠️ macOS library not found"
         fi
 
-    - name: Build with static libraries
+    - name: Build
       env:
         CGO_LDFLAGS_ALLOW: ".*"
       run: |
-        echo "Building with static libraries (fast mode)..."
-        go build -tags=faiss_use_lib,nogpu -v ./...
+        echo "Building with static libraries (default mode)..."
+        go build -tags=nogpu -v ./...
 
-    - name: Run tests with static libraries
+    - name: Run tests
       env:
         CGO_LDFLAGS_ALLOW: ".*"
       timeout-minutes: 15
       run: |
-        go test -short -v -tags=faiss_use_lib,nogpu -timeout 10m -coverprofile=coverage.out -covermode=atomic ./...
+        go test -short -tags=nogpu -v -timeout 10m -coverprofile=coverage.out -covermode=atomic ./...
 
     - name: Upload coverage (Ubuntu + Go 1.25 only)
       if: matrix.os == 'ubuntu-latest' && matrix.go-version == '1.25'
@@ -86,56 +88,7 @@ jobs:
       env:
         CGO_LDFLAGS_ALLOW: ".*"
       run: |
-        go test -v -tags=faiss_use_lib,nogpu -bench=BenchmarkIndexFlatL2_Create -benchtime=100ms -run=^$ ./...
-
-  # Test with amalgamation (ensures amalgamated source still works)
-  test-amalgamation:
-    name: Test Amalgamation (Go ${{ matrix.go-version }})
-    runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        go-version: ['1.23', '1.25']  # Test oldest and newest
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up Go
-      uses: actions/setup-go@v5
-      with:
-        go-version: ${{ matrix.go-version }}
-
-    - name: Install build dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libopenblas-dev libgomp1 libomp-dev
-
-    - name: Cache Go modules
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.cache/go-build
-          ~/go/pkg/mod
-        key: ${{ runner.os }}-go-amalgamation-${{ matrix.go-version }}-${{ hashFiles('**/go.sum') }}
-        restore-keys: |
-          ${{ runner.os }}-go-amalgamation-${{ matrix.go-version }}-
-
-    - name: Verify amalgamation files exist
-      run: |
-        echo "Checking for amalgamation files..."
-        ls -lh faiss/faiss.cpp faiss/faiss.h
-
-    - name: Build with amalgamation (default mode)
-      run: |
-        echo "Building with amalgamation (compiles FAISS source)..."
-        go build -v ./...
-
-    - name: Run tests with amalgamation
-      timeout-minutes: 15
-      run: |
-        go test -short -v -timeout 10m ./...
+        go test -tags=nogpu -v -bench=BenchmarkIndexFlatL2_Create -benchtime=100ms -run=^$ ./...
 
   # Lint check
   lint:
@@ -168,7 +121,7 @@ jobs:
   ci-success:
     name: CI Success
     runs-on: ubuntu-latest
-    needs: [test-static-libs, test-amalgamation, lint]
+    needs: [test-static-libs, lint]
     if: always()
 
     steps:
@@ -176,10 +129,6 @@ jobs:
       run: |
         if [ "${{ needs.test-static-libs.result }}" != "success" ]; then
           echo "❌ Static libs tests failed"
-          exit 1
-        fi
-        if [ "${{ needs.test-amalgamation.result }}" != "success" ]; then
-          echo "❌ Amalgamation tests failed"
           exit 1
         fi
         if [ "${{ needs.lint.result }}" != "success" ]; then

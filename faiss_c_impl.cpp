@@ -1,9 +1,15 @@
+//go:build faiss_use_system
+// +build faiss_use_system
+
 /**
- * FAISS C API Implementation for Go Bindings
+ * FAISS C API Implementation for Go Bindings - System FAISS Mode
  *
- * This file implements the C API used by the Go bindings.
- * It uses FAISS's official C API where available and creates
- * C++ wrappers for additional functionality.
+ * This file is ONLY compiled when using system-installed FAISS.
+ * It requires FAISS headers to be available on the system.
+ *
+ * Build with: go build -tags=faiss_use_system
+ *
+ * This bridge uses FAISS's C++ API and exposes a C interface for CGO.
  */
 
 #include <faiss/IndexFlat.h>
