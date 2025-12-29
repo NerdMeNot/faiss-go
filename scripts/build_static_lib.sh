@@ -304,10 +304,10 @@ mkdir -p "$OUTPUT_DIR"
 if [ "$UNIFIED_BUILD" = true ] && [[ "$PLATFORM" == linux-* || "$PLATFORM" == windows-* ]] && [ -f "faiss/libfaiss.a" ]; then
     echo "Merging static libraries into unified libfaiss.a..."
 
-    local merge_dir="$TEMP_DIR/merge"
-    rm -rf "$merge_dir"
-    mkdir -p "$merge_dir"
-    cd "$merge_dir"
+    MERGE_DIR="$TEMP_DIR/merge"
+    rm -rf "$MERGE_DIR"
+    mkdir -p "$MERGE_DIR"
+    cd "$MERGE_DIR"
 
     # Extract all object files from libfaiss.a
     echo "  Extracting libfaiss.a..."
