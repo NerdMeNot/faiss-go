@@ -167,7 +167,8 @@ jobs:
           path: libs/windows_amd64/
           retention-days: 90
 
-  create-pr:
+  # Collect and upload combined artifacts
+  collect-artifacts:
     needs: [build-linux-amd64, build-linux-arm64, build-darwin-amd64, build-darwin-arm64, build-windows-amd64]
     if: always()
     runs-on: ubuntu-latest
@@ -181,84 +182,180 @@ jobs:
         with:
           path: libs-artifacts
 
-      - name: Organize libraries
+      - name: Show downloaded artifacts
         run: |
-          # Copy each platform's libraries from artifacts to libs directory
+          echo "=== Downloaded artifacts ==="
+          ls -lR libs-artifacts/
+
+      - name: Create combined artifact with all platforms
+        run: |
+          mkdir -p combined-static-libs
+
+          # Copy all platform artifacts into one directory
           for platform in linux-amd64 linux-arm64 darwin-amd64 darwin-arm64 windows-amd64; do
-            platform_dir="${platform//-/_}"
-            artifact_dir="libs-artifacts/faiss-static-$platform"
-
-            if [ -d "$artifact_dir" ]; then
-              echo "Processing $platform..."
-              mkdir -p "libs/$platform_dir"
-
-              # Copy contents (not the directory itself) to avoid nesting
-              cp -rv "$artifact_dir/"* "libs/$platform_dir/" || echo "Warning: No files found in $artifact_dir"
-            else
-              echo "Warning: Artifact directory $artifact_dir not found"
+            if [ -d "libs-artifacts/faiss-static-$platform" ]; then
+              echo "Adding $platform..."
+              cp -r "libs-artifacts/faiss-static-$platform" "combined-static-libs/"
             fi
           done
 
           # Show what we have
-          echo "=== Libraries organized ==="
-          ls -lR libs/
+          echo "=== Combined artifact contents ==="
+          tree -L 2 combined-static-libs/ || ls -lR combined-static-libs/
 
-          # Verify critical files exist
-          echo "=== Verifying library files ==="
-          for platform_dir in libs/*/; do
-            if [ -f "$platform_dir/libfaiss.a" ] || [ -f "$platform_dir/faiss.lib" ]; then
-              echo "✓ Found library in $platform_dir"
-            else
-              echo "✗ No library found in $platform_dir"
-            fi
-          done
-
-      - name: Generate checksums
-        run: |
-          for dir in libs/*/; do
-            if [ -f "$dir/libfaiss.a" ] || [ -f "$dir/faiss.lib" ]; then
-              (cd "$dir" && find . -maxdepth 1 -type f -exec sha256sum {} \; > checksums.txt)
-            fi
-          done
-
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v5
+      - name: Upload combined artifact
+        uses: actions/upload-artifact@v4
         with:
-          add-paths: |
-            libs/**/*
-          commit-message: "feat: Add pre-built FAISS static libraries ${{ github.event.inputs.faiss_version }}"
-          title: "Add pre-built FAISS static libraries ${{ github.event.inputs.faiss_version }}"
-          body: |
-            ## Pre-built FAISS Static Libraries
+          name: all-static-libraries
+          path: combined-static-libs/
+          retention-days: 90
 
-            This PR adds pre-compiled FAISS static libraries for all supported platforms.
+      - name: Create installation instructions
+        run: |
+          cat > combined-static-libs/INSTALL.md << 'EOF'
+          # Manual Installation Instructions
 
-            **FAISS Version**: ${{ github.event.inputs.faiss_version }}
+          Download the "all-static-libraries" artifact from GitHub Actions and extract it.
 
-            ### Platforms Included
-            - ✅ Linux AMD64
-            - ✅ Linux ARM64
-            - ✅ macOS AMD64 (Intel)
-            - ✅ macOS ARM64 (Apple Silicon)
-            - ✅ Windows AMD64
+          ## File Mapping
 
-            ### Build Mode
-            This enables the fast build mode with pre-built libraries:
-            ```bash
-            go build -tags=faiss_use_lib  # Uses pre-built libraries
-            ```
+          For each platform, copy the following files to the libs/ directory:
 
-            ### Library Sizes
-            ```
-            $(du -sh libs/*/libfaiss.a libs/*/faiss.lib 2>/dev/null || echo "Calculating...")
-            ```
+          ### Linux AMD64
+          ```bash
+          cp faiss-static-linux-amd64/libfaiss.a libs/linux_amd64/
+          cp faiss-static-linux-amd64/libfaiss_c.a libs/linux_amd64/
+          cp faiss-static-linux-amd64/build_info.json libs/linux_amd64/
+          cp faiss-static-linux-amd64/checksums.txt libs/linux_amd64/
+          cp -r faiss-static-linux-amd64/include libs/linux_amd64/
+          ```
 
-            ### Testing
-            - [ ] Builds successfully on Linux with `-tags=faiss_use_lib`
-            - [ ] Builds successfully on macOS with `-tags=faiss_use_lib`
-            - [ ] Builds successfully on Windows with `-tags=faiss_use_lib`
-            - [ ] All tests pass
+          ### Linux ARM64
+          ```bash
+          cp faiss-static-linux-arm64/libfaiss.a libs/linux_arm64/
+          cp faiss-static-linux-arm64/libfaiss_c.a libs/linux_arm64/
+          cp faiss-static-linux-arm64/build_info.json libs/linux_arm64/
+          cp faiss-static-linux-arm64/checksums.txt libs/linux_arm64/
+          cp -r faiss-static-linux-arm64/include libs/linux_arm64/
+          ```
 
-            Generated by GitHub Actions workflow.
-          branch: faiss-static-libs-${{ github.event.inputs.faiss_version }}
-          delete-branch: true
+          ### Darwin AMD64 (Intel Mac)
+          ```bash
+          cp faiss-static-darwin-amd64/libfaiss.a libs/darwin_amd64/
+          cp faiss-static-darwin-amd64/libfaiss_c.a libs/darwin_amd64/
+          cp faiss-static-darwin-amd64/build_info.json libs/darwin_amd64/
+          cp faiss-static-darwin-amd64/checksums.txt libs/darwin_amd64/
+          cp -r faiss-static-darwin-amd64/include libs/darwin_amd64/
+          ```
+
+          ### Darwin ARM64 (Apple Silicon)
+          ```bash
+          cp faiss-static-darwin-arm64/libfaiss.a libs/darwin_arm64/
+          cp faiss-static-darwin-arm64/libfaiss_c.a libs/darwin_arm64/
+          cp faiss-static-darwin-arm64/build_info.json libs/darwin_arm64/
+          cp faiss-static-darwin-arm64/checksums.txt libs/darwin_arm64/
+          cp -r faiss-static-darwin-arm64/include libs/darwin_arm64/
+          ```
+
+          ### Windows AMD64
+          ```bash
+          cp faiss-static-windows-amd64/faiss.lib libs/windows_amd64/
+          cp faiss-static-windows-amd64/faiss_c.lib libs/windows_amd64/
+          cp faiss-static-windows-amd64/build_info.json libs/windows_amd64/
+          cp faiss-static-windows-amd64/checksums.txt libs/windows_amd64/
+          cp -r faiss-static-windows-amd64/include libs/windows_amd64/
+          ```
+
+          ## Quick Script
+
+          Run this from the extracted artifact directory:
+
+          ```bash
+          #!/bin/bash
+          # Assuming you're in the extracted combined-static-libs/ directory
+          # and your repo is at ../faiss-go/
+
+          REPO_DIR="../faiss-go"
+
+          # Linux AMD64
+          mkdir -p "$REPO_DIR/libs/linux_amd64"
+          cp faiss-static-linux-amd64/libfaiss.a "$REPO_DIR/libs/linux_amd64/"
+          cp faiss-static-linux-amd64/libfaiss_c.a "$REPO_DIR/libs/linux_amd64/"
+          cp faiss-static-linux-amd64/build_info.json "$REPO_DIR/libs/linux_amd64/"
+          cp faiss-static-linux-amd64/checksums.txt "$REPO_DIR/libs/linux_amd64/"
+          cp -r faiss-static-linux-amd64/include "$REPO_DIR/libs/linux_amd64/"
+
+          # Linux ARM64
+          mkdir -p "$REPO_DIR/libs/linux_arm64"
+          cp faiss-static-linux-arm64/libfaiss.a "$REPO_DIR/libs/linux_arm64/"
+          cp faiss-static-linux-arm64/libfaiss_c.a "$REPO_DIR/libs/linux_arm64/"
+          cp faiss-static-linux-arm64/build_info.json "$REPO_DIR/libs/linux_arm64/"
+          cp faiss-static-linux-arm64/checksums.txt "$REPO_DIR/libs/linux_arm64/"
+          cp -r faiss-static-linux-arm64/include "$REPO_DIR/libs/linux_arm64/"
+
+          # Darwin AMD64
+          mkdir -p "$REPO_DIR/libs/darwin_amd64"
+          cp faiss-static-darwin-amd64/libfaiss.a "$REPO_DIR/libs/darwin_amd64/"
+          cp faiss-static-darwin-amd64/libfaiss_c.a "$REPO_DIR/libs/darwin_amd64/"
+          cp faiss-static-darwin-amd64/build_info.json "$REPO_DIR/libs/darwin_amd64/"
+          cp faiss-static-darwin-amd64/checksums.txt "$REPO_DIR/libs/darwin_amd64/"
+          cp -r faiss-static-darwin-amd64/include "$REPO_DIR/libs/darwin_amd64/"
+
+          # Darwin ARM64
+          mkdir -p "$REPO_DIR/libs/darwin_arm64"
+          cp faiss-static-darwin-arm64/libfaiss.a "$REPO_DIR/libs/darwin_arm64/"
+          cp faiss-static-darwin-arm64/libfaiss_c.a "$REPO_DIR/libs/darwin_arm64/"
+          cp faiss-static-darwin-arm64/build_info.json "$REPO_DIR/libs/darwin_arm64/"
+          cp faiss-static-darwin-arm64/checksums.txt "$REPO_DIR/libs/darwin_arm64/"
+          cp -r faiss-static-darwin-arm64/include "$REPO_DIR/libs/darwin_arm64/"
+
+          # Windows AMD64
+          mkdir -p "$REPO_DIR/libs/windows_amd64"
+          cp faiss-static-windows-amd64/faiss.lib "$REPO_DIR/libs/windows_amd64/"
+          cp faiss-static-windows-amd64/faiss_c.lib "$REPO_DIR/libs/windows_amd64/"
+          cp faiss-static-windows-amd64/build_info.json "$REPO_DIR/libs/windows_amd64/"
+          cp faiss-static-windows-amd64/checksums.txt "$REPO_DIR/libs/windows_amd64/"
+          cp -r faiss-static-windows-amd64/include "$REPO_DIR/libs/windows_amd64/"
+
+          echo "Done! Files copied to $REPO_DIR/libs/"
+          ```
+
+          ## Verification
+
+          After copying, verify the structure:
+
+          ```bash
+          cd ../faiss-go
+          tree libs/
+          ```
+
+          Expected structure:
+          ```
+          libs/
+          ├── darwin_amd64/
+          │   ├── libfaiss.a
+          │   ├── libfaiss_c.a
+          │   ├── build_info.json
+          │   ├── checksums.txt
+          │   └── include/
+          ├── darwin_arm64/
+          │   └── ...
+          ├── linux_amd64/
+          │   └── ...
+          ├── linux_arm64/
+          │   └── ...
+          └── windows_amd64/
+              ├── faiss.lib
+              ├── faiss_c.lib
+              └── ...
+          ```
+
+          ## Test the Build
+
+          ```bash
+          go build -tags=faiss_use_lib,nogpu -v ./...
+          go test -tags=faiss_use_lib,nogpu -v ./...
+          ```
+          EOF
+
+          echo "Created installation instructions"
