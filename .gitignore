@@ -34,8 +34,6 @@ dist/
 # FAISS build artifacts
 faiss/build/
 faiss/.git/
-*.o
-*.a
 *.cmake
 CMakeCache.txt
 CMakeFiles/
