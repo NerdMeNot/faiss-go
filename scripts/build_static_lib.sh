@@ -87,6 +87,16 @@ esac
 
 # Build OpenBLAS statically (for unified builds on Linux/Windows)
 build_openblas() {
+    # Check for cached OpenBLAS installation
+    local cache_dir="$PROJECT_ROOT/tmp/openblas-install-$PLATFORM"
+    if [ -d "$cache_dir" ] && [ -f "$cache_dir/lib/libopenblas.a" ]; then
+        echo -e "${GREEN}✓ Using cached OpenBLAS from $cache_dir${NC}"
+        # Create symlink to expected location
+        mkdir -p "$TEMP_DIR"
+        ln -sf "$cache_dir" "$TEMP_DIR/openblas-install"
+        return 0
+    fi
+
     echo "Building OpenBLAS $OPENBLAS_VERSION statically..."
 
     local openblas_dir="$TEMP_DIR/OpenBLAS"
@@ -142,13 +152,26 @@ build_openblas() {
     # Install to local prefix
     make install PREFIX="$TEMP_DIR/openblas-install" "${make_opts[@]}"
 
-    echo -e "${GREEN}✓ Built OpenBLAS${NC}"
+    # Also save to cache location for future builds
+    local cache_dir="$PROJECT_ROOT/tmp/openblas-install-$PLATFORM"
+    mkdir -p "$(dirname "$cache_dir")"
+    cp -r "$TEMP_DIR/openblas-install" "$cache_dir"
+    echo -e "${GREEN}✓ Built OpenBLAS (cached for future builds)${NC}"
 }
+
+# Prepare build directory
+echo "Preparing build environment..."
+mkdir -p "$TEMP_DIR"
+
+# Build OpenBLAS if unified build requested (Linux/Windows only)
+# Do this BEFORE cloning FAISS so we can cache it
+if [ "$UNIFIED_BUILD" = true ] && [[ "$PLATFORM" == linux-* || "$PLATFORM" == windows-* ]]; then
+    build_openblas
+fi
 
 # Clone FAISS
 echo "Cloning FAISS $FAISS_VERSION..."
-rm -rf "$TEMP_DIR"
-mkdir -p "$TEMP_DIR"
+rm -rf "$TEMP_DIR/faiss"  # Only remove FAISS dir, preserve OpenBLAS cache
 
 git clone --depth 1 --branch "$FAISS_VERSION" \
     https://github.com/facebookresearch/faiss.git \
@@ -159,11 +182,6 @@ git clone --depth 1 --branch "$FAISS_VERSION" \
 
 cd "$TEMP_DIR/faiss"
 echo -e "${GREEN}✓ Cloned FAISS${NC}"
-
-# Build OpenBLAS if unified build requested (Linux/Windows only)
-if [ "$UNIFIED_BUILD" = true ] && [[ "$PLATFORM" == linux-* || "$PLATFORM" == windows-* ]]; then
-    build_openblas
-fi
 
 # Configure
 echo "Configuring FAISS build for $PLATFORM..."
@@ -432,7 +450,15 @@ else
 fi
 echo ""
 
-# Cleanup
+# Cleanup (preserve cache directories)
 echo "Cleaning up build directory..."
-rm -rf "$TEMP_DIR"
+# Only remove FAISS build directory and OpenBLAS source
+# Preserve openblas-install-* cache directories
+rm -rf "$TEMP_DIR/faiss"
+rm -rf "$TEMP_DIR/OpenBLAS"
+rm -rf "$TEMP_DIR/merge"
+# Remove openblas-install symlink but not the cached directory
+if [ -L "$TEMP_DIR/openblas-install" ]; then
+    rm "$TEMP_DIR/openblas-install"
+fi
 echo -e "${GREEN}✓ Done${NC}"
