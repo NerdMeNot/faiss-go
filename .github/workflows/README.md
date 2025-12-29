@@ -19,17 +19,18 @@ All workflows are **manual-only** (workflow_dispatch). Nothing runs automaticall
 
 **New fast CI using static libraries!**
 
-- **13 parallel jobs** testing Go 1.21-1.25
+- **11 parallel jobs** testing Go 1.21-1.25
 - **~30 second builds** (was 15-30 minutes)
-- **Both build modes**: Static libs + Amalgamation
+- **Build mode**: Static libraries (amalgamation not yet implemented)
 - **Platforms**: Ubuntu + macOS
 
 ### Jobs:
 1. **test-static-libs** (10 jobs) - Go 1.21-1.25 on Ubuntu + macOS
-2. **test-amalgamation** (2 jobs) - Go 1.23 + 1.25 on Ubuntu
-3. **lint** (1 job) - Go 1.25 linting
-4. **ci-success** - Summary check
+2. **lint** (1 job) - Go 1.25 linting
+3. **ci-success** - Summary check
 
 **Total CI time: ~5-10 minutes** 🚀
+
+**Note:** Amalgamation build mode is not yet implemented (stub files only). CI currently tests static library mode only.
 
 See [WORKFLOW_USAGE.md](../../WORKFLOW_USAGE.md) for complete usage guide.

@@ -10,6 +10,8 @@ on:
 
 jobs:
   # Test with static libraries (fast builds ~30 seconds)
+  # NOTE: Amalgamation mode is not yet implemented (stub files only)
+  # so we only test static library mode which uses pre-built libs in libs/
   test-static-libs:
     name: Test Static Libs (Go ${{ matrix.go-version }}, ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -88,55 +90,6 @@ jobs:
       run: |
         go test -v -tags=faiss_use_lib,nogpu -bench=BenchmarkIndexFlatL2_Create -benchtime=100ms -run=^$ ./...
 
-  # Test with amalgamation (ensures amalgamated source still works)
-  test-amalgamation:
-    name: Test Amalgamation (Go ${{ matrix.go-version }})
-    runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        go-version: ['1.23', '1.25']  # Test oldest and newest
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up Go
-      uses: actions/setup-go@v5
-      with:
-        go-version: ${{ matrix.go-version }}
-
-    - name: Install build dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libopenblas-dev libgomp1 libomp-dev
-
-    - name: Cache Go modules
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.cache/go-build
-          ~/go/pkg/mod
-        key: ${{ runner.os }}-go-amalgamation-${{ matrix.go-version }}-${{ hashFiles('**/go.sum') }}
-        restore-keys: |
-          ${{ runner.os }}-go-amalgamation-${{ matrix.go-version }}-
-
-    - name: Verify amalgamation files exist
-      run: |
-        echo "Checking for amalgamation files..."
-        ls -lh faiss/faiss.cpp faiss/faiss.h
-
-    - name: Build with amalgamation (default mode)
-      run: |
-        echo "Building with amalgamation (compiles FAISS source)..."
-        go build -v ./...
-
-    - name: Run tests with amalgamation
-      timeout-minutes: 15
-      run: |
-        go test -short -v -timeout 10m ./...
-
   # Lint check
   lint:
     name: Lint (Go 1.25)
@@ -168,7 +121,7 @@ jobs:
   ci-success:
     name: CI Success
     runs-on: ubuntu-latest
-    needs: [test-static-libs, test-amalgamation, lint]
+    needs: [test-static-libs, lint]
     if: always()
 
     steps:
@@ -176,10 +129,6 @@ jobs:
       run: |
         if [ "${{ needs.test-static-libs.result }}" != "success" ]; then
           echo "❌ Static libs tests failed"
-          exit 1
-        fi
-        if [ "${{ needs.test-amalgamation.result }}" != "success" ]; then
-          echo "❌ Amalgamation tests failed"
           exit 1
         fi
         if [ "${{ needs.lint.result }}" != "success" ]; then

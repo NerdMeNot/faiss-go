@@ -57,7 +57,7 @@ Actions → Continuous Benchmarking → Run workflow
 Runs build and tests on Ubuntu + macOS for all Go versions (1.21-1.25).
 
 ```bash
-# Test all Go versions and build modes
+# Test all Go versions with static libraries
 gh workflow run ci.yml
 ```
 
@@ -71,18 +71,13 @@ gh workflow run ci.yml
 - Runs full test suite with coverage
 - Sample benchmarks
 
-**Amalgamation Build** (2 jobs):
-- Go versions: 1.23, 1.25 (oldest + newest)
-- Platform: Ubuntu
-- Build time: ~2-5 minutes (first build)
-- Compiles FAISS from amalgamated source in `faiss/`
-- Ensures amalgamation mode still works
-
 **Lint**:
 - Go 1.25
 - golangci-lint with 5 minute timeout
 
-**Total**: 13 parallel jobs testing both build modes!
+**Total**: 11 parallel jobs
+
+**Note:** Amalgamation build mode is not yet implemented (stub files only in `faiss/`). CI currently tests static library mode only, which provides fast ~30 second builds.
 
 ### GPU CI
 Tests GPU-specific code (requires GPU runner or manual setup).
