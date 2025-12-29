@@ -54,23 +54,35 @@ Actions → Continuous Benchmarking → Run workflow
 ## CI Workflows
 
 ### Full CI Suite
-Runs build and tests on Ubuntu + macOS for all Go versions.
+Runs build and tests on Ubuntu + macOS for all Go versions (1.21-1.25).
 
 ```bash
-# Test all Go versions (1.23, 1.24, 1.25)
+# Test all Go versions and build modes
 gh workflow run ci.yml
-
-# Test specific Go version
-gh workflow run ci.yml -f go_version=1.23
 ```
 
 **What it tests:**
-- Build with amalgamation mode
-- Run all unit tests
-- Run integration tests
-- Run sample benchmarks
-- Lint with golangci-lint
-- Coverage reporting
+
+**Static Libraries Build** (10 parallel jobs):
+- Go versions: 1.21, 1.22, 1.23, 1.24, 1.25
+- Platforms: Ubuntu + macOS
+- Build time: ~30 seconds
+- Uses pre-built static libraries from `libs/`
+- Runs full test suite with coverage
+- Sample benchmarks
+
+**Amalgamation Build** (2 jobs):
+- Go versions: 1.23, 1.25 (oldest + newest)
+- Platform: Ubuntu
+- Build time: ~2-5 minutes (first build)
+- Compiles FAISS from amalgamated source in `faiss/`
+- Ensures amalgamation mode still works
+
+**Lint**:
+- Go 1.25
+- golangci-lint with 5 minute timeout
+
+**Total**: 13 parallel jobs testing both build modes!
 
 ### GPU CI
 Tests GPU-specific code (requires GPU runner or manual setup).
@@ -152,12 +164,17 @@ gh workflow run release.yml \
 ### Before Merging a PR
 
 ```bash
-# Run full CI
+# Run full CI (tests static libs + amalgamation + lint)
 gh workflow run ci.yml
 
 # Run quick benchmarks to check for regressions
 gh workflow run benchmark.yml -f mode=quick -f benchtime=1s
+
+# Wait for results
+gh run watch
 ```
+
+**Total time**: ~5-10 minutes (static libs are fast!)
 
 ### After Performance Optimizations
 
