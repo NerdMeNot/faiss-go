@@ -4,7 +4,7 @@
 package faiss
 
 /*
-#cgo CPPFLAGS: -I${SRCDIR}/faiss -std=c++17
+#cgo CPPFLAGS: -I${SRCDIR}/faiss
 #cgo LDFLAGS: -lstdc++ -lm
 
 // Platform-specific library paths and flags
