@@ -14,19 +14,44 @@ package faiss
 //   - windows/amd64
 //
 // For other platforms, use: go build -tags=faiss_use_system
+//
+// ============================================================================
+// IMPORTANT: Runtime Dependencies (Temporary State)
+// ============================================================================
+//
+// Current State (Dec 2025):
+//   The static libraries currently require runtime dependencies:
+//   - Linux: libopenblas, libgfortran, libgomp (install via apt/yum)
+//   - macOS: System Accelerate framework (always available)
+//   - Windows: libopenblas, libgfortran, libquadmath
+//
+// Target State (Planned):
+//   Fully self-contained static libraries with all dependencies bundled.
+//   No runtime dependencies needed - true zero-dependency builds!
+//
+// To build fully static libraries:
+//   See docs/building-static-libs.md
+//   Run: ./scripts/build-static-libs.sh
+//
+// Migration Path:
+//   When fully static libraries are available, the LDFLAGS below will be
+//   simplified to just: -lfaiss_c -lfaiss -lpthread (Linux/Windows)
+//   macOS will remain the same (Accelerate framework is system-provided)
+//
+// ============================================================================
 
 #cgo LDFLAGS: -lstdc++ -lm
 
 // Platform-specific library paths and flags
-// Linux
+// Linux (currently requires: libopenblas-dev, gfortran runtime)
 #cgo linux,amd64 LDFLAGS: -L${SRCDIR}/libs/linux_amd64 -lfaiss_c -lfaiss -lopenblas -lgfortran -lgomp -lpthread
 #cgo linux,arm64 LDFLAGS: -L${SRCDIR}/libs/linux_arm64 -lfaiss_c -lfaiss -lopenblas -lgfortran -lgomp -lpthread
 
-// macOS
+// macOS (uses system Accelerate framework - always available)
 #cgo darwin,amd64 LDFLAGS: -L${SRCDIR}/libs/darwin_amd64 -lfaiss_c -lfaiss -Wl,-framework,Accelerate
 #cgo darwin,arm64 LDFLAGS: -L${SRCDIR}/libs/darwin_arm64 -lfaiss_c -lfaiss -Wl,-framework,Accelerate
 
-// Windows
+// Windows (currently requires: libopenblas, gfortran runtime)
 #cgo windows,amd64 LDFLAGS: -L${SRCDIR}/libs/windows_amd64 -lfaiss_c -lfaiss -lopenblas -lgfortran -lquadmath -lpthread
 
 #include <stdlib.h>
