@@ -150,7 +150,25 @@ build_openblas() {
     }
 
     # Install to local prefix
-    make install PREFIX="$TEMP_DIR/openblas-install" "${make_opts[@]}"
+    # On Windows, make install can fail due to path escaping issues
+    # So we manually copy the files we need
+    if [[ "$PLATFORM" == windows-* ]]; then
+        echo "Manually installing OpenBLAS for Windows..."
+        mkdir -p "$TEMP_DIR/openblas-install/lib"
+        mkdir -p "$TEMP_DIR/openblas-install/include"
+
+        # Copy the static library (find it as it has platform-specific name)
+        cp libopenblas*.a "$TEMP_DIR/openblas-install/lib/libopenblas.a"
+
+        # Copy headers
+        cp openblas_config.h "$TEMP_DIR/openblas-install/include/" || true
+        cp cblas.h "$TEMP_DIR/openblas-install/include/" || true
+        cp f77blas.h "$TEMP_DIR/openblas-install/include/" || true
+        cp lapacke*.h "$TEMP_DIR/openblas-install/include/" || true
+    else
+        # Unix: use make install
+        make install PREFIX="$TEMP_DIR/openblas-install" "${make_opts[@]}"
+    fi
 
     # Also save to cache location for future builds
     local cache_dir="$PROJECT_ROOT/tmp/openblas-install-$PLATFORM"
