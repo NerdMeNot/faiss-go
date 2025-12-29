@@ -1,24 +1,27 @@
 name: Continuous Benchmarking
 
 on:
-  push:
-    branches: [ main ]
-  schedule:
-    # Run comprehensive benchmarks weekly on Sunday at 00:00 UTC
-    - cron: '0 0 * * 0'
   workflow_dispatch:
     inputs:
+      mode:
+        description: 'Benchmark mode: quick or comprehensive'
+        required: false
+        default: 'comprehensive'
+        type: choice
+        options:
+          - quick
+          - comprehensive
       benchtime:
         description: 'Benchmark time (e.g., 1s, 5s, 10s)'
         required: false
         default: '5s'
 
 jobs:
-  # Fast benchmarks - runs on every push to main
+  # Fast benchmarks - runs when mode=quick
   benchmark-quick:
     name: Quick Benchmarks (Go ${{ matrix.go-version }}, ${{ matrix.arch }})
     runs-on: ${{ matrix.os }}
-    if: github.event_name == 'push'
+    if: github.event.inputs.mode == 'quick' || github.event.inputs.mode == ''
 
     strategy:
       fail-fast: false
@@ -77,11 +80,11 @@ jobs:
         path: benchmark-quick-${{ matrix.go-version }}-${{ matrix.arch }}.txt
         retention-days: 30
 
-  # Comprehensive benchmarks - runs weekly or on manual trigger
+  # Comprehensive benchmarks - runs when mode=comprehensive
   benchmark-comprehensive:
     name: Comprehensive Benchmarks (Go ${{ matrix.go-version }}, ${{ matrix.arch }})
     runs-on: ${{ matrix.os }}
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    if: github.event.inputs.mode == 'comprehensive'
 
     strategy:
       fail-fast: false
@@ -161,7 +164,7 @@ jobs:
     name: Compare Benchmark Results
     runs-on: ubuntu-latest
     needs: benchmark-comprehensive
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    if: github.event.inputs.mode == 'comprehensive'
 
     steps:
     - name: Checkout code
