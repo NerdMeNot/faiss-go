@@ -1,8 +1,12 @@
 name: CI
 
 on:
-  pull_request:
-    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      go_version:
+        description: 'Go version to test (leave empty for all: 1.23, 1.24, 1.25)'
+        required: false
+        default: ''
 
 jobs:
   build-and-test:
