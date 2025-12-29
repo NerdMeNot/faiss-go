@@ -370,6 +370,11 @@ docs: improve quickstart guide clarity
 - Follow [Effective Go](https://go.dev/doc/effective_go)
 - Use `gofmt` (enforced by CI)
 - Use `golangci-lint` (enforced by CI)
+- Read our [Programming Guide](docs/programming-guide.md) - **Highly recommended!**
+  - CGO best practices
+  - Memory management patterns
+  - API design principles
+  - Testing patterns
 
 ### Specific Guidelines
 

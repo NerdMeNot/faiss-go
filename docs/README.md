@@ -82,12 +82,18 @@ Want to contribute? We'd love your help!
 | [FAQ](faq.md) | Frequently asked questions | 10 min |
 | [Glossary](glossary.md) | FAISS terminology | Reference |
 
-### Additional Resources
+### Development & Quality
 
 | Document | Description | Time to Read |
 |----------|-------------|--------------|
-| [Changelog](changelog.md) | Version history | Reference |
+| [Programming Guide](programming-guide.md) | Best practices & patterns | 20 min |
 | [Resources](resources.md) | External links and papers | 5 min |
+
+### Project Information
+
+| Document | Description | Time to Read |
+|----------|-------------|--------------|
+| [Changelog](../CHANGELOG.md) | Version history | Reference |
 
 ---
 

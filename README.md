@@ -206,9 +206,10 @@ This is a **game-changer** for:
 - ✅ [Testing](docs/testing.md) - How we ensure quality
 - 🔄 [CI/CD Workflows](docs/workflows.md) - Our comprehensive testing strategy
 
-### Contributing
+### Development & Contributing
 - 🤝 [Contributing Guide](CONTRIBUTING.md) - How to contribute
-- 📋 [Changelog](docs/changelog.md) - Version history
+- 💻 [Programming Guide](docs/programming-guide.md) - Best practices & code patterns
+- 📋 [Changelog](CHANGELOG.md) - Version history
 
 ---
 
