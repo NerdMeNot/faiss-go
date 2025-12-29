@@ -10,7 +10,6 @@ All workflows are now **manual-only** (workflow_dispatch). They will not run aut
 | **ci.yml** | Build & test suite | Before merging PRs |
 | **gpu-ci.yml** | GPU-specific tests | When changing GPU code |
 | **build-static-libs.yml** | Build static libraries | When updating FAISS version |
-| **build-amalgamation.yml** | Build amalgamated source | When updating FAISS version |
 | **release.yml** | Create releases | When ready to release |
 
 ## Benchmark Workflows
@@ -77,7 +76,7 @@ gh workflow run ci.yml
 
 **Total**: 11 parallel jobs
 
-**Note:** Amalgamation build mode is not yet implemented (stub files only in `faiss/`). CI currently tests static library mode only, which provides fast ~30 second builds.
+The default build mode uses pre-built static libraries for fast ~30 second builds. No build tags needed!
 
 ### GPU CI
 Tests GPU-specific code (requires GPU runner or manual setup).
@@ -118,22 +117,6 @@ gh workflow run build-static-libs.yml \
 
 **Next step:** Download artifact and follow `MANUAL_STATIC_LIBS_INSTALL.md`
 
-### Build Amalgamation
-Creates amalgamated FAISS source files.
-
-```bash
-gh workflow run build-amalgamation.yml \
-  -f faiss_version=v1.8.0
-```
-
-**Output:**
-- `faiss/faiss.cpp` - Amalgamated C++ implementation
-- `faiss/faiss.h` - C API header
-- `faiss/BUILD_INFO.txt` - Build metadata
-- `faiss/INSTALL.md` - Installation instructions
-
-**Next step:** Download artifact and manually copy the 3 files to `faiss/` directory in your repo
-
 ## Release Workflow
 
 Creates a new release with version bumping and changelog.
@@ -159,7 +142,7 @@ gh workflow run release.yml \
 ### Before Merging a PR
 
 ```bash
-# Run full CI (tests static libs + amalgamation + lint)
+# Run full CI (tests static libs + lint)
 gh workflow run ci.yml
 
 # Run quick benchmarks to check for regressions
@@ -183,18 +166,16 @@ gh workflow run benchmark.yml -f mode=comprehensive -f benchtime=5s
 ### Updating FAISS Version
 
 ```bash
-# 1. Build new amalgamation
-gh workflow run build-amalgamation.yml -f faiss_version=v1.14.0
-# Download artifact, copy faiss.cpp, faiss.h, BUILD_INFO.txt to faiss/
-
-# 2. Build static libraries
+# 1. Build static libraries
 gh workflow run build-static-libs.yml \
   -f faiss_version=v1.14.0 \
   -f platforms=all
-# Download artifact, run install script to copy .a files to libs/
 
-# 3. Commit the new files
-git add faiss/ libs/
+# 2. Download artifact and install
+# Follow instructions in MANUAL_STATIC_LIBS_INSTALL.md from the artifact
+
+# 3. Commit the new library files
+git add libs/
 git commit -m "feat: Update FAISS to v1.14.0"
 git push
 

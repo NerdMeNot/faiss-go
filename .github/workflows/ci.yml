@@ -9,11 +9,11 @@ on:
         default: ''
 
 jobs:
-  # Test with static libraries (fast builds ~30 seconds)
-  # NOTE: Amalgamation mode is not yet implemented (stub files only)
-  # so we only test static library mode which uses pre-built libs in libs/
+  # Test with static libraries (default build mode, fast ~30 seconds)
+  # Uses pre-built static libraries from libs/ directory
+  # No build tags needed - this is the default!
   test-static-libs:
-    name: Test Static Libs (Go ${{ matrix.go-version }}, ${{ matrix.os }})
+    name: Test (Go ${{ matrix.go-version }}, ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
 
     strategy:
@@ -62,19 +62,19 @@ jobs:
           ls -lh libs/darwin_*/libfaiss.a || echo "⚠️ macOS library not found"
         fi
 
-    - name: Build with static libraries
+    - name: Build
       env:
         CGO_LDFLAGS_ALLOW: ".*"
       run: |
-        echo "Building with static libraries (fast mode)..."
-        go build -tags=faiss_use_lib,nogpu -v ./...
+        echo "Building with static libraries (default mode)..."
+        go build -tags=nogpu -v ./...
 
-    - name: Run tests with static libraries
+    - name: Run tests
       env:
         CGO_LDFLAGS_ALLOW: ".*"
       timeout-minutes: 15
       run: |
-        go test -short -v -tags=faiss_use_lib,nogpu -timeout 10m -coverprofile=coverage.out -covermode=atomic ./...
+        go test -short -tags=nogpu -v -timeout 10m -coverprofile=coverage.out -covermode=atomic ./...
 
     - name: Upload coverage (Ubuntu + Go 1.25 only)
       if: matrix.os == 'ubuntu-latest' && matrix.go-version == '1.25'
@@ -88,7 +88,7 @@ jobs:
       env:
         CGO_LDFLAGS_ALLOW: ".*"
       run: |
-        go test -v -tags=faiss_use_lib,nogpu -bench=BenchmarkIndexFlatL2_Create -benchtime=100ms -run=^$ ./...
+        go test -tags=nogpu -v -bench=BenchmarkIndexFlatL2_Create -benchtime=100ms -run=^$ ./...
 
   # Lint check
   lint:
