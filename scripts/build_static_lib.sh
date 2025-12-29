@@ -260,6 +260,9 @@ echo -e "${GREEN}✓ Configured${NC}"
 
 # Build
 echo "Building FAISS (this may take 10-20 minutes)..."
+echo "Current directory: $(pwd)"
+echo "Build directory contents:"
+ls -la . || true
 
 # Determine number of parallel jobs
 if [[ "$PLATFORM" == "linux-arm64" ]] && [ "$(uname -m)" != "aarch64" ]; then
@@ -273,10 +276,25 @@ fi
 
 if [[ "$PLATFORM" == windows-* ]]; then
     # Windows requires --config for multi-config generators
-    cmake --build . --config Release -j${JOBS}
+    cmake --build . --config Release -j${JOBS} || {
+        echo -e "${RED}FAISS build failed${NC}"
+        exit 1
+    }
 else
-    cmake --build . -j${JOBS}
+    cmake --build . -j${JOBS} || {
+        echo -e "${RED}FAISS build failed${NC}"
+        exit 1
+    }
 fi
+
+# Verify FAISS built successfully
+if [ ! -f "faiss/libfaiss.a" ] && [ ! -f "faiss/Release/faiss.lib" ]; then
+    echo -e "${RED}FAISS library not found after build${NC}"
+    echo "Build directory contents:"
+    ls -la faiss/ || ls -la faiss/Release/ || true
+    exit 1
+fi
+
 echo -e "${GREEN}✓ Built FAISS${NC}"
 
 # Create output directory
@@ -369,16 +387,21 @@ fi
 if [ ! -f "$OUTPUT_DIR/libfaiss.a" ] && [ ! -f "$OUTPUT_DIR/faiss.lib" ]; then
     echo -e "${RED}Failed to find or create built library${NC}"
     echo "Searching for libraries..."
-    cd "$TEMP_DIR/faiss/build"
-    find . -name "libfaiss.a" -o -name "faiss.lib" -o -name "libfaiss_c.a" -o -name "faiss_c.lib"
+    if [ -d "$TEMP_DIR/faiss/build" ]; then
+        cd "$TEMP_DIR/faiss/build"
+        find . -name "libfaiss.a" -o -name "faiss.lib" -o -name "libfaiss_c.a" -o -name "faiss_c.lib"
+    else
+        echo -e "${RED}Build directory does not exist: $TEMP_DIR/faiss/build${NC}"
+        echo "Current directory: $(pwd)"
+        ls -la "$TEMP_DIR/" || true
+    fi
     exit 1
 fi
 
 # Copy headers if needed
-cd "$TEMP_DIR/faiss/build"
-if [ -d "../c_api" ]; then
+if [ -d "$TEMP_DIR/faiss/c_api" ]; then
     mkdir -p "$OUTPUT_DIR/include"
-    cp -r ../c_api/*.h "$OUTPUT_DIR/include/" 2>/dev/null || true
+    cp -r "$TEMP_DIR/faiss/c_api"/*.h "$OUTPUT_DIR/include/" 2>/dev/null || true
 fi
 
 # Generate build info
