@@ -40,7 +40,7 @@ faiss-go provides pre-built static libraries for all major platforms. These libr
 ```
 
 **What it does:**
-- Builds OpenBLAS v0.3.27 from source
+- Builds OpenBLAS v0.3.30 from source
 - Builds FAISS with static OpenBLAS linkage
 - Merges all object files into single `libfaiss.a`
 - Zero runtime dependencies (Linux/Windows)
@@ -106,7 +106,7 @@ Linux builds benefit most from unified mode.
 - True zero-dependency deployment
 
 **Build process:**
-1. Clones OpenBLAS v0.3.27
+1. Clones OpenBLAS v0.3.30
 2. Builds OpenBLAS as static library
 3. Builds FAISS with static OpenBLAS
 4. Extracts all `.o` files from both libraries
@@ -189,7 +189,7 @@ Each build generates `build_info.json`:
   "faiss_version": "v1.13.2",
   "build_mode": "unified",
   "build_date": "2025-12-29T19:08:00Z",
-  "openblas_version": "v0.3.27",
+  "openblas_version": "v0.3.30",
   "builder": "GitHub Actions"
 }
 ```

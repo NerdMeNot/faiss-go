@@ -37,9 +37,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: tmp/openblas-install-linux-amd64
-          key: openblas-linux-amd64-v0.3.27-${{ hashFiles('scripts/build_static_lib.sh') }}
+          key: openblas-linux-amd64-v0.3.30-${{ hashFiles('scripts/build_static_lib.sh') }}
           restore-keys: |
-            openblas-linux-amd64-v0.3.27-
+            openblas-linux-amd64-v0.3.30-
 
       # Cache FAISS build (saves ~10-15 minutes on version match)
       - name: Cache FAISS build
@@ -86,9 +86,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: tmp/openblas-install-linux-arm64
-          key: openblas-linux-arm64-v0.3.27-${{ hashFiles('scripts/build_static_lib.sh') }}
+          key: openblas-linux-arm64-v0.3.30-${{ hashFiles('scripts/build_static_lib.sh') }}
           restore-keys: |
-            openblas-linux-arm64-v0.3.27-
+            openblas-linux-arm64-v0.3.30-
 
       # Cache FAISS build for ARM64
       - name: Cache FAISS ARM64 build
@@ -200,9 +200,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: tmp/openblas-install-windows-amd64
-          key: openblas-windows-amd64-v0.3.27-${{ hashFiles('scripts/build_static_lib.sh') }}
+          key: openblas-windows-amd64-v0.3.30-${{ hashFiles('scripts/build_static_lib.sh') }}
           restore-keys: |
-            openblas-windows-amd64-v0.3.27-
+            openblas-windows-amd64-v0.3.30-
 
       # Cache FAISS build for Windows
       - name: Cache FAISS Windows build

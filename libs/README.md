@@ -8,11 +8,11 @@ This directory contains pre-compiled static FAISS libraries for different platfo
 
 | Platform | Architecture | Build Mode | BLAS | Size | Runtime Deps |
 |----------|-------------|------------|------|------|--------------|
-| `linux_amd64` | x86_64 | Unified | OpenBLAS 0.3.27 (merged) | ~45MB | None ✓ |
-| `linux_arm64` | ARM64 | Unified | OpenBLAS 0.3.27 (merged) | ~45MB | None ✓ |
+| `linux_amd64` | x86_64 | Unified | OpenBLAS 0.3.30 (merged) | ~45MB | None ✓ |
+| `linux_arm64` | ARM64 | Unified | OpenBLAS 0.3.30 (merged) | ~45MB | None ✓ |
 | `darwin_amd64` | x86_64 | Standard | Accelerate Framework | ~9MB | Accelerate, libomp |
 | `darwin_arm64` | ARM64 (M1/M2) | Standard | Accelerate Framework | ~9MB | Accelerate, libomp |
-| `windows_amd64` | x86_64 | Unified | OpenBLAS 0.3.27 (merged) | ~45MB | None ✓ |
+| `windows_amd64` | x86_64 | Unified | OpenBLAS 0.3.30 (merged) | ~45MB | None ✓ |
 
 ## Build Modes
 

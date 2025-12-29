@@ -43,7 +43,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 TEMP_DIR="$PROJECT_ROOT/tmp/faiss-lib-build-$PLATFORM"
 OUTPUT_DIR="$PROJECT_ROOT/libs/${PLATFORM//-/_}"
-OPENBLAS_VERSION="v0.3.27"
+OPENBLAS_VERSION="v0.3.30"
 
 echo "========================================="
 echo "FAISS Static Library Builder"
