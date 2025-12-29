@@ -4,21 +4,21 @@ on:
   workflow_dispatch:
     inputs:
       go_version:
-        description: 'Go version to test (leave empty for all: 1.23, 1.24, 1.25)'
+        description: 'Go version to test (leave empty for all: 1.21-1.25)'
         required: false
         default: ''
 
 jobs:
-  build-and-test:
-    name: Build and Test (Ubuntu)
-    runs-on: ubuntu-latest
+  # Test with static libraries (fast builds ~30 seconds)
+  test-static-libs:
+    name: Test Static Libs (Go ${{ matrix.go-version }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
 
     strategy:
+      fail-fast: false
       matrix:
-        go-version: ['1.23', '1.24', '1.25']
-        faiss-version: ['1.8.0']
-        # Reduced matrix for faster CI - testing latest 3 Go versions
-        # Full matrix: go-version: ['1.21', '1.22', '1.23', '1.24', '1.25'], faiss-version: ['1.7.4', '1.8.0']
+        go-version: ['1.21', '1.22', '1.23', '1.24', '1.25']
+        os: [ubuntu-latest, macos-latest]
 
     steps:
     - name: Checkout code
@@ -29,96 +29,74 @@ jobs:
       with:
         go-version: ${{ matrix.go-version }}
 
-    - name: Cache FAISS build
-      id: cache-faiss
+    - name: Install runtime dependencies (Ubuntu)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libopenblas-dev libgomp1 libomp-dev
+
+    - name: Install runtime dependencies (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        brew install openblas libomp
+
+    - name: Cache Go modules
       uses: actions/cache@v4
       with:
         path: |
-          /usr/local/lib/libfaiss*
-          /usr/local/include/faiss
-        key: faiss-${{ matrix.faiss-version }}-${{ runner.os }}
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ matrix.go-version }}-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-${{ matrix.go-version }}-
 
-    - name: Install dependencies
-      if: steps.cache-faiss.outputs.cache-hit != 'true'
+    - name: Verify static libraries exist
       run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          cmake \
-          g++ \
-          libopenblas-dev \
-          libgomp1 \
-          libomp-dev \
-          swig
+        echo "Checking for static libraries..."
+        find libs/ -name "*.a" -o -name "*.lib" | head -10
+        if [ "$RUNNER_OS" == "Linux" ]; then
+          ls -lh libs/linux_amd64/libfaiss.a || echo "⚠️ Linux AMD64 library not found"
+        elif [ "$RUNNER_OS" == "macOS" ]; then
+          ls -lh libs/darwin_*/libfaiss.a || echo "⚠️ macOS library not found"
+        fi
 
-    - name: Build and install FAISS
-      if: steps.cache-faiss.outputs.cache-hit != 'true'
-      timeout-minutes: 30
-      run: |
-        cd /tmp
-        wget -q https://github.com/facebookresearch/faiss/archive/refs/tags/v${{ matrix.faiss-version }}.tar.gz
-        tar -xzf v${{ matrix.faiss-version }}.tar.gz
-        cd faiss-${{ matrix.faiss-version }}
-
-        # Build FAISS C library (limit to 2 parallel jobs to avoid OOM)
-        cmake -B build \
-          -DCMAKE_BUILD_TYPE=Release \
-          -DFAISS_ENABLE_GPU=OFF \
-          -DFAISS_ENABLE_PYTHON=OFF \
-          -DBUILD_TESTING=OFF \
-          -DBUILD_SHARED_LIBS=ON \
-          -DCMAKE_INSTALL_PREFIX=/usr/local \
-          .
-
-        # Use all available cores (2 vCPU × 2 hyperthreads = 4 threads)
-        make -C build -j4
-        sudo make -C build install
-        sudo ldconfig
-
-    - name: Verify FAISS installation
-      run: |
-        ls -la /usr/local/lib/libfaiss* || true
-        ls -la /usr/local/include/faiss || true
-        ldconfig -p | grep faiss || true
-
-    - name: Build Go project
+    - name: Build with static libraries
       env:
-        CGO_LDFLAGS: "-L/usr/local/lib -lfaiss -lgomp -lstdc++ -lm -lopenblas"
-        CGO_CFLAGS: "-I/usr/local/include"
-        LD_LIBRARY_PATH: "/usr/local/lib:$LD_LIBRARY_PATH"
+        CGO_LDFLAGS_ALLOW: ".*"
       run: |
-        go build -tags nogpu -v ./...
+        echo "Building with static libraries (fast mode)..."
+        go build -tags=faiss_use_lib,nogpu -v ./...
 
-    - name: Run tests
+    - name: Run tests with static libraries
       env:
-        CGO_LDFLAGS: "-L/usr/local/lib -lfaiss -lgomp -lstdc++ -lm -lopenblas"
-        CGO_CFLAGS: "-I/usr/local/include"
-        LD_LIBRARY_PATH: "/usr/local/lib:$LD_LIBRARY_PATH"
+        CGO_LDFLAGS_ALLOW: ".*"
       timeout-minutes: 15
       run: |
-        go test -short -v -tags nogpu -timeout 10m -coverprofile=coverage.out -covermode=atomic ./...
+        go test -short -v -tags=faiss_use_lib,nogpu -timeout 10m -coverprofile=coverage.out -covermode=atomic ./...
 
-    - name: Upload coverage to Codecov
+    - name: Upload coverage (Ubuntu + Go 1.25 only)
+      if: matrix.os == 'ubuntu-latest' && matrix.go-version == '1.25'
       uses: codecov/codecov-action@v4
       with:
         files: ./coverage.out
-        flags: unittests
-        name: codecov-umbrella
+        flags: unittests-static-libs
+        name: codecov-static-libs
 
-    - name: Run benchmarks (sample)
+    - name: Run sample benchmarks
       env:
-        CGO_LDFLAGS: "-L/usr/local/lib -lfaiss -lgomp -lstdc++ -lm -lopenblas"
-        CGO_CFLAGS: "-I/usr/local/include"
-        LD_LIBRARY_PATH: "/usr/local/lib:$LD_LIBRARY_PATH"
+        CGO_LDFLAGS_ALLOW: ".*"
       run: |
-        go test -v -tags nogpu -bench=BenchmarkIndexFlatL2 -benchtime=1s -run=^$ ./...
+        go test -v -tags=faiss_use_lib,nogpu -bench=BenchmarkIndexFlatL2_Create -benchtime=100ms -run=^$ ./...
 
-  build-macos:
-    name: Build and Test (macOS)
-    runs-on: macos-latest
+  # Test with amalgamation (ensures amalgamated source still works)
+  test-amalgamation:
+    name: Test Amalgamation (Go ${{ matrix.go-version }})
+    runs-on: ubuntu-latest
 
     strategy:
+      fail-fast: false
       matrix:
-        go-version: ['1.23', '1.24', '1.25']
+        go-version: ['1.23', '1.25']  # Test oldest and newest
 
     steps:
     - name: Checkout code
@@ -129,29 +107,39 @@ jobs:
       with:
         go-version: ${{ matrix.go-version }}
 
-    - name: Install dependencies
+    - name: Install build dependencies
       run: |
-        brew install cmake openblas libomp faiss
+        sudo apt-get update
+        sudo apt-get install -y libopenblas-dev libgomp1 libomp-dev
 
-    - name: Build Go project
-      env:
-        CGO_LDFLAGS: "-L/opt/homebrew/lib -lfaiss -lomp"
-        CGO_CFLAGS: "-I/opt/homebrew/include"
-        DYLD_LIBRARY_PATH: "/opt/homebrew/lib:$DYLD_LIBRARY_PATH"
+    - name: Cache Go modules
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-go-amalgamation-${{ matrix.go-version }}-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-amalgamation-${{ matrix.go-version }}-
+
+    - name: Verify amalgamation files exist
       run: |
-        go build -tags nogpu -v ./...
+        echo "Checking for amalgamation files..."
+        ls -lh faiss/faiss.cpp faiss/faiss.h
 
-    - name: Run tests
-      env:
-        CGO_LDFLAGS: "-L/opt/homebrew/lib -lfaiss -lomp"
-        CGO_CFLAGS: "-I/opt/homebrew/include"
-        DYLD_LIBRARY_PATH: "/opt/homebrew/lib:$DYLD_LIBRARY_PATH"
+    - name: Build with amalgamation (default mode)
+      run: |
+        echo "Building with amalgamation (compiles FAISS source)..."
+        go build -v ./...
+
+    - name: Run tests with amalgamation
       timeout-minutes: 15
       run: |
-        go test -short -v -tags nogpu -timeout 10m ./...
+        go test -short -v -timeout 10m ./...
 
+  # Lint check
   lint:
-    name: Lint
+    name: Lint (Go 1.25)
     runs-on: ubuntu-latest
 
     steps:
@@ -161,49 +149,41 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: '1.23'
-
-    - name: Cache FAISS build
-      id: cache-faiss
-      uses: actions/cache@v4
-      with:
-        path: |
-          /usr/local/lib/libfaiss*
-          /usr/local/include/faiss
-        key: faiss-1.8.0-${{ runner.os }}-lint
+        go-version: '1.25'
 
     - name: Install dependencies
-      if: steps.cache-faiss.outputs.cache-hit != 'true'
       run: |
         sudo apt-get update
-        sudo apt-get install -y cmake g++ libopenblas-dev libgomp1 libomp-dev
-
-    - name: Build and install FAISS
-      if: steps.cache-faiss.outputs.cache-hit != 'true'
-      timeout-minutes: 30
-      run: |
-        cd /tmp
-        wget -q https://github.com/facebookresearch/faiss/archive/refs/tags/v1.8.0.tar.gz
-        tar -xzf v1.8.0.tar.gz
-        cd faiss-1.8.0
-        cmake -B build \
-          -DCMAKE_BUILD_TYPE=Release \
-          -DFAISS_ENABLE_GPU=OFF \
-          -DFAISS_ENABLE_PYTHON=OFF \
-          -DBUILD_TESTING=OFF \
-          -DBUILD_SHARED_LIBS=ON \
-          -DCMAKE_INSTALL_PREFIX=/usr/local \
-          .
-        make -C build -j4
-        sudo make -C build install
-        sudo ldconfig
+        sudo apt-get install -y libopenblas-dev libgomp1 libomp-dev
 
     - name: golangci-lint
       uses: golangci/golangci-lint-action@v4
       env:
-        CGO_LDFLAGS: "-L/usr/local/lib -lfaiss -lgomp -lstdc++ -lm -lopenblas"
-        CGO_CFLAGS: "-I/usr/local/include"
-        LD_LIBRARY_PATH: "/usr/local/lib:$LD_LIBRARY_PATH"
+        CGO_LDFLAGS_ALLOW: ".*"
       with:
         version: v1.62.2
         args: --timeout=5m
+
+  # Summary job
+  ci-success:
+    name: CI Success
+    runs-on: ubuntu-latest
+    needs: [test-static-libs, test-amalgamation, lint]
+    if: always()
+
+    steps:
+    - name: Check all jobs
+      run: |
+        if [ "${{ needs.test-static-libs.result }}" != "success" ]; then
+          echo "❌ Static libs tests failed"
+          exit 1
+        fi
+        if [ "${{ needs.test-amalgamation.result }}" != "success" ]; then
+          echo "❌ Amalgamation tests failed"
+          exit 1
+        fi
+        if [ "${{ needs.lint.result }}" != "success" ]; then
+          echo "❌ Lint failed"
+          exit 1
+        fi
+        echo "✅ All CI jobs passed!"
