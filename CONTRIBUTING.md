@@ -573,6 +573,72 @@ See [docs/workflows.md](docs/workflows.md) for details.
 
 ---
 
+## Building Static Libraries
+
+If you need to rebuild the static libraries (e.g., for a new FAISS version or platform):
+
+### Quick Start
+
+```bash
+# Build for your current platform
+./scripts/build-static-libs.sh
+
+# Output: libs/<platform>/libfaiss.a
+```
+
+### Requirements
+
+- **Linux**: cmake, gcc, g++, gfortran, git
+- **macOS**: cmake, gcc (via brew), git
+- **Windows**: MSYS2 with mingw-w64 toolchain
+
+### Build Strategies
+
+**Merged (Recommended)**:
+```bash
+./scripts/build-static-libs.sh
+```
+- Single `libfaiss.a` with all dependencies bundled (~50-70MB)
+- True zero dependencies
+- Cleanest CGO flags
+
+**Bundled (Alternative)**:
+```bash
+./scripts/build-static-libs.sh --bundled
+```
+- Separate `.a` files for each dependency
+- Easier to rebuild individual components
+- Still zero runtime dependencies
+
+### Full Documentation
+
+See [docs/building-static-libs.md](docs/building-static-libs.md) for:
+- Platform-specific instructions
+- Customization options (FAISS version, optimization flags)
+- Troubleshooting
+- CI integration
+- Migration path to fully static libraries
+
+### Building for All Platforms
+
+To build for all supported platforms (release process):
+
+1. **Linux AMD64**: Native build or Docker
+2. **Linux ARM64**: Cross-compile or ARM machine
+3. **macOS AMD64**: Intel Mac
+4. **macOS ARM64**: Apple Silicon Mac
+5. **Windows AMD64**: MSYS2 MinGW64
+
+After building all platforms:
+
+```bash
+git add libs/
+git commit -m "chore: Update static libraries to vX.Y.Z"
+git push
+```
+
+---
+
 ## Questions?
 
 - **Documentation**: [docs/](docs/)
