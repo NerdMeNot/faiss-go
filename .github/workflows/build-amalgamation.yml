@@ -56,35 +56,192 @@ jobs:
             faiss/BUILD_INFO.txt
           retention-days: 90
 
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v5
+      - name: Create installation instructions
+        run: |
+          cat > faiss/INSTALL.md << 'EOF'
+          # Manual Installation Instructions for FAISS Amalgamation
+
+          Download the "faiss-amalgamation-*" artifact from GitHub Actions and extract it.
+
+          ## Files Included
+
+          - `faiss.cpp` - Amalgamated FAISS C++ implementation (~several MB)
+          - `faiss.h` - FAISS C API header
+          - `BUILD_INFO.txt` - Build metadata (version, timestamp, etc.)
+
+          ## Installation Steps
+
+          ### 1. Extract the Artifact
+
+          ```bash
+          unzip faiss-amalgamation-v1.8.0.zip
+          cd faiss/
+          ```
+
+          ### 2. Copy to Repository
+
+          Copy the files to your faiss-go repository's `faiss/` directory:
+
+          ```bash
+          # Assuming your faiss-go repo is one level up
+          REPO_DIR="../faiss-go"
+
+          cp faiss.cpp "$REPO_DIR/faiss/"
+          cp faiss.h "$REPO_DIR/faiss/"
+          cp BUILD_INFO.txt "$REPO_DIR/faiss/"
+          ```
+
+          Or use this script:
+
+          ```bash
+          #!/bin/bash
+          set -e
+
+          REPO_DIR="${1:-../faiss-go}"
+
+          if [ ! -d "$REPO_DIR" ]; then
+              echo "Error: Repository directory not found at $REPO_DIR"
+              echo "Usage: $0 /path/to/faiss-go"
+              exit 1
+          fi
+
+          echo "Installing FAISS amalgamation to: $REPO_DIR/faiss/"
+
+          # Ensure faiss directory exists
+          mkdir -p "$REPO_DIR/faiss"
+
+          # Copy files
+          echo "Copying faiss.cpp..."
+          cp -v faiss.cpp "$REPO_DIR/faiss/"
+
+          echo "Copying faiss.h..."
+          cp -v faiss.h "$REPO_DIR/faiss/"
+
+          echo "Copying BUILD_INFO.txt..."
+          cp -v BUILD_INFO.txt "$REPO_DIR/faiss/"
+
+          echo ""
+          echo "✅ Installation complete!"
+          echo ""
+          echo "📊 File sizes:"
+          ls -lh "$REPO_DIR/faiss/"{faiss.cpp,faiss.h,BUILD_INFO.txt}
+
+          echo ""
+          echo "✨ Test the build:"
+          echo "   cd $REPO_DIR"
+          echo "   go build -v ./..."
+          echo "   go test -v ./..."
+          ```
+
+          ### 3. Verify Installation
+
+          ```bash
+          cd ../faiss-go
+          ls -lh faiss/
+          ```
+
+          Expected files:
+          ```
+          faiss/
+          ├── faiss.cpp          (amalgamated C++ source)
+          ├── faiss.h            (C API header)
+          └── BUILD_INFO.txt     (build metadata)
+          ```
+
+          ### 4. Test the Build
+
+          The amalgamation is the default build mode (no build tags needed):
+
+          ```bash
+          # Build with amalgamation (default)
+          go build -v ./...
+
+          # Run tests
+          go test -v ./...
+
+          # Build time: ~2-5 minutes (first time)
+          # Subsequent builds: ~30 seconds (with cache)
+          ```
+
+          ## Commit the Files
+
+          ```bash
+          cd /path/to/faiss-go
+
+          git add faiss/
+          git commit -m "feat: Update FAISS amalgamation to ${{ github.event.inputs.faiss_version }}
+
+          Updates amalgamated FAISS source files:
+          - faiss.cpp - Complete FAISS implementation
+          - faiss.h - C API header
+          - BUILD_INFO.txt - Build metadata
+
+          This is the default build mode for faiss-go.
+          Build time: ~2-5 minutes (first build), ~30s (cached)."
+
+          git push
+          ```
+
+          ## Build Modes Comparison
+
+          | Mode | Build Tag | Build Time | Files Used |
+          |------|-----------|------------|------------|
+          | **Amalgamation** (default) | None | 2-5 min | `faiss/faiss.cpp` |
+          | **Static Libraries** | `-tags=faiss_use_lib` | ~30 sec | `libs/*/libfaiss.a` |
+          | **System FAISS** | `-tags=nogpu` | 15-30 min | System installation |
+
+          ## Troubleshooting
+
+          ### Build fails with "file not found"
+
+          Make sure files are in `faiss/` directory:
+          ```bash
+          ls -la faiss/faiss.cpp faiss/faiss.h
+          ```
+
+          ### Compiler errors
+
+          The amalgamation requires:
+          - C++17 or later
+          - libopenblas-dev (Linux)
+          - Accelerate framework (macOS)
+          - OpenBLAS (Windows via vcpkg)
+
+          ### Slow builds
+
+          First build compiles all of FAISS (~2-5 minutes). Subsequent builds
+          are much faster (~30 seconds) thanks to Go's build cache.
+
+          For faster development builds, use static libraries mode:
+          ```bash
+          go build -tags=faiss_use_lib -v ./...  # ~30 second builds
+          ```
+
+          ## File Sizes
+
+          Approximate sizes:
+          - `faiss.cpp`: Several MB (contains entire FAISS implementation)
+          - `faiss.h`: ~50 KB (C API declarations)
+          - `BUILD_INFO.txt`: < 1 KB (metadata)
+
+          ## Next Steps
+
+          After installation:
+          1. Test local build: `go build -v ./...`
+          2. Run tests: `go test -v ./...`
+          3. Commit changes: `git add faiss/ && git commit && git push`
+          4. Update CI if needed
+          EOF
+
+          echo "Created installation instructions"
+
+      - name: Re-upload artifact with instructions
+        uses: actions/upload-artifact@v4
         with:
-          commit-message: "feat: Add FAISS amalgamation ${{ github.event.inputs.faiss_version || 'v1.8.0' }}"
-          title: "Add FAISS amalgamation ${{ github.event.inputs.faiss_version || 'v1.8.0' }}"
-          body: |
-            ## FAISS Amalgamation
-
-            This PR adds the FAISS amalgamated source files for embedded compilation.
-
-            **FAISS Version**: ${{ github.event.inputs.faiss_version || 'v1.8.0' }}
-
-            ### Files Added
-            - `faiss/faiss.cpp` - Amalgamated FAISS C++ implementation
-            - `faiss/faiss.h` - FAISS C API header
-            - `faiss/BUILD_INFO.txt` - Build metadata
-
-            ### Build Mode
-            This enables the default build mode (compile from source):
-            ```bash
-            go build  # Compiles FAISS from amalgamated source
-            ```
-
-            ### Testing
-            - [ ] Builds successfully on Linux
-            - [ ] Builds successfully on macOS
-            - [ ] Builds successfully on Windows
-            - [ ] All tests pass
-
-            Generated by GitHub Actions workflow.
-          branch: faiss-amalgamation-${{ github.event.inputs.faiss_version || 'v1.8.0' }}
-          delete-branch: true
+          name: faiss-amalgamation-${{ github.event.inputs.faiss_version || 'v1.8.0' }}
+          path: |
+            faiss/faiss.cpp
+            faiss/faiss.h
+            faiss/BUILD_INFO.txt
+            faiss/INSTALL.md
+          retention-days: 90

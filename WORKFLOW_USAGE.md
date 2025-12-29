@@ -123,6 +123,9 @@ gh workflow run build-amalgamation.yml \
 - `faiss/faiss.cpp` - Amalgamated C++ implementation
 - `faiss/faiss.h` - C API header
 - `faiss/BUILD_INFO.txt` - Build metadata
+- `faiss/INSTALL.md` - Installation instructions
+
+**Next step:** Download artifact and manually copy the 3 files to `faiss/` directory in your repo
 
 ## Release Workflow
 
@@ -170,16 +173,23 @@ gh workflow run benchmark.yml -f mode=comprehensive -f benchtime=5s
 ```bash
 # 1. Build new amalgamation
 gh workflow run build-amalgamation.yml -f faiss_version=v1.14.0
+# Download artifact, copy faiss.cpp, faiss.h, BUILD_INFO.txt to faiss/
 
 # 2. Build static libraries
 gh workflow run build-static-libs.yml \
   -f faiss_version=v1.14.0 \
   -f platforms=all
+# Download artifact, run install script to copy .a files to libs/
 
-# 3. Test with new version
+# 3. Commit the new files
+git add faiss/ libs/
+git commit -m "feat: Update FAISS to v1.14.0"
+git push
+
+# 4. Test with new version
 gh workflow run ci.yml
 
-# 4. Run benchmarks
+# 5. Run benchmarks
 gh workflow run benchmark.yml -f mode=comprehensive
 ```
 
