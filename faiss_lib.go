@@ -19,15 +19,15 @@ package faiss
 
 // Platform-specific library paths and flags
 // Linux
-#cgo linux,amd64 LDFLAGS: -L${SRCDIR}/libs/linux_amd64 -lfaiss -lopenblas -lgfortran -lgomp -lpthread
-#cgo linux,arm64 LDFLAGS: -L${SRCDIR}/libs/linux_arm64 -lfaiss -lopenblas -lgfortran -lgomp -lpthread
+#cgo linux,amd64 LDFLAGS: -L${SRCDIR}/libs/linux_amd64 -lfaiss_c -lfaiss -lopenblas -lgfortran -lgomp -lpthread
+#cgo linux,arm64 LDFLAGS: -L${SRCDIR}/libs/linux_arm64 -lfaiss_c -lfaiss -lopenblas -lgfortran -lgomp -lpthread
 
 // macOS
-#cgo darwin,amd64 LDFLAGS: -L${SRCDIR}/libs/darwin_amd64 -lfaiss -Wl,-framework,Accelerate
-#cgo darwin,arm64 LDFLAGS: -L${SRCDIR}/libs/darwin_arm64 -lfaiss -Wl,-framework,Accelerate
+#cgo darwin,amd64 LDFLAGS: -L${SRCDIR}/libs/darwin_amd64 -lfaiss_c -lfaiss -Wl,-framework,Accelerate
+#cgo darwin,arm64 LDFLAGS: -L${SRCDIR}/libs/darwin_arm64 -lfaiss_c -lfaiss -Wl,-framework,Accelerate
 
 // Windows
-#cgo windows,amd64 LDFLAGS: -L${SRCDIR}/libs/windows_amd64 -lfaiss -lopenblas -lgfortran -lquadmath -lpthread
+#cgo windows,amd64 LDFLAGS: -L${SRCDIR}/libs/windows_amd64 -lfaiss_c -lfaiss -lopenblas -lgfortran -lquadmath -lpthread
 
 #include <stdlib.h>
 #include <stdint.h>
