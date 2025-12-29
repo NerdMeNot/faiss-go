@@ -217,9 +217,9 @@ index, err = faiss.ReadIndex("index.faiss")
 
 ## 📝 Documentation Status
 
-Last updated: December 2025
-Version: Current with faiss-go v0.x.x
-FAISS Version: v1.13.2
+**Status**: Active development
+**FAISS Version**: v1.13.2 (static libraries)
+**Last Updated**: December 2025
 
 **Contributing to docs?** See [Contributing Guide](../CONTRIBUTING.md#documentation).
 

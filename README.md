@@ -5,9 +5,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![CI Status](https://github.com/NerdMeNot/faiss-go/workflows/CI/badge.svg)](https://github.com/NerdMeNot/faiss-go/actions/workflows/ci.yml)
 
-**Production-ready Go bindings for FAISS** — The fastest way to add billion-scale vector similarity search to your Go applications.
+**Go bindings for FAISS** — Add billion-scale vector similarity search to your Go applications with the fastest build experience available.
 
-> 🚀 **Now with pre-built binaries!** Go from zero to searching in **30 seconds** instead of waiting 15-30 minutes for FAISS to compile.
+> 🚀 **Game-changing pre-built binaries!** Go from zero to searching in **30 seconds** instead of waiting 15-30 minutes for FAISS to compile.
 
 ---
 
@@ -30,16 +30,16 @@ You need fast, scalable vector similarity search for:
 - **5 platforms** pre-built: `linux-amd64`, `linux-arm64`, `darwin-amd64`, `darwin-arm64`, `windows-amd64`
 - **Auto-detection** - Automatically uses pre-built libs when available
 
-**⚡ Production Performance**
-- **Billion-scale proven** - Same FAISS library powering Meta's search
+**⚡ Built on Proven Technology**
+- **FAISS-powered** - Same library used by Meta for billion-scale search
 - **True concurrency** - Go goroutines >> Python's GIL
 - **Native speed** - Direct CGO bindings to FAISS C++
 - **20+ index types** - From exact search to compressed billion-scale
 
-**✅ Battle-Tested Quality**
+**✅ Quality-First Development**
 - **Comprehensive CI** - 11 parallel jobs testing Go 1.21-1.25
-- **Multi-platform** - Ubuntu + macOS, AMD64 + ARM64
-- **High test coverage** - Recall validation, stress tests, benchmarks
+- **Multi-platform tested** - Ubuntu + macOS, AMD64 + ARM64
+- **Rigorous testing** - Recall validation, stress tests, benchmarks
 - **Type-safe API** - Compile-time guarantees, no runtime surprises
 
 **🎯 Developer Experience**
