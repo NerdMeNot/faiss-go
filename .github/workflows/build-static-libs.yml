@@ -28,13 +28,13 @@ jobs:
             build-essential \
             cmake \
             git \
-            libopenblas-dev \
+            gfortran \
             libomp-dev
 
-      - name: Build FAISS static library
+      - name: Build FAISS unified static library
         run: |
           chmod +x scripts/build_static_lib.sh
-          ./scripts/build_static_lib.sh linux-amd64 ${{ github.event.inputs.faiss_version }}
+          ./scripts/build_static_lib.sh linux-amd64 ${{ github.event.inputs.faiss_version }} --unified
 
       - name: Verify library
         run: |
@@ -60,7 +60,7 @@ jobs:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
-      - name: Build in Docker for ARM64
+      - name: Build unified static library in Docker for ARM64
         run: |
           docker run --rm --platform linux/arm64 \
             -v $PWD:/workspace \
@@ -68,9 +68,9 @@ jobs:
             arm64v8/ubuntu:24.04 \
             bash -c "
               apt-get update && \
-              apt-get install -y build-essential cmake git libopenblas-dev libomp-dev && \
+              apt-get install -y build-essential cmake git gfortran libomp-dev && \
               chmod +x scripts/build_static_lib.sh && \
-              ./scripts/build_static_lib.sh linux-arm64 ${{ github.event.inputs.faiss_version }}
+              ./scripts/build_static_lib.sh linux-arm64 ${{ github.event.inputs.faiss_version }} --unified
             "
 
       - name: Upload artifact
@@ -90,9 +90,9 @@ jobs:
 
       - name: Install dependencies
         run: |
-          brew install cmake openblas libomp
+          brew install cmake libomp
 
-      - name: Build FAISS static library
+      - name: Build FAISS static library (uses Accelerate framework)
         run: |
           chmod +x scripts/build_static_lib.sh
           ./scripts/build_static_lib.sh darwin-amd64 ${{ github.event.inputs.faiss_version }}
@@ -119,9 +119,9 @@ jobs:
 
       - name: Install dependencies
         run: |
-          brew install cmake openblas libomp
+          brew install cmake libomp
 
-      - name: Build FAISS static library
+      - name: Build FAISS static library (uses Accelerate framework)
         run: |
           chmod +x scripts/build_static_lib.sh
           ./scripts/build_static_lib.sh darwin-arm64 ${{ github.event.inputs.faiss_version }}
@@ -149,16 +149,16 @@ jobs:
       - name: Set up MSVC
         uses: microsoft/setup-msbuild@v1.1
 
-      - name: Install vcpkg dependencies
+      - name: Install build tools
         run: |
-          vcpkg install openblas:x64-windows lapack:x64-windows
-          vcpkg integrate install
+          choco install mingw -y
+        shell: powershell
 
-      - name: Build FAISS static library
+      - name: Build FAISS unified static library
         shell: bash
         run: |
           chmod +x scripts/build_static_lib.sh
-          ./scripts/build_static_lib.sh windows-amd64 ${{ github.event.inputs.faiss_version }}
+          ./scripts/build_static_lib.sh windows-amd64 ${{ github.event.inputs.faiss_version }} --unified
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

@@ -1,30 +1,56 @@
 #!/bin/bash
 # Build FAISS static library for a specific platform
-# Usage: ./build_static_lib.sh <platform> [faiss_version]
+# Usage: ./build_static_lib.sh <platform> [faiss_version] [--unified]
 #   platform: linux-amd64, linux-arm64, darwin-amd64, darwin-arm64, windows-amd64
-#   faiss_version: FAISS git tag (default: v1.8.0)
+#   faiss_version: FAISS git tag (default: v1.13.2)
+#   --unified: Build unified static library with all dependencies merged (Linux/Windows only)
+#
+# Build Modes:
+#   Standard (default): Builds FAISS, links against system BLAS
+#     - macOS: Uses Accelerate framework (~9MB)
+#     - Linux/Windows: Requires system OpenBLAS at runtime (~9MB)
+#
+#   Unified (--unified): Builds and merges all dependencies into single library
+#     - macOS: Same as standard (Accelerate cannot be statically linked) (~9MB)
+#     - Linux/Windows: Includes OpenBLAS merged (~40-50MB, zero runtime deps)
 
 set -euo pipefail
 
 PLATFORM="${1:-}"
 FAISS_VERSION="${2:-v1.13.2}"
+UNIFIED_BUILD=false
 
+# Parse arguments
 if [ -z "$PLATFORM" ]; then
-    echo "Usage: $0 <platform> [faiss_version]"
+    echo "Usage: $0 <platform> [faiss_version] [--unified]"
     echo "Platforms: linux-amd64, linux-arm64, darwin-amd64, darwin-arm64, windows-amd64"
+    echo ""
+    echo "Options:"
+    echo "  --unified    Build unified static library with OpenBLAS merged (Linux/Windows only)"
     exit 1
+fi
+
+# Check for --unified flag
+if [ "${3:-}" = "--unified" ] || [ "${2:-}" = "--unified" ]; then
+    UNIFIED_BUILD=true
+    # Adjust version if --unified is in position 2
+    if [ "${2:-}" = "--unified" ]; then
+        FAISS_VERSION="v1.13.2"
+    fi
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 TEMP_DIR="$PROJECT_ROOT/tmp/faiss-lib-build-$PLATFORM"
 OUTPUT_DIR="$PROJECT_ROOT/libs/${PLATFORM//-/_}"
+OPENBLAS_VERSION="v0.3.27"
 
 echo "========================================="
 echo "FAISS Static Library Builder"
 echo "========================================="
 echo "Platform: $PLATFORM"
 echo "FAISS Version: $FAISS_VERSION"
+echo "Build Mode: $([ "$UNIFIED_BUILD" = true ] && echo "Unified (dependencies merged)" || echo "Standard (system BLAS)")"
 echo "Output: $OUTPUT_DIR"
 echo ""
 
@@ -59,6 +85,66 @@ case "$PLATFORM" in
         ;;
 esac
 
+# Build OpenBLAS statically (for unified builds on Linux/Windows)
+build_openblas() {
+    echo "Building OpenBLAS $OPENBLAS_VERSION statically..."
+
+    local openblas_dir="$TEMP_DIR/OpenBLAS"
+
+    if [ ! -d "$openblas_dir" ]; then
+        git clone --depth 1 --branch "$OPENBLAS_VERSION" \
+            https://github.com/xianyi/OpenBLAS.git "$openblas_dir" || {
+            echo -e "${RED}Failed to clone OpenBLAS${NC}"
+            exit 1
+        }
+    fi
+
+    cd "$openblas_dir"
+
+    # Clean previous builds
+    make clean || true
+
+    # Determine CPU target for cross-compilation
+    local target_arch=""
+    if [[ "$PLATFORM" == linux-arm64 ]] && [ "$(uname -m)" != "aarch64" ]; then
+        target_arch="ARMV8"
+        echo "Note: Cross-compiling OpenBLAS for ARM64"
+    fi
+
+    # Build static library only
+    local make_opts=(
+        DYNAMIC=0
+        NO_SHARED=1
+        USE_OPENMP=1
+        USE_THREAD=1
+        NO_LAPACK=0
+        NO_CBLAS=0
+        BUILD_RELAPACK=1
+    )
+
+    if [ -n "$target_arch" ]; then
+        make_opts+=(TARGET="$target_arch")
+    fi
+
+    # Use appropriate parallelism
+    local jobs
+    if [[ "$PLATFORM" == linux-arm64 ]] && [ "$(uname -m)" != "aarch64" ]; then
+        jobs=2
+    else
+        jobs=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
+    fi
+
+    make -j${jobs} "${make_opts[@]}" || {
+        echo -e "${RED}Failed to build OpenBLAS${NC}"
+        exit 1
+    }
+
+    # Install to local prefix
+    make install PREFIX="$TEMP_DIR/openblas-install" "${make_opts[@]}"
+
+    echo -e "${GREEN}✓ Built OpenBLAS${NC}"
+}
+
 # Clone FAISS
 echo "Cloning FAISS $FAISS_VERSION..."
 rm -rf "$TEMP_DIR"
@@ -73,6 +159,11 @@ git clone --depth 1 --branch "$FAISS_VERSION" \
 
 cd "$TEMP_DIR/faiss"
 echo -e "${GREEN}✓ Cloned FAISS${NC}"
+
+# Build OpenBLAS if unified build requested (Linux/Windows only)
+if [ "$UNIFIED_BUILD" = true ] && [[ "$PLATFORM" == linux-* || "$PLATFORM" == windows-* ]]; then
+    build_openblas
+fi
 
 # Configure
 echo "Configuring FAISS build for $PLATFORM..."
@@ -89,6 +180,15 @@ CMAKE_FLAGS=(
     -DCMAKE_POSITION_INDEPENDENT_CODE=ON
     -DFAISS_OPT_LEVEL=generic  # Use generic optimizations for faster builds
 )
+
+# For unified builds on Linux/Windows, use our built OpenBLAS
+if [ "$UNIFIED_BUILD" = true ] && [[ "$PLATFORM" == linux-* || "$PLATFORM" == windows-* ]]; then
+    CMAKE_FLAGS+=(
+        -DBLA_STATIC=ON
+        -DBLAS_LIBRARIES="$TEMP_DIR/openblas-install/lib/libopenblas.a"
+        -DLAPACK_LIBRARIES="$TEMP_DIR/openblas-install/lib/libopenblas.a"
+    )
+fi
 
 # Platform-specific flags
 if [ -n "${CMAKE_SYSTEM_PROCESSOR:-}" ]; then
@@ -164,36 +264,100 @@ echo -e "${GREEN}✓ Built FAISS${NC}"
 # Create output directory
 mkdir -p "$OUTPUT_DIR"
 
-# Copy static libraries
-echo "Copying static libraries..."
-if [ -f "faiss/libfaiss.a" ]; then
-    # Unix-like systems (Linux, macOS)
-    cp "faiss/libfaiss.a" "$OUTPUT_DIR/"
-    echo -e "${GREEN}✓ Copied libfaiss.a${NC}"
+# Merge static libraries for unified builds (Linux/Windows only)
+if [ "$UNIFIED_BUILD" = true ] && [[ "$PLATFORM" == linux-* || "$PLATFORM" == windows-* ]] && [ -f "faiss/libfaiss.a" ]; then
+    echo "Merging static libraries into unified libfaiss.a..."
 
-    # Copy C API library if it exists
-    if [ -f "c_api/libfaiss_c.a" ]; then
-        cp "c_api/libfaiss_c.a" "$OUTPUT_DIR/"
-        echo -e "${GREEN}✓ Copied libfaiss_c.a${NC}"
-    fi
-elif [ -f "faiss/Release/faiss.lib" ]; then
-    # Windows Release build
-    cp "faiss/Release/faiss.lib" "$OUTPUT_DIR/"
-    echo -e "${GREEN}✓ Copied faiss.lib${NC}"
+    local merge_dir="$TEMP_DIR/merge"
+    rm -rf "$merge_dir"
+    mkdir -p "$merge_dir"
+    cd "$merge_dir"
 
-    # Copy C API library if it exists
-    if [ -f "c_api/Release/faiss_c.lib" ]; then
-        cp "c_api/Release/faiss_c.lib" "$OUTPUT_DIR/"
-        echo -e "${GREEN}✓ Copied faiss_c.lib${NC}"
+    # Extract all object files from libfaiss.a
+    echo "  Extracting libfaiss.a..."
+    mkdir -p faiss_objs
+    cd faiss_objs
+    ar x "$TEMP_DIR/faiss/build/faiss/libfaiss.a"
+    cd ..
+    mv faiss_objs/*.o .
+    rmdir faiss_objs
+
+    # Extract all object files from libfaiss_c.a
+    if [ -f "$TEMP_DIR/faiss/build/c_api/libfaiss_c.a" ]; then
+        echo "  Extracting libfaiss_c.a..."
+        mkdir -p faiss_c_objs
+        cd faiss_c_objs
+        ar x "$TEMP_DIR/faiss/build/c_api/libfaiss_c.a"
+        cd ..
+        mv faiss_c_objs/*.o .
+        rmdir faiss_c_objs
     fi
+
+    # Extract all object files from libopenblas.a
+    echo "  Extracting libopenblas.a..."
+    mkdir -p openblas_objs
+    cd openblas_objs
+    ar x "$TEMP_DIR/openblas-install/lib/libopenblas.a"
+    cd ..
+    mv openblas_objs/*.o .
+    rmdir openblas_objs
+
+    # Create merged archive
+    echo "  Creating unified archive..."
+    ar rcs "$OUTPUT_DIR/libfaiss.a" *.o
+    ranlib "$OUTPUT_DIR/libfaiss.a"
+
+    # Also copy a separate libfaiss_c.a for compatibility
+    if [ -f "$TEMP_DIR/faiss/build/c_api/libfaiss_c.a" ]; then
+        cp "$TEMP_DIR/faiss/build/c_api/libfaiss_c.a" "$OUTPUT_DIR/"
+    fi
+
+    echo -e "${GREEN}✓ Created unified libfaiss.a (includes FAISS + OpenBLAS)${NC}"
+
+    # Return to build directory
+    cd "$TEMP_DIR/faiss/build"
 else
-    echo -e "${RED}Failed to find built library${NC}"
+    # Copy static libraries (standard build)
+    echo "Copying static libraries..."
+    if [ -f "faiss/libfaiss.a" ]; then
+        # Unix-like systems (Linux, macOS)
+        cp "faiss/libfaiss.a" "$OUTPUT_DIR/"
+        echo -e "${GREEN}✓ Copied libfaiss.a${NC}"
+
+        # Copy C API library if it exists
+        if [ -f "c_api/libfaiss_c.a" ]; then
+            cp "c_api/libfaiss_c.a" "$OUTPUT_DIR/"
+            echo -e "${GREEN}✓ Copied libfaiss_c.a${NC}"
+        fi
+    fi
+fi
+
+# Windows library handling
+if [[ "$PLATFORM" == windows-* ]]; then
+    if [ -f "faiss/Release/faiss.lib" ]; then
+        # Windows Release build
+        cp "faiss/Release/faiss.lib" "$OUTPUT_DIR/"
+        echo -e "${GREEN}✓ Copied faiss.lib${NC}"
+
+        # Copy C API library if it exists
+        if [ -f "c_api/Release/faiss_c.lib" ]; then
+            cp "c_api/Release/faiss_c.lib" "$OUTPUT_DIR/"
+            echo -e "${GREEN}✓ Copied faiss_c.lib${NC}"
+        fi
+    fi
+fi
+
+# Check if we have any libraries
+if [ ! -f "$OUTPUT_DIR/libfaiss.a" ] && [ ! -f "$OUTPUT_DIR/faiss.lib" ]; then
+    echo -e "${RED}Failed to find or create built library${NC}"
     echo "Searching for libraries..."
+    cd "$TEMP_DIR/faiss/build"
     find . -name "libfaiss.a" -o -name "faiss.lib" -o -name "libfaiss_c.a" -o -name "faiss_c.lib"
     exit 1
 fi
 
 # Copy headers if needed
+cd "$TEMP_DIR/faiss/build"
 if [ -d "../c_api" ]; then
     mkdir -p "$OUTPUT_DIR/include"
     cp -r ../c_api/*.h "$OUTPUT_DIR/include/" 2>/dev/null || true
@@ -204,9 +368,11 @@ cat > "$OUTPUT_DIR/build_info.json" << EOF
 {
   "platform": "$PLATFORM",
   "faiss_version": "$FAISS_VERSION",
+  "build_mode": "$([ "$UNIFIED_BUILD" = true ] && echo "unified" || echo "standard")",
   "build_date": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
   "cmake_system_processor": "${CMAKE_SYSTEM_PROCESSOR:-}",
   "cmake_osx_architectures": "${CMAKE_OSX_ARCHITECTURES:-}",
+  "openblas_version": "$([ "$UNIFIED_BUILD" = true ] && [[ "$PLATFORM" == linux-* || "$PLATFORM" == windows-* ]] && echo "$OPENBLAS_VERSION" || echo "system")",
   "builder": "GitHub Actions"
 }
 EOF
@@ -226,10 +392,44 @@ echo -e "${GREEN}Build complete!${NC}"
 echo -e "${GREEN}=========================================${NC}"
 echo ""
 echo "Output directory: $OUTPUT_DIR"
+echo "Build mode: $([ "$UNIFIED_BUILD" = true ] && echo "Unified" || echo "Standard")"
+echo ""
 echo "Files:"
 ls -lh "$OUTPUT_DIR"
 echo ""
 echo "Library size: $(du -h "$OUTPUT_DIR"/libfaiss.a "$OUTPUT_DIR"/faiss.lib 2>/dev/null | awk '{print $1}' || echo 'N/A')"
+echo ""
+
+# Show runtime dependencies
+if [ "$UNIFIED_BUILD" = true ]; then
+    if [[ "$PLATFORM" == darwin-* ]]; then
+        echo -e "${YELLOW}Runtime dependencies (macOS):${NC}"
+        echo "  - Accelerate framework (system library, always available)"
+        echo "  - libomp (OpenMP, if installed via Homebrew)"
+    elif [[ "$PLATFORM" == linux-* ]]; then
+        echo -e "${GREEN}Runtime dependencies: NONE${NC}"
+        echo "  ✓ OpenBLAS merged into libfaiss.a"
+        echo "  ✓ Fully self-contained static library"
+    elif [[ "$PLATFORM" == windows-* ]]; then
+        echo -e "${GREEN}Runtime dependencies: NONE${NC}"
+        echo "  ✓ OpenBLAS merged into faiss.lib"
+        echo "  ✓ Fully self-contained static library"
+    fi
+else
+    if [[ "$PLATFORM" == darwin-* ]]; then
+        echo -e "${YELLOW}Runtime dependencies (macOS):${NC}"
+        echo "  - Accelerate framework (system library, always available)"
+        echo "  - libomp (OpenMP, if installed via Homebrew)"
+    elif [[ "$PLATFORM" == linux-* ]]; then
+        echo -e "${YELLOW}Runtime dependencies (Linux):${NC}"
+        echo "  - libopenblas (install: apt-get install libopenblas-dev)"
+        echo "  - libgomp (OpenMP, usually included with GCC)"
+    elif [[ "$PLATFORM" == windows-* ]]; then
+        echo -e "${YELLOW}Runtime dependencies (Windows):${NC}"
+        echo "  - OpenBLAS (via vcpkg or manual install)"
+        echo "  - libgfortran, libgomp"
+    fi
+fi
 echo ""
 
 # Cleanup

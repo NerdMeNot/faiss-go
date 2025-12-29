@@ -2,54 +2,96 @@
 
 This directory contains pre-compiled static FAISS libraries for different platforms.
 
+📖 **[Complete Documentation: docs/STATIC-BUILDS.md](../docs/STATIC-BUILDS.md)**
+
 ## Available Platforms
 
-| Platform | Architecture | Compiler | BLAS |
-|----------|-------------|----------|------|
-| `linux_amd64` | x86_64 | GCC 11 | OpenBLAS 0.3.21 |
-| `linux_arm64` | ARM64 | GCC 11 | OpenBLAS 0.3.21 |
-| `darwin_amd64` | x86_64 | Clang 15 | Accelerate Framework |
-| `darwin_arm64` | ARM64 (M1/M2) | Clang 15 | Accelerate Framework |
-| `windows_amd64` | x86_64 | MSVC 2022 | OpenBLAS 0.3.21 |
+| Platform | Architecture | Build Mode | BLAS | Size | Runtime Deps |
+|----------|-------------|------------|------|------|--------------|
+| `linux_amd64` | x86_64 | Unified | OpenBLAS 0.3.27 (merged) | ~45MB | None ✓ |
+| `linux_arm64` | ARM64 | Unified | OpenBLAS 0.3.27 (merged) | ~45MB | None ✓ |
+| `darwin_amd64` | x86_64 | Standard | Accelerate Framework | ~9MB | Accelerate, libomp |
+| `darwin_arm64` | ARM64 (M1/M2) | Standard | Accelerate Framework | ~9MB | Accelerate, libomp |
+| `windows_amd64` | x86_64 | Unified | OpenBLAS 0.3.27 (merged) | ~45MB | None ✓ |
+
+## Build Modes
+
+### Unified Build (Linux/Windows)
+- **What**: FAISS + OpenBLAS merged into single `libfaiss.a`
+- **Size**: ~45MB
+- **Runtime Dependencies**: None
+- **Use case**: Production, distribution, Docker containers
+
+### Standard Build (macOS)
+- **What**: FAISS linked against system Accelerate framework
+- **Size**: ~9MB
+- **Runtime Dependencies**: Accelerate (always available), libomp
+- **Use case**: All macOS deployments (Accelerate cannot be statically linked)
+
+**Why macOS is smaller:** Apple's Accelerate framework is a system library that cannot be merged into static builds. It's always available on macOS and highly optimized for Apple Silicon.
 
 ## File Structure
 
 Each platform directory contains:
 - `libfaiss.a` (or `.lib` on Windows) - Static FAISS library
-- `libopenblas.a` - Static OpenBLAS library (Linux/Windows only)
-- `build_info.json` - Build metadata and configuration
+  - **Unified builds**: Includes OpenBLAS merged in
+  - **Standard builds**: FAISS only
+- `libfaiss_c.a` - C API wrapper library
+- `build_info.json` - Build metadata (includes build mode)
+- `checksums.txt` - SHA256 checksums for verification
+- `include/` - C API header files
 
 ## Usage
 
 These libraries are automatically used when building with the `faiss_use_lib` tag:
 
 ```bash
-go build -tags=faiss_use_lib
+go build -tags=faiss_use_lib,nogpu
 ```
 
-The appropriate library is selected based on `GOOS` and `GOARCH`.
+**No additional dependencies needed for Linux/Windows unified builds!**
+
+For macOS, ensure libomp is installed:
+```bash
+brew install libomp
+```
 
 ## Building Libraries
 
-To rebuild the pre-compiled libraries (maintainers only):
+### Using GitHub Actions (Recommended)
 
+Trigger the workflow via GitHub UI:
+1. Go to Actions → "Build Static Libraries"
+2. Click "Run workflow"
+3. Select FAISS version and platforms
+4. Download artifacts when complete
+
+### Local Build
+
+**Standard build:**
 ```bash
-cd scripts
-./build_static_libs.sh [platform]
+./scripts/build_static_lib.sh linux-amd64 v1.13.2
 ```
 
-For example:
+**Unified build (Linux/Windows):**
 ```bash
-./build_static_libs.sh linux_amd64
-./build_static_libs.sh all  # Build for all platforms
+./scripts/build_static_lib.sh linux-amd64 v1.13.2 --unified
 ```
+
+**Prerequisites for unified builds:**
+- CMake, Git, GCC/Clang
+- gfortran (for OpenBLAS)
+- Build time: ~30-40 minutes
+
+See [docs/STATIC-BUILDS.md](../docs/STATIC-BUILDS.md) for complete build instructions.
 
 ## Size Information
 
-Approximate sizes per platform:
-- `libfaiss.a`: ~15-25 MB
-- `libopenblas.a`: ~20-40 MB (if bundled)
-- **Total per platform**: ~35-65 MB
+| Platform | Library | Size | Notes |
+|----------|---------|------|-------|
+| Linux (unified) | libfaiss.a | ~45MB | Includes OpenBLAS |
+| macOS (standard) | libfaiss.a | ~9MB | Uses Accelerate |
+| Windows (unified) | faiss.lib | ~45MB | Includes OpenBLAS |
 
 ## Verification
 
