@@ -86,8 +86,8 @@ jobs:
       - name: Library information
         run: |
           echo "=== Built Library Info ==="
-          ls -lh libs/${{ matrix.platform//-/_}}/
-          file libs/${{ matrix.platform//-/_}}/libfaiss.a
+          ls -lh libs/${{ replace(matrix.platform, '-', '_') }}/
+          file libs/${{ replace(matrix.platform, '-', '_') }}/libfaiss.a
 
           echo ""
           echo "=== Size Comparison ==="
@@ -97,13 +97,13 @@ jobs:
 
           echo ""
           echo "=== Build Info ==="
-          cat libs/${{ matrix.platform//-/_}}/build_info.json
+          cat libs/${{ replace(matrix.platform, '-', '_') }}/build_info.json
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: faiss-phase3-${{ matrix.platform }}
-          path: libs/${{ matrix.platform//-/_}}/
+          path: libs/${{ replace(matrix.platform, '-', '_') }}/
           retention-days: 30
 
       - name: Test linking (Linux)

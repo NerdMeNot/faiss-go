@@ -1,49 +1,35 @@
-//go:build !faiss_use_system
-// +build !faiss_use_system
+//go:build !faiss_use_system && !faiss_phase3
+// +build !faiss_use_system,!faiss_phase3
 
 package faiss
 
 /*
-// Static library build mode (default)
-// Uses pre-built static libraries from libs/ directory
-// This is the fastest build mode (~30 seconds)
+// Static library build mode (default - Phase 2 Unified)
+// Uses pre-built unified static libraries from libs/ directory
+//
+// Build Configuration:
+//   Platform-specific CGO configuration is in prebuilt_*.go files:
+//   - prebuilt_linux_amd64.go   - Linux AMD64 LDFLAGS
+//   - prebuilt_linux_arm64.go   - Linux ARM64 LDFLAGS
+//   - prebuilt_darwin_amd64.go  - macOS Intel LDFLAGS
+//   - prebuilt_darwin_arm64.go  - macOS ARM64 LDFLAGS
+//   - prebuilt_windows_amd64.go - Windows AMD64 LDFLAGS
+//
+// Build tags automatically select the right configuration for your platform.
 //
 // Supported platforms:
-//   - linux/amd64, linux/arm64 (unified builds with OpenBLAS merged)
-//   - darwin/amd64, darwin/arm64 (uses system Accelerate framework)
-//   - windows/amd64 (unified build with OpenBLAS merged)
+//   - linux/amd64, linux/arm64 (unified: OpenBLAS merged, needs gomp+gfortran)
+//   - darwin/amd64, darwin/arm64 (standard: uses Accelerate framework)
+//   - windows/amd64 (unified: OpenBLAS merged, needs gomp+gfortran)
 //
-// For other platforms, use: go build -tags=faiss_use_system
+// Build Modes:
+//   Default:  go build -tags=nogpu           (Phase 2 unified - recommended)
+//   Phase 3:  go build -tags="nogpu,faiss_phase3"  (Experimental zero-dep)
+//   System:   go build -tags=faiss_use_system      (Uses system FAISS)
 //
-// ============================================================================
-// Unified Static Builds (Current State)
-// ============================================================================
-//
-// Linux/Windows:
-//   Fully self-contained unified builds with OpenBLAS merged in.
-//   Runtime dependencies: gomp (OpenMP), gfortran (Fortran runtime)
-//   Size: ~45MB (includes FAISS + OpenBLAS)
-//
-// macOS:
-//   Uses system Accelerate framework (cannot be statically linked)
-//   Runtime dependencies: Accelerate framework (always available), libomp
-//   Size: ~9MB
-//
-// See docs/STATIC-BUILDS.md for complete details
+// See docs/BUILD-MODES.md for complete comparison
 //
 // ============================================================================
-
-// Platform-specific library paths and flags
-// Linux (unified builds with OpenBLAS merged - minimal runtime deps)
-#cgo linux,amd64 LDFLAGS: -L${SRCDIR}/libs/linux_amd64 -lfaiss_c -lfaiss -lgomp -lgfortran -lm -lstdc++ -lpthread -ldl
-#cgo linux,arm64 LDFLAGS: -L${SRCDIR}/libs/linux_arm64 -lfaiss_c -lfaiss -lgomp -lgfortran -lm -lstdc++ -lpthread -ldl
-
-// macOS (uses system Accelerate framework - always available)
-#cgo darwin,amd64 LDFLAGS: -L${SRCDIR}/libs/darwin_amd64 -lfaiss_c -lfaiss -Wl,-framework,Accelerate -lm -lstdc++
-#cgo darwin,arm64 LDFLAGS: -L${SRCDIR}/libs/darwin_arm64 -lfaiss_c -lfaiss -Wl,-framework,Accelerate -lm -lstdc++
-
-// Windows (unified build with OpenBLAS merged - minimal runtime deps)
-#cgo windows,amd64 LDFLAGS: -L${SRCDIR}/libs/windows_amd64 -lfaiss_c -lfaiss -lgomp -lgfortran -lm -lstdc++ -lpthread
 
 #include <stdlib.h>
 #include <stdint.h>
