@@ -91,14 +91,14 @@ jobs:
         CGO_LDFLAGS_ALLOW: ".*"
       run: |
         echo "Building with static libraries (default mode)..."
-        go build -tags=nogpu -v ./...
+        go build -v ./...
 
     - name: Run tests
       env:
         CGO_LDFLAGS_ALLOW: ".*"
       timeout-minutes: 15
       run: |
-        go test -short -tags=nogpu -v -timeout 10m -coverprofile=coverage.out -covermode=atomic ./...
+        go test -short -v -timeout 10m -coverprofile=coverage.out -covermode=atomic ./...
 
     - name: Upload coverage (Ubuntu + Go 1.25 only)
       if: matrix.os == 'ubuntu-latest' && matrix.go-version == '1.25'
@@ -112,7 +112,7 @@ jobs:
       env:
         CGO_LDFLAGS_ALLOW: ".*"
       run: |
-        go test -tags=nogpu -v -bench=BenchmarkIndexFlatL2_Create -benchtime=100ms -run=^$ ./...
+        go test -v -bench=BenchmarkIndexFlatL2_Create -benchtime=100ms -run=^$ ./...
 
   # Lint check
   lint:

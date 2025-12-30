@@ -65,7 +65,7 @@ jobs:
       timeout-minutes: 15
       run: |
         # Run subset of fast benchmarks with short benchtime
-        go test -tags nogpu \
+        go test \
           -bench='BenchmarkIndexFlatL2|BenchmarkIndexIVFFlat_Search|BenchmarkIndexHNSW' \
           -benchmem \
           -benchtime=1s \
@@ -130,7 +130,7 @@ jobs:
         BENCHTIME: ${{ github.event.inputs.benchtime || '5s' }}
       timeout-minutes: 30
       run: |
-        go test -tags nogpu \
+        go test \
           -bench=. \
           -benchmem \
           -benchtime=$BENCHTIME \
