@@ -93,6 +93,8 @@ build_openblas() {
         echo -e "${GREEN}✓ Using cached OpenBLAS from $cache_dir${NC}"
         # Create symlink to expected location
         mkdir -p "$TEMP_DIR"
+        # Remove existing symlink/directory before creating new one
+        rm -rf "$TEMP_DIR/openblas-install"
         ln -sf "$cache_dir" "$TEMP_DIR/openblas-install"
         return 0
     fi
