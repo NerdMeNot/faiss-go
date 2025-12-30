@@ -8,13 +8,13 @@ package faiss
 //
 // Build mode: Standard (uses system Accelerate framework)
 // Size: ~9MB
-// Dependencies: Accelerate.framework (always available on macOS)
+// Dependencies: Accelerate.framework (built-in), libomp (brew install libomp)
 //
 // Note: macOS cannot do unified builds - Accelerate framework cannot be statically linked
 //       This is the optimal configuration for macOS
 //       Accelerate is highly optimized for Apple Silicon
 
 /*
-#cgo LDFLAGS: -L${SRCDIR}/libs/darwin_arm64 -lfaiss_c -lfaiss -Wl,-framework,Accelerate -lm -lstdc++
+#cgo LDFLAGS: -L${SRCDIR}/libs/darwin_arm64 -lfaiss_c -lfaiss -Wl,-framework,Accelerate -lomp -lm -lstdc++
 */
 import "C"
