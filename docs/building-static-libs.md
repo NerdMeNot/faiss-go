@@ -132,7 +132,8 @@ Merges all dependencies into a single `libfaiss.a`:
 
 **CGO flags become**:
 ```go
-#cgo linux,amd64 LDFLAGS: -L${SRCDIR}/libs/linux_amd64 -lfaiss_c -lfaiss -lpthread
+// Current implementation uses direct .a file linking
+#cgo LDFLAGS: ${SRCDIR}/libs/linux_amd64/libfaiss_c.a ${SRCDIR}/libs/linux_amd64/libfaiss.a -lgomp -lgfortran -lpthread -ldl
 ```
 
 ### Strategy 2: Bundled Libraries (Alternative)
@@ -163,9 +164,11 @@ libs/linux_amd64/libgomp.a
 
 **CGO flags**:
 ```go
-// Linker finds bundled libs first due to -L path
-#cgo linux,amd64 LDFLAGS: -L${SRCDIR}/libs/linux_amd64 -lfaiss_c -lfaiss \
-                           -lopenblas -lgfortran -lgomp -lpthread
+// Direct .a file linking ensures all symbols are included
+#cgo LDFLAGS: ${SRCDIR}/libs/linux_amd64/libfaiss_c.a \
+              ${SRCDIR}/libs/linux_amd64/libfaiss.a \
+              ${SRCDIR}/libs/linux_amd64/libopenblas.a \
+              -lgfortran -lgomp -lpthread
 ```
 
 ## Build All Platforms (Release Process)
@@ -361,46 +364,53 @@ Once fully static libraries are built, update `.github/workflows/ci.yml`:
   run: go build -tags=nogpu -v ./...
 ```
 
-## Migration Plan
+## Current Implementation (December 2025)
 
-### Phase 1: Build New Libraries (Current)
+### Direct .a File Linking
 
-```bash
-# Build fully static libraries for all platforms
-./scripts/build-static-libs.sh
-```
-
-### Phase 2: Update CGO Flags
-
-Edit `faiss_lib.go`:
+The current implementation uses **direct `.a` file linking** in platform-specific `prebuilt_*.go` files:
 
 ```go
-// Before (needs runtime dependencies)
-#cgo linux,amd64 LDFLAGS: -L${SRCDIR}/libs/linux_amd64 -lfaiss_c -lfaiss \
-                          -lopenblas -lgfortran -lgomp -lpthread
+// Example: prebuilt_linux_amd64.go
+//go:build !faiss_use_system && !faiss_phase3 && linux && amd64
 
-// After (fully self-contained)
-#cgo linux,amd64 LDFLAGS: -L${SRCDIR}/libs/linux_amd64 -lfaiss_c -lfaiss -lpthread
+package faiss
+
+/*
+#cgo LDFLAGS: ${SRCDIR}/libs/linux_amd64/libfaiss_c.a ${SRCDIR}/libs/linux_amd64/libfaiss.a -lgomp -lgfortran -lm -lstdc++ -lpthread -ldl
+*/
+import "C"
 ```
 
-### Phase 3: Update CI
+### Why Direct Linking?
 
-Remove dependency installation steps from `.github/workflows/ci.yml`.
+**The Problem**: Using `-l` flags allows the linker to selectively pull object files from archives. This caused missing symbols from custom C wrapper layer (`faiss_c_impl.o`).
 
-### Phase 4: Update Documentation
+**The Solution**: Direct `.a` file linking forces inclusion of ALL object files from the archive, guaranteeing that custom wrapper symbols are always linked.
 
-Update installation docs to emphasize true zero dependencies.
+**Implementation**: Each platform has its own `prebuilt_<platform>.go` file with:
+- Build tags that auto-select based on GOOS/GOARCH
+- Direct references to platform-specific `.a` files
+- Platform-specific runtime library flags
 
-### Phase 5: Test & Release
+### Platform Status
+
+| Platform | Library Size | Dependencies | Status |
+|----------|--------------|--------------|--------|
+| Linux AMD64 | ~45MB | gomp, gfortran | ✅ Production |
+| Linux ARM64 | ~45MB | gomp, gfortran | ✅ Production |
+| macOS AMD64 | ~9MB | Accelerate, libomp | ✅ Production |
+| macOS ARM64 | ~9MB | Accelerate, libomp | ✅ Production |
+| Windows AMD64 | ~45MB | gomp, gfortran (MinGW) | ✅ Production |
+
+### Testing
 
 ```bash
-# Test on clean system
+# Build and test on any supported platform
 go build -tags=nogpu ./...
 go test -tags=nogpu -v ./...
 
-# Tag release
-git tag v0.1.0
-git push origin v0.1.0
+# The appropriate prebuilt_*.go file is automatically selected
 ```
 
 ## Future Enhancements

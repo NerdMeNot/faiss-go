@@ -77,15 +77,35 @@ Each `prebuilt_*.go` file contains:
 package faiss
 
 /*
-#cgo LDFLAGS: -L${SRCDIR}/libs/linux_amd64 -lfaiss_c -lfaiss -lgomp -lgfortran -lm -lstdc++ -lpthread -ldl
+#cgo LDFLAGS: ${SRCDIR}/libs/linux_amd64/libfaiss_c.a ${SRCDIR}/libs/linux_amd64/libfaiss.a -lgomp -lgfortran -lm -lstdc++ -lpthread -ldl
 */
 import "C"
 ```
 
 **Key points:**
 - Build constraints ensure only one config file is selected
-- LDFLAGS specify linker flags for that platform
+- LDFLAGS link directly to `.a` files (ensures all symbols included, including custom C wrapper)
 - Import "C" makes CGO directives active
+
+## Custom C Wrapper Layer
+
+The project includes a custom C wrapper (`faiss_c_impl.cpp`) that provides additional C API functions beyond the official FAISS C API. These wrapper functions are compiled and merged into `libfaiss_c.a` during the build process.
+
+**Build process:**
+1. Build FAISS libraries (libfaiss.a, libfaiss_c.a)
+2. Compile faiss_c_impl.cpp → faiss_c_impl.o
+3. Merge faiss_c_impl.o into libfaiss_c.a using `ar r`
+
+**Why direct linking matters:**
+- Using `-lfaiss_c` allows the linker to selectively pull object files
+- Custom wrapper symbols might not be pulled if linker doesn't see them as "needed"
+- Direct linking `${SRCDIR}/libs/*/libfaiss_c.a` forces inclusion of ALL object files
+- This guarantees faiss_c_impl.o is always linked
+
+**Example wrapper functions:**
+- `faiss_IndexBinaryFlat_new` - Binary index creation
+- `faiss_Kmeans_new` - K-means clustering
+- Additional functions not in official FAISS C API
 
 ## Static Library Builds
 

@@ -432,8 +432,13 @@ func faissIndexAdd(ptr uintptr, vectors []float32, n int) error
 // ... etc
 
 // But different implementations:
-// - faiss_lib.go: Links against libs/*/libfaiss.a
-// - faiss_system.go: Compiles faiss_c_impl.cpp, links -lfaiss
+// - faiss_lib.go: Links against libs/*/libfaiss_c.a and libs/*/libfaiss.a (static prebuilt)
+// - faiss_system.go: Compiles faiss_c_impl.cpp, links -lfaiss (system FAISS)
+//
+// Platform-specific configs (via build tags):
+// - prebuilt_linux_amd64.go: Direct .a linking for Linux AMD64
+// - prebuilt_darwin_arm64.go: Direct .a linking for macOS ARM64
+// - etc. (auto-selected based on GOOS/GOARCH)
 ```
 
 **Benefits:**

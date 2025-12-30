@@ -187,7 +187,9 @@ The build mode is determined automatically by build tags and platform:
 **Selection logic:**
 1. If `-tags=faiss_use_system` → System build
 2. If `-tags=faiss_phase3` → Phase 3 build
-3. Else → Unified build (default, best for most)
+3. Else → Static build (default, best for most)
+
+**Note:** All static builds use direct `.a` file linking to ensure custom C wrapper symbols are included.
 
 ## Building Your Own Static Libraries
 

@@ -159,6 +159,34 @@ The `.github/workflows/build-static-libs.yml` workflow builds libraries for all 
 - Linux (unified): ~30-40 minutes (builds OpenBLAS)
 - Windows (unified): ~35-45 minutes
 
+## Custom C Wrapper Layer
+
+The build process includes a custom C wrapper layer (`faiss_c_impl.cpp`) that provides additional C API functions beyond the official FAISS C API.
+
+**Compilation process:**
+```bash
+# After building libfaiss.a and libfaiss_c.a:
+1. Compile faiss_c_impl.cpp with FAISS headers
+   → produces faiss_c_impl.o
+
+2. Merge into libfaiss_c.a
+   ar r libfaiss_c.a faiss_c_impl.o
+   ranlib libfaiss_c.a
+```
+
+**Why this matters:**
+- Provides Go-friendly wrapper functions (e.g., `faiss_IndexBinaryFlat_new`, `faiss_Kmeans_new`)
+- These symbols MUST be included in final linking
+- Direct `.a` file linking ensures faiss_c_impl.o is always linked
+- Using `-lfaiss_c` flag could cause linker to skip these symbols
+
+**Verification:**
+```bash
+# Check wrapper symbols are present
+nm libs/darwin_arm64/libfaiss_c.a | grep "faiss_IndexBinaryFlat_new"
+# Should show: faiss_c_impl.o: T _faiss_IndexBinaryFlat_new
+```
+
 ## Build Output
 
 After a successful build, you'll see:
@@ -205,34 +233,48 @@ Each build generates `build_info.json`:
 
 ### Standard Build Usage
 
+**All platforms (default):**
+```bash
+go build -tags=nogpu
+```
+
+**Platform-specific requirements:**
+
 **Linux:**
 ```bash
-go build -tags=faiss_use_lib,nogpu
-# Requires: apt-get install libopenblas-dev
-```
-
-**macOS:**
-```bash
-go build -tags=faiss_use_lib,nogpu
-# Requires: brew install libomp
-# Accelerate framework automatically available
-```
-
-### Unified Build Usage
-
-**Linux/Windows:**
-```bash
-go build -tags=faiss_use_lib,nogpu
+go build -tags=nogpu
 # Requires: gomp and gfortran runtime libraries
-# Install on Linux: apt-get install libgomp1 libgfortran5
+# Install: apt-get install libgomp1 libgfortran5
 ```
 
 **macOS:**
 ```bash
-go build -tags=faiss_use_lib,nogpu
+go build -tags=nogpu
 # Requires: brew install libomp
 # Accelerate framework automatically available
 ```
+
+**Windows:**
+```bash
+go build -tags=nogpu
+# Requires: gomp and gfortran runtime libraries (provided by MinGW)
+```
+
+### Implementation Details
+
+All platform-specific `prebuilt_*.go` files use **direct `.a` file linking** instead of `-l` flags:
+
+```go
+// Example: prebuilt_linux_amd64.go
+/*
+#cgo LDFLAGS: ${SRCDIR}/libs/linux_amd64/libfaiss_c.a ${SRCDIR}/libs/linux_amd64/libfaiss.a -lgomp -lgfortran -lm -lstdc++ -lpthread -ldl
+*/
+```
+
+**Why direct linking?**
+- Ensures all object files from archives are included
+- Guarantees custom C wrapper symbols (faiss_c_impl.o) are linked
+- Avoids selective linking issues with `-l` flags
 
 ## Building Locally
 
