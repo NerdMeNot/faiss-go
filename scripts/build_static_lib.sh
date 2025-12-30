@@ -340,50 +340,6 @@ echo -e "${GREEN}✓ Built FAISS${NC}"
 # Create output directory
 mkdir -p "$OUTPUT_DIR"
 
-# Compile custom C wrapper layer (faiss_c_impl.cpp) BEFORE merging
-# This ensures faiss_c_impl.o is included in unified builds
-echo "Compiling custom C wrapper layer..."
-WRAPPER_DIR="$TEMP_DIR/wrapper"
-mkdir -p "$WRAPPER_DIR"
-
-# Compile faiss_c_impl.cpp with access to FAISS headers
-cd "$WRAPPER_DIR"
-FAISS_INCLUDE="$TEMP_DIR/faiss"
-FAISS_C_IMPL="$PROJECT_ROOT/faiss_c_impl.cpp"
-
-# Platform-specific compiler flags
-CXX_FLAGS="-std=c++17 -O3 -fPIC -I$FAISS_INCLUDE"
-
-if [[ "$PLATFORM" == darwin-* ]]; then
-    CXX="clang++"
-    if [[ "$PLATFORM" == darwin-arm64 ]]; then
-        CXX_FLAGS="$CXX_FLAGS -arch arm64"
-    else
-        CXX_FLAGS="$CXX_FLAGS -arch x86_64"
-    fi
-    # Add OpenMP include paths for macOS
-    if [ -d "/opt/homebrew/opt/libomp/include" ]; then
-        CXX_FLAGS="$CXX_FLAGS -Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include"
-    elif [ -d "/usr/local/opt/libomp/include" ]; then
-        CXX_FLAGS="$CXX_FLAGS -Xpreprocessor -fopenmp -I/usr/local/opt/libomp/include"
-    fi
-elif [[ "$PLATFORM" == windows-* ]]; then
-    CXX="x86_64-w64-mingw32-g++"
-else
-    CXX="g++"
-fi
-
-# Compile the wrapper
-$CXX $CXX_FLAGS -c "$FAISS_C_IMPL" -o faiss_c_impl.o || {
-    echo -e "${RED}Failed to compile faiss_c_impl.cpp${NC}"
-    exit 1
-}
-
-echo -e "${GREEN}✓ Compiled faiss_c_impl.cpp${NC}"
-
-# Return to build directory for next steps
-cd "$TEMP_DIR/faiss/build"
-
 # Merge static libraries for unified builds (Linux/Windows only)
 if [ "$UNIFIED_BUILD" = true ] && [[ "$PLATFORM" == linux-* || "$PLATFORM" == windows-* ]] && [ -f "faiss/libfaiss.a" ]; then
     echo "Merging static libraries into unified libfaiss.a..."
@@ -422,21 +378,14 @@ if [ "$UNIFIED_BUILD" = true ] && [[ "$PLATFORM" == linux-* || "$PLATFORM" == wi
     mv openblas_objs/*.o .
     rmdir openblas_objs
 
-    # Add custom C wrapper
-    echo "  Adding custom C wrapper (faiss_c_impl.o)..."
-    cp "$WRAPPER_DIR/faiss_c_impl.o" .
-
     # Create merged archive
     echo "  Creating unified archive..."
     ar rcs "$OUTPUT_DIR/libfaiss.a" *.o
     ranlib "$OUTPUT_DIR/libfaiss.a"
 
-    # Also create a separate libfaiss_c.a with the wrapper for compatibility
-    echo "  Creating libfaiss_c.a with custom wrapper..."
+    # Also copy a separate libfaiss_c.a for compatibility
     if [ -f "$TEMP_DIR/faiss/build/c_api/libfaiss_c.a" ]; then
-        cp "$TEMP_DIR/faiss/build/c_api/libfaiss_c.a" "$OUTPUT_DIR/libfaiss_c.a"
-        ar r "$OUTPUT_DIR/libfaiss_c.a" "$WRAPPER_DIR/faiss_c_impl.o"
-        ranlib "$OUTPUT_DIR/libfaiss_c.a"
+        cp "$TEMP_DIR/faiss/build/c_api/libfaiss_c.a" "$OUTPUT_DIR/"
     fi
 
     echo -e "${GREEN}✓ Created unified libfaiss.a (includes FAISS + OpenBLAS)${NC}"
@@ -451,13 +400,10 @@ else
         cp "faiss/libfaiss.a" "$OUTPUT_DIR/"
         echo -e "${GREEN}✓ Copied libfaiss.a${NC}"
 
-        # Copy C API library and merge custom wrapper
+        # Copy C API library if it exists
         if [ -f "c_api/libfaiss_c.a" ]; then
-            cp "c_api/libfaiss_c.a" "$OUTPUT_DIR/libfaiss_c.a"
-            echo "  Merging custom wrapper into libfaiss_c.a..."
-            ar r "$OUTPUT_DIR/libfaiss_c.a" "$WRAPPER_DIR/faiss_c_impl.o"
-            ranlib "$OUTPUT_DIR/libfaiss_c.a"
-            echo -e "${GREEN}✓ Created libfaiss_c.a with custom wrapper${NC}"
+            cp "c_api/libfaiss_c.a" "$OUTPUT_DIR/"
+            echo -e "${GREEN}✓ Copied libfaiss_c.a${NC}"
         fi
     fi
 fi
@@ -469,12 +415,8 @@ if [[ "$PLATFORM" == windows-* ]] && [ "$UNIFIED_BUILD" != true ]; then
         cp "faiss/Release/faiss.lib" "$OUTPUT_DIR/"
         echo -e "${GREEN}✓ Copied faiss.lib${NC}"
 
-        # Copy C API library and merge custom wrapper
+        # Copy C API library if it exists
         if [ -f "c_api/Release/faiss_c.lib" ]; then
-            cp "c_api/Release/faiss_c.lib" "$OUTPUT_DIR/faiss_c.lib"
-            echo "  Merging custom wrapper into faiss_c.lib..."
-            # Windows uses lib.exe instead of ar
-            # For now, just copy - Windows unified builds handle wrapper merging above
             cp "c_api/Release/faiss_c.lib" "$OUTPUT_DIR/"
             echo -e "${GREEN}✓ Copied faiss_c.lib${NC}"
         fi
@@ -496,7 +438,7 @@ if [ ! -f "$OUTPUT_DIR/libfaiss.a" ] && [ ! -f "$OUTPUT_DIR/faiss.lib" ]; then
     exit 1
 fi
 
-# Copy headers if needed (custom wrapper already compiled and merged above)
+# Copy headers if needed
 if [ -d "$TEMP_DIR/faiss/c_api" ]; then
     mkdir -p "$OUTPUT_DIR/include"
     cp -r "$TEMP_DIR/faiss/c_api"/*.h "$OUTPUT_DIR/include/" 2>/dev/null || true
