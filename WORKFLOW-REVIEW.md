@@ -38,7 +38,7 @@ All 6 workflows are configured with `workflow_dispatch` (manual trigger only):
 
 ### 4. Release (`.github/workflows/release.yml`)
 - **Trigger**: `workflow_dispatch` only
-- **Uses**: `--build-tags=nogpu` for linting
+- **Uses**: `--build-tags= # CPU default` for linting
 - **Features**:
   - Version bumping (major/minor/patch)
   - Changelog generation
@@ -117,7 +117,7 @@ All GPU-related files have proper build tags to exclude them from CPU-only build
 
 ```go
 // gpu.go, index_gpu.go, faiss_gpu.go
-// +build !nogpu
+// +build gpu
 ```
 
 When building with `-tags=nogpu`, these files are completely excluded from compilation.
@@ -181,8 +181,8 @@ nm libs/darwin_arm64/libfaiss_c.a | grep "_faiss_IndexBinaryFlat_new"
 ### CPU-only builds (recommended for all platforms):
 ```bash
 # With prebuilt static libraries (default, fastest)
-go build -tags=nogpu ./...
-go test -short -tags=nogpu -v ./...
+go build ./...
+go test -short -v ./...
 
 # With system FAISS (requires FAISS installed)
 go build -tags='faiss_use_system,nogpu' ./...
@@ -234,7 +234,7 @@ go test -v ./...
 ### For Development
 ```bash
 # Use prebuilt libraries (fastest, no compilation)
-go build -tags=nogpu ./...
+go build ./...
 
 # Or use system FAISS (if already installed)
 go build -tags='faiss_use_system,nogpu' ./...
@@ -248,7 +248,7 @@ go build -tags='faiss_use_system,nogpu' ./...
 sudo apt-get install libgomp1 libgfortran5
 
 # Build your application
-go build -tags=nogpu ./...
+go build ./...
 ```
 
 **macOS**:
@@ -258,7 +258,7 @@ brew install libomp
 # Accelerate framework is built-in
 
 # Build your application
-go build -tags=nogpu ./...
+go build ./...
 ```
 
 **Windows**:
@@ -266,7 +266,7 @@ go build -tags=nogpu ./...
 # Runtime libraries come with MinGW
 
 # Build your application
-go build -tags=nogpu ./...
+go build ./...
 ```
 
 ### For Docker/Containers
@@ -303,7 +303,7 @@ CMD ["/app/my-app"]
 
 Before using in production:
 
-- [ ] Run tests on your target platform: `go test -short -tags=nogpu -v ./...`
+- [ ] Run tests on your target platform: `go test -short -v ./...`
 - [ ] Verify custom wrapper symbols exist: `nm libs/*/libfaiss_c.a | grep faiss_IndexBinaryFlat_new`
 - [ ] Check runtime dependencies are installed
 - [ ] Test with a simple program first

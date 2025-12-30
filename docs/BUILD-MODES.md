@@ -39,8 +39,8 @@ go build -tags=faiss_use_system
 **Everything merged into libfaiss.a** ⭐ **Recommended for production**
 
 ```bash
-# Automatically used with pre-built libs
-go build -tags=nogpu
+# Automatically used with pre-built libs (CPU-only is default)
+go build
 ```
 
 **Includes:**
@@ -150,24 +150,24 @@ go build -tags=faiss_use_system
 
 ### For Production (Most Projects)
 ```bash
-# Use unified build - best balance
-go build -tags=nogpu
+# CPU-only build (default) - best balance
+go build
 
 # Dependencies: gomp + gfortran (usually pre-installed)
 ```
 
-### For Minimal Containers
+### For GPU Acceleration
 ```bash
-# Try Phase 3 if you need zero-dep
-go build -tags="nogpu,faiss_phase3"
+# Enable GPU support (opt-in)
+go build -tags=gpu
 
-# Fallback to unified if Phase 3 doesn't work
+# Requires: CUDA runtime, cuBLAS
 ```
 
 ### For Distribution
 ```bash
-# Use unified build
-go build -tags=nogpu
+# Use default CPU build
+go build
 
 # Document requirements:
 # - Linux: apt-get install libgomp1 libgfortran5
@@ -180,7 +180,7 @@ go build -tags=nogpu
 ### Check which mode is active
 
 ```bash
-go build -v -tags=nogpu 2>&1 | grep faiss
+go build -v 2>&1 | grep faiss
 # Should show which .go files are being compiled
 ```
 
@@ -190,8 +190,8 @@ go build -v -tags=nogpu 2>&1 | grep faiss
 # On Linux
 ldd ./your_binary | grep -E "(gomp|gfortran|openblas)"
 
-# Expected for unified: libgomp, libgfortran
-# Expected for Phase 3: (nothing!)
+# Expected for static build: libgomp, libgfortran
+# Expected for system build: libfaiss.so, libopenblas.so
 ```
 
 ### Check library symbols
@@ -206,47 +206,46 @@ nm -g libs/linux_amd64/libfaiss.a | grep -E "(GOMP|gfortran|openblas)" | head
 
 ## Migration Guide
 
-### From System Build → Unified Build
+### From System Build → Static Build
 
 ```bash
 # Before
 go build -tags=faiss_use_system
 
-# After
-go build -tags=nogpu
+# After (CPU-only is now default)
+go build
 
 # No code changes needed!
 ```
 
-### From Standard → Phase 3
+### Enabling GPU Support
 
 ```bash
-# Before
-go build -tags=nogpu
+# CPU-only (default)
+go build
 
-# After
-go build -tags="nogpu,faiss_phase3"
+# With GPU acceleration (opt-in)
+go build -tags=gpu
 
-# Rebuild libs first:
-./scripts/build_unified_static.sh linux-amd64 v1.13.2
+# Requires CUDA runtime and cuBLAS installed
 ```
 
 ## FAQ
 
 **Q: Which mode should I use?**
-A: Unified build for production. It's the sweet spot of size, dependencies, and reliability.
+A: Static build (default) for production. It's the sweet spot of size, dependencies, and reliability.
 
-**Q: Why is Phase 3 experimental?**
-A: Merging runtime libraries is complex and may not work on all platforms/toolchains. We're pushing the boundaries!
+**Q: Do I need to specify build tags for CPU-only builds?**
+A: No! CPU-only is now the default. Just use `go build` with no tags.
+
+**Q: How do I enable GPU support?**
+A: Add `-tags=gpu` when building. This requires CUDA runtime and cuBLAS installed.
 
 **Q: Can I use different modes for different platforms?**
 A: Yes! The platform-specific prebuilt files handle this automatically.
 
-**Q: How do I know if Phase 3 worked?**
-A: Run `./scripts/verify_phase3.sh linux-amd64` after building.
-
-**Q: What if Phase 3 fails?**
-A: Fall back to unified build. It's still excellent with minimal deps.
+**Q: What are the runtime dependencies?**
+A: Linux/Windows: libgomp, libgfortran (usually pre-installed). macOS: Accelerate framework (built-in).
 
 ## See Also
 

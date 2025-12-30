@@ -78,13 +78,13 @@ git clone https://github.com/NerdMeNot/faiss-go.git
 cd faiss-go
 
 # Build (uses pre-built static libraries)
-go build -tags=nogpu ./...
+go build  ./...
 
 # Run tests
-go test -tags=nogpu -v ./...
+go test  -v ./...
 
 # Run benchmarks
-go test -tags=nogpu -bench=. -benchtime=1s ./...
+go test  -bench=. -benchtime=1s ./...
 ```
 
 **That's it!** Pre-built binaries make development setup instant.
@@ -119,7 +119,7 @@ faiss-go supports two build modes:
 ### 1. Static Libraries (Default) ⚡
 
 ```bash
-go build -tags=nogpu
+go build 
 ```
 
 - **Fast**: 30-second builds
@@ -137,7 +137,7 @@ go build -tags=faiss_use_system,nogpu
 - **Any platform**: Works anywhere FAISS can be installed
 - **Best for**: Custom FAISS configs, unsupported platforms
 
-**Note**: The `nogpu` tag disables GPU support (required unless you have CUDA setup).
+**Note**: CPU-only builds are now the default. Use `-tags=gpu` if you have CUDA setup and want GPU acceleration.
 
 See [docs/build-modes.md](docs/build-modes.md) for comprehensive details.
 
@@ -151,33 +151,33 @@ We maintain high test coverage and quality standards.
 
 ```bash
 # Quick tests (recommended during development)
-go test -tags=nogpu -short ./...
+go test  -short ./...
 
 # Full test suite
-go test -tags=nogpu -v ./...
+go test  -v ./...
 
 # With coverage
-go test -tags=nogpu -coverprofile=coverage.out ./...
+go test  -coverprofile=coverage.out ./...
 go tool cover -html=coverage.out
 
 # Specific package
-go test -tags=nogpu -v ./test/recall
+go test  -v ./test/recall
 
 # Specific test
-go test -tags=nogpu -v -run TestIndexFlatL2_Search
+go test  -v -run TestIndexFlatL2_Search
 ```
 
 ### Running Benchmarks
 
 ```bash
 # All benchmarks
-go test -tags=nogpu -bench=. -benchtime=1s ./...
+go test  -bench=. -benchtime=1s ./...
 
 # Specific benchmark
-go test -tags=nogpu -bench=BenchmarkIndexFlatL2 -benchtime=5s
+go test  -bench=BenchmarkIndexFlatL2 -benchtime=5s
 
 # With memory profiling
-go test -tags=nogpu -bench=. -benchmem ./...
+go test  -bench=. -benchmem ./...
 ```
 
 ### Test Types
@@ -268,10 +268,10 @@ func TestIndexFlatL2_Add(t *testing.T) {
 3. **Test locally**
    ```bash
    # Build
-   go build -tags=nogpu ./...
+   go build  ./...
 
    # Test
-   go test -tags=nogpu -v ./...
+   go test  -v ./...
 
    # Lint
    golangci-lint run
@@ -544,16 +544,16 @@ Our CI runs **11 parallel jobs** on every push:
 1. **Build** (10 jobs)
    - Matrix: 5 Go versions × 2 OSes
    - Build time: ~30 seconds (thanks to pre-built binaries!)
-   - Runs: `go build -tags=nogpu`
+   - Runs: `go build `
 
 2. **Test** (10 jobs)
    - Unit tests + integration tests
    - Coverage tracked (Ubuntu + Go 1.25)
-   - Runs: `go test -tags=nogpu -coverprofile=coverage.out`
+   - Runs: `go test  -coverprofile=coverage.out`
 
 3. **Benchmark** (10 jobs)
    - Quick smoke test benchmarks
-   - Runs: `go test -tags=nogpu -bench=. -benchtime=100ms`
+   - Runs: `go test  -bench=. -benchtime=100ms`
 
 4. **Lint** (1 job)
    - golangci-lint with 5-minute timeout

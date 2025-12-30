@@ -41,7 +41,7 @@ faiss-go/
 ### File Selection
 
 ```
-User runs: go build -tags=nogpu
+User runs: go build
 
 Build tag resolution:
 1. Check for faiss_use_system? No → skip faiss_system.go
@@ -59,7 +59,7 @@ Result: Platform-appropriate unified build
 | Command | Mode | Files Used |
 |---------|------|------------|
 | `go build -tags=faiss_use_system` | System | faiss_system.go |
-| `go build -tags=nogpu` | Unified Static ⭐ | faiss_lib.go + prebuilt_*.go |
+| `go build` | Unified Static ⭐ | faiss_lib.go + prebuilt_*.go |
 
 ## Platform-Specific Configuration
 
@@ -189,7 +189,7 @@ import _ "github.com/NerdMeNot/faiss-go-libs/lib/linux-amd64"
 
 ```bash
 # Use existing pre-built libraries
-go build -tags=nogpu
+go build
 
 # Build your own unified library
 ./scripts/build_static_lib.sh linux-amd64 v1.13.2 --unified
@@ -208,7 +208,7 @@ Thanks to platform-specific prebuilt files, cross-compilation "just works":
 
 ```bash
 # Cross-compile for Linux ARM64 from macOS
-GOOS=linux GOARCH=arm64 go build -tags=nogpu
+GOOS=linux GOARCH=arm64 go build
 
 # Build process:
 # 1. GOOS=linux GOARCH=arm64 → selects prebuilt_linux_arm64.go
@@ -259,7 +259,7 @@ brew install libomp
 
 **Check:**
 ```bash
-go build -v -tags=nogpu 2>&1 | grep prebuilt
+go build -v 2>&1 | grep prebuilt
 # Should show ONLY ONE prebuilt_*.go file
 ```
 

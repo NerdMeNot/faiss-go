@@ -234,28 +234,28 @@ Each build generates `build_info.json`:
 
 **All platforms (default):**
 ```bash
-go build -tags=nogpu
+go build
 ```
 
 **Platform-specific requirements:**
 
 **Linux:**
 ```bash
-go build -tags=nogpu
+go build
 # Requires: gomp and gfortran runtime libraries
 # Install: apt-get install libgomp1 libgfortran5
 ```
 
 **macOS:**
 ```bash
-go build -tags=nogpu
+go build
 # Requires: brew install libomp
 # Accelerate framework automatically available
 ```
 
 **Windows:**
 ```bash
-go build -tags=nogpu
+go build
 # Requires: gomp and gfortran runtime libraries (provided by MinGW)
 ```
 

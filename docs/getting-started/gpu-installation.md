@@ -342,14 +342,16 @@ Error: cannot open shared object file: libfaiss_gpu.so
    export LD_LIBRARY_PATH="/usr/local/lib:$LD_LIBRARY_PATH"
    ```
 
-### Build Tags Conflict
+### Build Tags Missing
 
-If you get errors about `nogpu` build tag:
+GPU support is opt-in. You must use the `gpu` build tag:
 
 ```bash
-# Don't use -tags=nogpu when building with GPU support
-go build  # Correct
-go build -tags=nogpu  # Wrong - this disables GPU
+# Wrong - this builds CPU-only (default)
+go build
+
+# Correct - this enables GPU support
+go build -tags=gpu
 ```
 
 ### CUDA Architecture Mismatch

@@ -241,13 +241,13 @@ The ultimate test - build without installing any BLAS libraries:
 docker run -it --rm -v $(pwd):/workspace ubuntu:24.04
 cd /workspace
 apt-get update && apt-get install -y golang git
-go build -tags=nogpu ./...  # Should succeed!
+go build ./...  # Should succeed!
 ```
 
 ### 4. Run Tests
 
 ```bash
-go test -tags=nogpu -v ./...
+go test -v ./...
 ```
 
 ## Customization
@@ -361,7 +361,7 @@ Once fully static libraries are built, update `.github/workflows/ci.yml`:
 **Build step stays the same**:
 ```yaml
 - name: Build
-  run: go build -tags=nogpu -v ./...
+  run: go build -v ./...
 ```
 
 ## Current Implementation (December 2025)
@@ -407,8 +407,8 @@ import "C"
 
 ```bash
 # Build and test on any supported platform
-go build -tags=nogpu ./...
-go test -tags=nogpu -v ./...
+go build ./...
+go test -v ./...
 
 # The appropriate prebuilt_*.go file is automatically selected
 ```
