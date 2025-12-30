@@ -157,19 +157,34 @@ build_openblas() {
         mkdir -p "$TEMP_DIR/openblas-install/lib"
         mkdir -p "$TEMP_DIR/openblas-install/include"
 
-        # Find and copy the static library (has platform-specific name)
-        OPENBLAS_LIB=$(ls -1 libopenblas*.a | head -1)
+        # Find the static library (has platform-specific name like libopenblas_zenp-r0.3.30.a)
+        echo "Looking for OpenBLAS library in: $(pwd)"
+        ls -la libopenblas*.a || true
+
+        OPENBLAS_LIB=$(find . -maxdepth 1 -name "libopenblas*.a" -type f | head -1)
+        if [ -z "$OPENBLAS_LIB" ]; then
+            echo -e "${RED}Failed to find OpenBLAS library${NC}"
+            exit 1
+        fi
+
         echo "Found OpenBLAS library: $OPENBLAS_LIB"
-        cp "$OPENBLAS_LIB" "$TEMP_DIR/openblas-install/lib/libopenblas.a"
+        echo "Copying to: $TEMP_DIR/openblas-install/lib/libopenblas.a"
+
+        # Use explicit copy command
+        /usr/bin/cp -v "$OPENBLAS_LIB" "$TEMP_DIR/openblas-install/lib/libopenblas.a"
 
         # Copy headers
-        cp openblas_config.h "$TEMP_DIR/openblas-install/include/" || true
-        cp cblas.h "$TEMP_DIR/openblas-install/include/" || true
-        cp f77blas.h "$TEMP_DIR/openblas-install/include/" || true
+        [ -f openblas_config.h ] && cp openblas_config.h "$TEMP_DIR/openblas-install/include/" || true
+        [ -f cblas.h ] && cp cblas.h "$TEMP_DIR/openblas-install/include/" || true
+        [ -f f77blas.h ] && cp f77blas.h "$TEMP_DIR/openblas-install/include/" || true
+
         # Copy all lapacke headers
         for header in lapacke*.h; do
             [ -f "$header" ] && cp "$header" "$TEMP_DIR/openblas-install/include/" || true
         done
+
+        echo "OpenBLAS installation complete"
+        ls -la "$TEMP_DIR/openblas-install/lib/" || true
     else
         # Unix: use make install
         make install PREFIX="$TEMP_DIR/openblas-install" "${make_opts[@]}"
