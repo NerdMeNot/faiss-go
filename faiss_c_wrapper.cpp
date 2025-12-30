@@ -33,6 +33,7 @@
 #include <faiss/IndexHNSW.h>
 #include <faiss/IndexIDMap.h>
 #include <faiss/IndexPQ.h>
+#include <faiss/IndexIVFFlat.h>
 #include <faiss/IndexIVFPQ.h>
 #include <faiss/IndexScalarQuantizer.h>
 #include <faiss/IndexRefine.h>
