@@ -1,4 +1,5 @@
-// +build !nogpu
+//go:build gpu
+// +build gpu
 
 package faiss
 
