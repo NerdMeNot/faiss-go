@@ -43,7 +43,7 @@ faiss-go provides pre-built static libraries for all major platforms. These libr
 - Builds OpenBLAS v0.3.30 from source
 - Builds FAISS with static OpenBLAS linkage
 - Merges all object files into single `libfaiss.a`
-- Zero runtime dependencies (Linux/Windows)
+- Minimal runtime dependencies (only gomp/gfortran)
 
 **File sizes:**
 - **Linux/Windows**: ~40-50MB (includes OpenBLAS)
@@ -51,15 +51,15 @@ faiss-go provides pre-built static libraries for all major platforms. These libr
 
 **Runtime dependencies:**
 - **macOS**: Accelerate framework, libomp (same as standard mode)
-- **Linux**: **NONE** ✓
-- **Windows**: **NONE** ✓
+- **Linux**: gomp (OpenMP), gfortran (Fortran runtime)
+- **Windows**: gomp (OpenMP), gfortran (Fortran runtime)
 
 **Use cases:**
 - Production deployments
-- Docker containers without BLAS libraries
+- Docker containers (minimal dependencies: gomp + gfortran)
 - CI/CD environments
 - Distribution to end users
-- True zero-dependency builds
+- Minimal-dependency builds (no separate BLAS library needed)
 
 ## Platform-Specific Details
 
@@ -102,8 +102,8 @@ Linux builds benefit most from unified mode.
 ./scripts/build_static_lib.sh linux-amd64 v1.13.2 --unified
 ```
 - Size: ~40-50MB
-- Requires: **Nothing** (fully self-contained)
-- True zero-dependency deployment
+- Requires: gomp (OpenMP), gfortran (Fortran runtime)
+- No separate BLAS library needed
 
 **Build process:**
 1. Clones OpenBLAS v0.3.30
@@ -128,19 +128,19 @@ Windows unified builds work similarly to Linux.
 ./scripts/build_static_lib.sh windows-amd64 v1.13.2 --unified
 ```
 - Size: ~40-50MB
-- Requires: **Nothing** (fully self-contained)
-- Self-contained deployment
+- Requires: gomp (OpenMP), gfortran (Fortran runtime)
+- No separate BLAS library needed
 
 ## GitHub Actions Workflow
 
 The `.github/workflows/build-static-libs.yml` workflow builds libraries for all platforms.
 
 **Current configuration:**
-- **Linux AMD64**: Unified build (zero dependencies)
-- **Linux ARM64**: Unified build (zero dependencies)
+- **Linux AMD64**: Unified build (requires gomp + gfortran)
+- **Linux ARM64**: Unified build (requires gomp + gfortran)
 - **macOS Intel**: Standard build (uses Accelerate)
 - **macOS ARM64**: Standard build (uses Accelerate)
-- **Windows AMD64**: Unified build (zero dependencies)
+- **Windows AMD64**: Unified build (requires gomp + gfortran)
 
 **Trigger workflow:**
 ```bash
@@ -174,9 +174,11 @@ Files:
 
 Library size: 45M
 
-Runtime dependencies: NONE
-  ✓ OpenBLAS merged into libfaiss.a
-  ✓ Fully self-contained static library
+Runtime dependencies:
+  - gomp (OpenMP runtime)
+  - gfortran (Fortran runtime)
+  ✓ OpenBLAS object code merged into libfaiss.a
+  ✓ No separate BLAS library needed
 ```
 
 ### Build Metadata
@@ -216,7 +218,8 @@ go build -tags=faiss_use_lib,nogpu
 **Linux/Windows:**
 ```bash
 go build -tags=faiss_use_lib,nogpu
-# No additional dependencies needed!
+# Requires: gomp and gfortran runtime libraries
+# Install on Linux: apt-get install libgomp1 libgfortran5
 ```
 
 **macOS:**
@@ -387,17 +390,18 @@ Attempting unified build on macOS:
 
 ### For Production
 - **macOS**: Use standard build (smallest, fastest)
-- **Linux**: Use **unified build** (zero dependencies)
-- **Windows**: Use **unified build** (zero dependencies)
+- **Linux**: Use **unified build** (minimal dependencies)
+- **Windows**: Use **unified build** (minimal dependencies)
 
 ### For Distribution
 - **Always use unified builds for Linux/Windows**
-- Eliminates "dependency hell"
-- Users don't need to install BLAS libraries
-- Easier installation experience
+- Reduces dependency complexity (no separate BLAS library)
+- Users only need gomp + gfortran (commonly available)
+- Easier installation than managing multiple BLAS libraries
 
 ### For CI/CD
 - **Use unified builds**
+- Minimal dependencies (gomp + gfortran usually pre-installed)
 - No need to install libopenblas in CI environment
 - Faster pipeline setup
 - Reproducible builds
@@ -418,6 +422,9 @@ A: Negligible. OpenBLAS and Accelerate are both highly optimized. macOS Accelera
 
 **Q: Can I reduce unified build size?**
 A: Not significantly. OpenBLAS is already built with `NO_LAPACK=0` (includes only essential LAPACK). Further size reduction would require removing FAISS features.
+
+**Q: Why do unified builds still need gomp and gfortran?**
+A: OpenBLAS is compiled with OpenMP parallelization and includes Fortran LAPACK code. While the object code is merged into libfaiss.a, the runtime libraries (gomp for OpenMP, gfortran for Fortran) are still required at link time.
 
 ## References
 

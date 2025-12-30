@@ -8,18 +8,18 @@ This directory contains pre-compiled static FAISS libraries for different platfo
 
 | Platform | Architecture | Build Mode | BLAS | Size | Runtime Deps |
 |----------|-------------|------------|------|------|--------------|
-| `linux_amd64` | x86_64 | Unified | OpenBLAS 0.3.30 (merged) | ~45MB | None ✓ |
-| `linux_arm64` | ARM64 | Unified | OpenBLAS 0.3.30 (merged) | ~45MB | None ✓ |
+| `linux_amd64` | x86_64 | Unified | OpenBLAS 0.3.30 (merged) | ~45MB | gomp, gfortran |
+| `linux_arm64` | ARM64 | Unified | OpenBLAS 0.3.30 (merged) | ~45MB | gomp, gfortran |
 | `darwin_amd64` | x86_64 | Standard | Accelerate Framework | ~9MB | Accelerate, libomp |
 | `darwin_arm64` | ARM64 (M1/M2) | Standard | Accelerate Framework | ~9MB | Accelerate, libomp |
-| `windows_amd64` | x86_64 | Unified | OpenBLAS 0.3.30 (merged) | ~45MB | None ✓ |
+| `windows_amd64` | x86_64 | Unified | OpenBLAS 0.3.30 (merged) | ~45MB | gomp, gfortran |
 
 ## Build Modes
 
 ### Unified Build (Linux/Windows)
 - **What**: FAISS + OpenBLAS merged into single `libfaiss.a`
 - **Size**: ~45MB
-- **Runtime Dependencies**: None
+- **Runtime Dependencies**: gomp (OpenMP), gfortran (Fortran runtime)
 - **Use case**: Production, distribution, Docker containers
 
 ### Standard Build (macOS)
@@ -49,9 +49,12 @@ These libraries are automatically used when building with the `faiss_use_lib` ta
 go build -tags=faiss_use_lib,nogpu
 ```
 
-**No additional dependencies needed for Linux/Windows unified builds!**
+**For Linux/Windows unified builds:**
+- Requires: gomp (OpenMP) and gfortran (Fortran runtime)
+- Install on Linux: `apt-get install libgomp1 libgfortran5`
 
-For macOS, ensure libomp is installed:
+**For macOS:**
+- Ensure libomp is installed:
 ```bash
 brew install libomp
 ```

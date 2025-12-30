@@ -21,7 +21,7 @@ package faiss
 //
 // Linux/Windows:
 //   Fully self-contained unified builds with OpenBLAS merged in.
-//   Runtime dependencies: NONE (except standard system libraries)
+//   Runtime dependencies: gomp (OpenMP), gfortran (Fortran runtime)
 //   Size: ~45MB (includes FAISS + OpenBLAS)
 //
 // macOS:
@@ -36,16 +36,16 @@ package faiss
 #cgo LDFLAGS: -lstdc++ -lm
 
 // Platform-specific library paths and flags
-// Linux (unified builds with OpenBLAS merged - zero runtime deps)
-#cgo linux,amd64 LDFLAGS: -L${SRCDIR}/libs/linux_amd64 -lfaiss_c -lfaiss -lpthread -ldl
-#cgo linux,arm64 LDFLAGS: -L${SRCDIR}/libs/linux_arm64 -lfaiss_c -lfaiss -lpthread -ldl
+// Linux (unified builds with OpenBLAS merged - minimal runtime deps)
+#cgo linux,amd64 LDFLAGS: -L${SRCDIR}/libs/linux_amd64 -lfaiss_c -lfaiss -lgomp -lgfortran -lpthread -ldl
+#cgo linux,arm64 LDFLAGS: -L${SRCDIR}/libs/linux_arm64 -lfaiss_c -lfaiss -lgomp -lgfortran -lpthread -ldl
 
 // macOS (uses system Accelerate framework - always available)
 #cgo darwin,amd64 LDFLAGS: -L${SRCDIR}/libs/darwin_amd64 -lfaiss_c -lfaiss -Wl,-framework,Accelerate
 #cgo darwin,arm64 LDFLAGS: -L${SRCDIR}/libs/darwin_arm64 -lfaiss_c -lfaiss -Wl,-framework,Accelerate
 
-// Windows (unified build with OpenBLAS merged - zero runtime deps)
-#cgo windows,amd64 LDFLAGS: -L${SRCDIR}/libs/windows_amd64 -lfaiss_c -lfaiss -lpthread
+// Windows (unified build with OpenBLAS merged - minimal runtime deps)
+#cgo windows,amd64 LDFLAGS: -L${SRCDIR}/libs/windows_amd64 -lfaiss_c -lfaiss -lgomp -lgfortran -lpthread
 
 #include <stdlib.h>
 #include <stdint.h>
