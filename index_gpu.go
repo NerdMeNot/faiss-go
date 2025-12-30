@@ -52,9 +52,8 @@ func newGpuIndexFlat(res *StandardGpuResources, d, device int, metric MetricType
 	}
 
 	var ptr uintptr
-	ret := faiss_GpuIndexFlat_new(&ptr, res.ptr, int64(d), int(metric), int64(device))
-	if ret != 0 {
-		return nil, fmt.Errorf("failed to create GPU flat index")
+	if err := faiss_GpuIndexFlat_new(&ptr, res.ptr, device, int64(d), int(metric)); err != nil {
+		return nil, fmt.Errorf("failed to create GPU flat index: %w", err)
 	}
 
 	idx := &GpuIndexFlat{
@@ -213,9 +212,8 @@ func NewGpuIndexIVFFlat(res *StandardGpuResources, quantizer Index, d, nlist, de
 	}
 
 	var ptr uintptr
-	ret := faiss_GpuIndexIVFFlat_new(&ptr, res.ptr, quantizerPtr, int64(d), int64(nlist), int(metric), int64(device))
-	if ret != 0 {
-		return nil, fmt.Errorf("failed to create GPU IVF flat index")
+	if err := faiss_GpuIndexIVFFlat_new(&ptr, res.ptr, device, quantizerPtr, int64(d), int64(nlist), int(metric)); err != nil {
+		return nil, fmt.Errorf("failed to create GPU IVF flat index: %w", err)
 	}
 
 	idx := &GpuIndexIVFFlat{
