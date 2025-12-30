@@ -1,10 +1,10 @@
-//go:build !faiss_use_system && !faiss_phase3
-// +build !faiss_use_system,!faiss_phase3
+//go:build !faiss_use_system
+// +build !faiss_use_system
 
 package faiss
 
 /*
-// Static library build mode (default - Phase 2 Unified)
+// Static library build mode (default)
 // Uses pre-built unified static libraries from libs/ directory
 //
 // Build Configuration:

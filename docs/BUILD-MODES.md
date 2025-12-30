@@ -7,9 +7,7 @@ This document explains all available build modes for faiss-go, from simplest to 
 | Build Mode | Binary Size | Dependencies | Build Time | Use Case |
 |------------|-------------|--------------|------------|----------|
 | **System** | Small | System FAISS | Fast (~30s) | Development |
-| **Standard Static** | ~9MB | libopenblas | Medium (~5min) | Basic use |
-| **Unified Static** | ~45MB | gomp, gfortran | Slow (~20min) | Production |
-| **Phase 3** (Exp) | ~55MB | NONE! | Slowest (~30min) | Ultimate |
+| **Unified Static** | ~45MB | gomp, gfortran | Medium (~20min) | Production ⭐ |
 
 ## Mode 1: System Build
 
@@ -36,34 +34,7 @@ go build -tags=faiss_use_system
 
 **When to use:** Local development, testing
 
-## Mode 2: Standard Static Build
-
-**Uses pre-built static libraries from libs/ directory**
-
-```bash
-# Default mode - just build
-go build
-
-# Or explicitly
-go build -tags=nogpu
-```
-
-**Includes:**
-- FAISS static library (~9MB)
-- Links against system OpenBLAS
-
-**Pros:**
-- ✅ Fast build (~30 seconds)
-- ✅ Moderate size (~9MB)
-- ✅ Works out of the box
-
-**Cons:**
-- ❌ Needs system OpenBLAS/Accelerate
-- ❌ Different behavior on different systems
-
-**When to use:** Quick prototyping, development
-
-## Mode 3: Unified Static Build
+## Mode 2: Unified Static Build (Default)
 
 **Everything merged into libfaiss.a** ⭐ **Recommended for production**
 
@@ -103,45 +74,6 @@ brew install libomp
 # Windows - MinGW provides these
 ```
 
-## Mode 4: Phase 3 Build (Experimental)
-
-**ZERO external dependencies** ⚡ **Experimental**
-
-```bash
-# Build your project with Phase 3
-go build -tags="nogpu,faiss_phase3"
-```
-
-**Includes:**
-- FAISS static library
-- OpenBLAS merged
-- **libgomp merged** (NEW!)
-- **libgfortran merged** (NEW!)
-- **libquadmath merged** (NEW!)
-
-**Runtime dependencies:**
-- **NONE!** (if successful)
-
-**Pros:**
-- ✅ Truly self-contained
-- ✅ Zero dependency deployment
-- ✅ Perfect for minimal containers
-- ✅ Ultimate portability
-
-**Cons:**
-- ❌ Experimental (may not work everywhere)
-- ❌ Largest size (~55-60MB)
-- ❌ Complex build process
-- ❌ Longer build time (~30min)
-
-**When to use:**
-- Deploying to unknown/minimal environments
-- Embedded systems
-- When you absolutely cannot have dependencies
-- Alpine/distroless containers
-
-**See:** [PHASE3-BUILDS.md](PHASE3-BUILDS.md) for complete details
-
 ## Platform-Specific Notes
 
 ### Linux
@@ -149,29 +81,23 @@ go build -tags="nogpu,faiss_phase3"
 | Mode | amd64 | arm64 | Dependencies |
 |------|-------|-------|--------------|
 | System | ✅ | ✅ | libfaiss-dev |
-| Standard | ✅ | ✅ | libopenblas |
 | Unified | ✅ | ✅ | gomp, gfortran |
-| Phase 3 | ✅ | ✅ | NONE |
 
 ### macOS
 
 | Mode | Intel | ARM64 | Dependencies |
 |------|-------|-------|--------------|
 | System | ✅ | ✅ | brew faiss |
-| Standard | ✅ | ✅ | Accelerate (built-in) |
-| Unified | ✅ | ✅ | Accelerate (built-in) |
-| Phase 3 | ❌ | ❌ | Not supported |
+| Unified | ✅ | ✅ | Accelerate (built-in), libomp |
 
-**Note:** macOS unified is identical to standard (Accelerate framework cannot be statically linked)
+**Note:** macOS uses Accelerate framework (built-in) for BLAS operations
 
 ### Windows
 
 | Mode | amd64 | Dependencies |
 |------|-------|--------------|
 | System | ⚠️ | Manual install |
-| Standard | ✅ | OpenBLAS via vcpkg |
 | Unified | ✅ | gomp, gfortran (MinGW) |
-| Phase 3 | ⚠️ | Experimental |
 
 ## How Build Mode is Selected
 

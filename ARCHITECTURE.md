@@ -8,7 +8,7 @@ This project uses a **DuckDB-inspired architecture** for managing static library
 
 1. **Platform-specific configuration** - Each platform has its own CGO configuration file
 2. **Automatic selection** - Build tags automatically select the right configuration
-3. **Multiple build modes** - Support standard, unified, and experimental zero-dep builds
+3. **Multiple build modes** - Support system and unified static builds
 4. **Clean separation** - Implementation separate from platform configuration
 
 ## File Structure
@@ -16,8 +16,7 @@ This project uses a **DuckDB-inspired architecture** for managing static library
 ```
 faiss-go/
 ├── faiss.go, index.go, etc.        # Public Go API
-├── faiss_lib.go                    # Default build (Phase 2 unified)
-├── faiss_lib_phase3.go             # Experimental build (Phase 3 zero-dep)
+├── faiss_lib.go                    # Default build (unified static)
 ├── prebuilt_linux_amd64.go         # Linux AMD64 CGO config
 ├── prebuilt_linux_arm64.go         # Linux ARM64 CGO config
 ├── prebuilt_darwin_amd64.go        # macOS Intel CGO config
@@ -30,13 +29,10 @@ faiss-go/
 │   ├── darwin_arm64/libfaiss.a    # ~9MB standard
 │   └── windows_amd64/libfaiss.a   # ~45MB unified
 ├── scripts/
-│   ├── build_static_lib.sh         # Standard & unified builds
-│   ├── build_unified_static.sh     # Phase 3 aggressive builds
-│   └── verify_phase3.sh            # Verify Phase 3 success
+│   └── build_static_lib.sh         # Standard & unified builds
 └── docs/
     ├── BUILD-MODES.md              # Comparison of all modes
-    ├── STATIC-BUILDS.md            # Standard/unified details
-    └── PHASE3-BUILDS.md            # Experimental zero-dep
+    └── STATIC-BUILDS.md            # Standard/unified details
 
 ```
 
@@ -49,9 +45,8 @@ User runs: go build -tags=nogpu
 
 Build tag resolution:
 1. Check for faiss_use_system? No → skip faiss_system.go
-2. Check for faiss_phase3? No → skip faiss_lib_phase3.go
-3. Use faiss_lib.go (default Phase 2 unified)
-4. Select platform-specific config:
+2. Use faiss_lib.go (default unified static)
+3. Select platform-specific config:
    - On Linux AMD64 → prebuilt_linux_amd64.go
    - On macOS ARM64 → prebuilt_darwin_arm64.go
    - etc.
@@ -64,15 +59,14 @@ Result: Platform-appropriate unified build
 | Command | Mode | Files Used |
 |---------|------|------------|
 | `go build -tags=faiss_use_system` | System | faiss_system.go |
-| `go build -tags=nogpu` | Phase 2 Unified ⭐ | faiss_lib.go + prebuilt_*.go |
-| `go build -tags="nogpu,faiss_phase3"` | Phase 3 Zero-dep | faiss_lib_phase3.go + prebuilt_*.go |
+| `go build -tags=nogpu` | Unified Static ⭐ | faiss_lib.go + prebuilt_*.go |
 
 ## Platform-Specific Configuration
 
 Each `prebuilt_*.go` file contains:
 
 ```go
-//go:build !faiss_use_system && !faiss_phase3 && linux && amd64
+//go:build !faiss_use_system && linux && amd64
 
 package faiss
 
@@ -109,30 +103,19 @@ The project includes a custom C wrapper (`faiss_c_impl.cpp`) that provides addit
 
 ## Static Library Builds
 
-### Phase 1: Standard Static
+### Standard Static
 ```
 libfaiss.a (~9MB)
 └── FAISS code only
 Dependencies: System OpenBLAS
 ```
 
-### Phase 2: Unified Static (Current Production) ⭐
+### Unified Static (Production) ⭐
 ```
 libfaiss.a (~45MB)
 ├── FAISS code
 └── OpenBLAS code (merged)
 Dependencies: libgomp, libgfortran
-```
-
-### Phase 3: Zero-Dependency (Experimental) 🚀
-```
-libfaiss.a (~55MB)
-├── FAISS code
-├── OpenBLAS code
-├── libgomp code (merged!)
-├── libgfortran code (merged!)
-└── libquadmath code (merged!)
-Dependencies: NONE!
 ```
 
 ## How DuckDB Does It
@@ -170,7 +153,6 @@ duckdb-go-bindings/                  # Separate repository
 - ✅ Platform-specific files with build tags
 - ✅ Simpler module structure
 - ✅ Same automatic selection
-- ✅ **Plus**: Experimental Phase 3 zero-dep builds!
 
 ## Future: Full DuckDB-Style Split (Optional)
 
@@ -211,20 +193,13 @@ go build -tags=nogpu
 
 # Build your own unified library
 ./scripts/build_static_lib.sh linux-amd64 v1.13.2 --unified
-
-# Try experimental Phase 3
-./scripts/build_unified_static.sh linux-amd64 v1.13.2
-./scripts/verify_phase3.sh linux-amd64
 ```
 
 ### CI/CD (GitHub Actions)
 
 ```yaml
-# Standard unified builds (production)
+# Unified builds (production)
 .github/workflows/build-static-libs.yml
-
-# Experimental Phase 3 builds
-.github/workflows/build-phase3.yml
 ```
 
 ## Cross-Compilation
@@ -259,21 +234,23 @@ Go code calls:
     ↓
   [faiss_Index_add calls cblas_* functions]
     ↓
-  Phase 2: Found in libfaiss.a (OpenBLAS merged)
+  Unified: Found in libfaiss.a (OpenBLAS merged)
            but calls GOMP_*, _gfortran_* from system libs
-
-  Phase 3: All found in libfaiss.a (everything merged!)
 ```
 
 ## Troubleshooting
 
 ### "undefined reference to GOMP_parallel"
 
-**Cause:** Phase 3 failed to merge runtime libraries
+**Cause:** Runtime library not installed
 
-**Solution:** Use Phase 2 unified build:
+**Solution:** Install runtime dependencies:
 ```bash
-go build -tags=nogpu  # Don't use faiss_phase3 tag
+# Linux
+sudo apt-get install libgomp1 libgfortran5
+
+# macOS
+brew install libomp
 ```
 
 ### "multiple definition of symbol"
@@ -343,7 +320,7 @@ This architecture provides:
 
 1. **Clean separation** - Platform config vs implementation
 2. **Automatic selection** - Build tags handle everything
-3. **Multiple strategies** - Standard, unified, and experimental builds
+3. **Multiple strategies** - System and unified static builds
 4. **DuckDB-inspired** - Proven patterns from similar projects
 5. **Extensible** - Easy to add new platforms or build modes
 

@@ -54,11 +54,6 @@ All 6 workflows are configured with `workflow_dispatch` (manual trigger only):
   - Artifact upload with 90-day retention
   - Combined artifact for easy download
 
-### 6. Build Phase 3 (`.github/workflows/build-phase3.yml`)
-- **Trigger**: `workflow_dispatch` only
-- **Purpose**: Experimental zero-dependency builds
-- **Status**: Testing phase, not for production yet
-
 ## Platform Build Configuration
 
 ### Linux AMD64
@@ -303,11 +298,6 @@ CMD ["/app/my-app"]
 - Investigate stripping debug symbols: `strip -S libfaiss.a`
 - Consider compiler flags: `-Os` instead of `-O3`
 - Profile which FAISS features are actually used
-
-### 3. Phase 3 Zero-Dependency Builds
-- Continue refining runtime library merging
-- Test on more platforms
-- Document success/failure cases
 
 ## Verification Checklist
 

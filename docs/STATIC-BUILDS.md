@@ -2,7 +2,6 @@
 
 > **Quick Links:**
 > - [BUILD-MODES.md](BUILD-MODES.md) - Complete comparison of all build modes
-> - [PHASE3-BUILDS.md](PHASE3-BUILDS.md) - Experimental zero-dependency builds
 > - [libs/README.md](../libs/README.md) - Pre-built library information
 
 This document explains the static library build system for faiss-go, including the differences between standard and unified builds across platforms.

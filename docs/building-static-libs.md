@@ -372,7 +372,7 @@ The current implementation uses **direct `.a` file linking** in platform-specifi
 
 ```go
 // Example: prebuilt_linux_amd64.go
-//go:build !faiss_use_system && !faiss_phase3 && linux && amd64
+//go:build !faiss_use_system && linux && amd64
 
 package faiss
 
