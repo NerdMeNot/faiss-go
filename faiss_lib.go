@@ -142,15 +142,6 @@ extern int faiss_IndexPreTransform_new(FaissIndex* p_index, FaissVectorTransform
 extern int faiss_IndexShards_new(FaissIndex* p_index, int64_t d, int metric_type);
 extern int faiss_IndexShards_add_shard(FaissIndex index, FaissIndex shard);
 
-// ==== PQFastScan Index Functions ====
-extern int faiss_IndexPQFastScan_new(FaissIndex* p_index, int64_t d, int64_t M, int64_t nbits, int metric_type);
-extern int faiss_IndexIVFPQFastScan_new(FaissIndex* p_index, FaissIndex quantizer, int64_t d, int64_t nlist, int64_t M, int64_t nbits, int metric_type);
-extern int faiss_IndexPQFastScan_set_bbs(FaissIndex index, int64_t bbs);
-
-// ==== OnDisk Index Functions ====
-extern int faiss_IndexIVFFlatOnDisk_new(FaissIndex* p_index, FaissIndex quantizer, int64_t d, int64_t nlist, const char* filename, int metric_type);
-extern int faiss_IndexIVFPQOnDisk_new(FaissIndex* p_index, FaissIndex quantizer, int64_t d, int64_t nlist, int64_t M, int64_t nbits, const char* filename, int metric_type);
-
 // ==== GPU Support Functions ====
 typedef void* FaissGpuResources;
 
@@ -837,59 +828,6 @@ func faiss_IndexLSH_new(p_index *uintptr, d, nbits int64, rotate_data, train_thr
 		trainInt = 1
 	}
 	ret := C.faiss_IndexLSH_new(&idx, C.int64_t(d), C.int64_t(nbits), rotInt, trainInt)
-	if ret == 0 && idx != nil {
-		*p_index = uintptr(unsafe.Pointer(idx))
-	}
-	return int(ret)
-}
-
-// ==== PQFastScan Index Wrapper Functions ====
-
-func faiss_IndexPQFastScan_new(p_index *uintptr, d, M, nbits int64, metric_type int) int {
-	var idx C.FaissIndex
-	ret := C.faiss_IndexPQFastScan_new(&idx, C.int64_t(d), C.int64_t(M), C.int64_t(nbits), C.int(metric_type))
-	if ret == 0 && idx != nil {
-		*p_index = uintptr(unsafe.Pointer(idx))
-	}
-	return int(ret)
-}
-
-func faiss_IndexIVFPQFastScan_new(p_index *uintptr, quantizer uintptr, d, nlist, M, nbits int64, metric_type int) int {
-	var idx C.FaissIndex
-	q := C.FaissIndex(unsafe.Pointer(quantizer))
-	ret := C.faiss_IndexIVFPQFastScan_new(&idx, q, C.int64_t(d), C.int64_t(nlist), C.int64_t(M), C.int64_t(nbits), C.int(metric_type))
-	if ret == 0 && idx != nil {
-		*p_index = uintptr(unsafe.Pointer(idx))
-	}
-	return int(ret)
-}
-
-func faiss_IndexPQFastScan_set_bbs(index uintptr, bbs int64) int {
-	idx := C.FaissIndex(unsafe.Pointer(index))
-	ret := C.faiss_IndexPQFastScan_set_bbs(idx, C.int64_t(bbs))
-	return int(ret)
-}
-
-// ==== OnDisk Index Wrapper Functions ====
-
-func faiss_IndexIVFFlatOnDisk_new(p_index *uintptr, quantizer uintptr, d, nlist int64, filename string, metric_type int) int {
-	var idx C.FaissIndex
-	q := C.FaissIndex(unsafe.Pointer(quantizer))
-	cFilename := C.CString(filename)
-	defer C.free(unsafe.Pointer(cFilename))
-	ret := C.faiss_IndexIVFFlatOnDisk_new(&idx, q, C.int64_t(d), C.int64_t(nlist), cFilename, C.int(metric_type))
-	if ret == 0 && idx != nil {
-		*p_index = uintptr(unsafe.Pointer(idx))
-	}
-	return int(ret)
-}
-
-func faiss_IndexIVFPQOnDisk_new(p_index *uintptr, quantizer uintptr, d, nlist, M, nbits int64, filename string, metric_type int) int {
-	var idx C.FaissIndex
-	q := C.FaissIndex(unsafe.Pointer(quantizer))
-	cFilename := C.CString(filename)
-	defer C.free(unsafe.Pointer(cFilename))
-	ret := C.faiss_IndexIVFPQOnDisk_new(&idx, q, C.int64_t(d), C.int64_t(nlist), C.int64_t(M), C.int64_t(nbits), cFilename, C.int(metric_type))
 	if ret == 0 && idx != nil {
 		*p_index = uintptr(unsafe.Pointer(idx))
 	}

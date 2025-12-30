@@ -16,7 +16,7 @@
  * Functions included here:
  * - Binary index constructors (IndexBinaryFlat, IndexBinaryHash, IndexBinaryIVF)
  * - HNSW index functions
- * - Advanced index types (IndexRefine, FastScan variants, OnDisk variants)
+ * - Advanced index types (IndexPQ, IndexIVFPQ, IndexIVFScalarQuantizer, IndexRefine)
  * - Composite index functions (IndexPreTransform, IndexShards)
  * - K-means clustering
  * - Vector transforms (PCA, OPQ, RandomRotation)
@@ -174,65 +174,6 @@ int faiss_IndexIVFScalarQuantizer_new(FaissIndex* p_index, FaissIndex quantizer,
             static_cast<faiss::ScalarQuantizer::QuantizerType>(qtype);
 
         *p_index = new faiss::IndexIVFScalarQuantizer(quantizer, d, nlist, qt, metric);
-        return 0;
-    }
-    CATCH_AND_HANDLE()
-}
-
-int faiss_IndexPQFastScan_new(FaissIndex* p_index, int64_t d, int64_t M, int64_t nbits, int metric_type) {
-    try {
-        // IndexPQFastScan doesn't exist in FAISS 1.13.2
-        // Fall back to regular IndexPQ
-        faiss::MetricType metric = metric_type == 0 ?
-            faiss::METRIC_INNER_PRODUCT : faiss::METRIC_L2;
-        *p_index = new faiss::IndexPQ(d, M, nbits, metric);
-        return 0;
-    }
-    CATCH_AND_HANDLE()
-}
-
-int faiss_IndexPQFastScan_set_bbs(FaissIndex index, int64_t bbs) {
-    try {
-        // IndexPQFastScan doesn't exist in FAISS 1.13.2
-        // This is a no-op for compatibility
-        return 0;
-    }
-    CATCH_AND_HANDLE()
-}
-
-int faiss_IndexIVFPQFastScan_new(FaissIndex* p_index, FaissIndex quantizer,
-                                 int64_t d, int64_t nlist, int64_t M, int64_t nbits, int metric_type) {
-    try {
-        // IndexIVFPQFastScan doesn't exist in FAISS 1.13.2
-        // Fall back to regular IndexIVFPQ
-        *p_index = new faiss::IndexIVFPQ(quantizer, d, nlist, M, nbits);
-        return 0;
-    }
-    CATCH_AND_HANDLE()
-}
-
-int faiss_IndexIVFFlatOnDisk_new(FaissIndex* p_index, FaissIndex quantizer,
-                                 int64_t d, int64_t nlist, int metric_type, const char* filename) {
-    try {
-        // OnDisk indexes are not available in FAISS C++ API for 1.13.2
-        // Fall back to regular in-memory IndexIVFFlat
-        // Users should use file-backed storage at application level if needed
-        faiss::MetricType metric = metric_type == 0 ?
-            faiss::METRIC_INNER_PRODUCT : faiss::METRIC_L2;
-
-        *p_index = new faiss::IndexIVFFlat(quantizer, d, nlist, metric);
-        return 0;
-    }
-    CATCH_AND_HANDLE()
-}
-
-int faiss_IndexIVFPQOnDisk_new(FaissIndex* p_index, FaissIndex quantizer,
-                               int64_t d, int64_t nlist, int64_t M, int64_t nbits, const char* filename) {
-    try {
-        // OnDisk indexes are not available in FAISS C++ API for 1.13.2
-        // Fall back to regular in-memory IndexIVFPQ
-        // Users should use file-backed storage at application level if needed
-        *p_index = new faiss::IndexIVFPQ(quantizer, d, nlist, M, nbits);
         return 0;
     }
     CATCH_AND_HANDLE()

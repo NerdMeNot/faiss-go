@@ -58,7 +58,6 @@
 //  - IndexHNSW: Best recall/speed tradeoff, excellent for production
 //  - IndexPQ: 8-32x compression, great for memory-constrained scenarios
 //  - IndexIVFPQ: Combines speed and compression, best overall balance
-//  - IndexOnDisk: For billion-scale datasets that don't fit in RAM
 //  - GPU indexes: 10-100x faster search with CUDA acceleration
 //
 // # Build Modes
@@ -81,7 +80,7 @@
 //
 // This package provides comprehensive FAISS functionality:
 //
-//   - 18+ Index Types: Flat, IVF, HNSW, PQ, ScalarQuantizer, LSH, GPU, OnDisk
+//   - 15+ Index Types: Flat, IVF, HNSW, PQ, ScalarQuantizer, LSH, GPU
 //   - Training API: Optimize indexes for your data distribution
 //   - Serialization: Save and load indexes from disk
 //   - Range Search: Find all vectors within a distance threshold
@@ -178,7 +177,6 @@
 //   - IndexFlatL2: 12K QPS, 100% recall (exact search)
 //   - IndexHNSWFlat: 85K QPS, 98.5% recall
 //   - IndexIVFPQ: 120K QPS, 95.2% recall, 16x compression
-//   - PQFastScan: 180K QPS, 95.8% recall, SIMD optimized
 //
 // See https://github.com/NerdMeNot/faiss-go for comprehensive benchmarks.
 //
