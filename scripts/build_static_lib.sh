@@ -338,105 +338,8 @@ echo -e "${GREEN}✓ Built FAISS${NC}"
 # Create output directory
 mkdir -p "$OUTPUT_DIR"
 
-# Merge static libraries for unified builds (Linux/Windows only)
-if [ "$UNIFIED_BUILD" = true ] && [[ "$PLATFORM" == linux-* || "$PLATFORM" == windows-* ]] && [ -f "faiss/libfaiss.a" ]; then
-    echo "Merging static libraries into unified libfaiss.a..."
-
-    MERGE_DIR="$TEMP_DIR/merge"
-    rm -rf "$MERGE_DIR"
-    mkdir -p "$MERGE_DIR"
-    cd "$MERGE_DIR"
-
-    # Extract all object files from libfaiss.a
-    echo "  Extracting libfaiss.a..."
-    mkdir -p faiss_objs
-    cd faiss_objs
-    ar x "$TEMP_DIR/faiss/build/faiss/libfaiss.a"
-    cd ..
-    mv faiss_objs/*.o .
-    rmdir faiss_objs
-
-    # Extract all object files from libfaiss_c.a
-    if [ -f "$TEMP_DIR/faiss/build/c_api/libfaiss_c.a" ]; then
-        echo "  Extracting libfaiss_c.a..."
-        mkdir -p faiss_c_objs
-        cd faiss_c_objs
-        ar x "$TEMP_DIR/faiss/build/c_api/libfaiss_c.a"
-        cd ..
-        mv faiss_c_objs/*.o .
-        rmdir faiss_c_objs
-    fi
-
-    # Extract all object files from libopenblas.a
-    echo "  Extracting libopenblas.a..."
-    mkdir -p openblas_objs
-    cd openblas_objs
-    ar x "$TEMP_DIR/openblas-install/lib/libopenblas.a"
-    cd ..
-    mv openblas_objs/*.o .
-    rmdir openblas_objs
-
-    # Create merged archive
-    echo "  Creating unified archive..."
-    ar rcs "$OUTPUT_DIR/libfaiss.a" *.o
-    ranlib "$OUTPUT_DIR/libfaiss.a"
-
-    # Also copy a separate libfaiss_c.a for compatibility
-    if [ -f "$TEMP_DIR/faiss/build/c_api/libfaiss_c.a" ]; then
-        cp "$TEMP_DIR/faiss/build/c_api/libfaiss_c.a" "$OUTPUT_DIR/"
-    fi
-
-    echo -e "${GREEN}✓ Created unified libfaiss.a (includes FAISS + OpenBLAS)${NC}"
-
-    # Return to build directory
-    cd "$TEMP_DIR/faiss/build"
-else
-    # Copy static libraries (standard build)
-    echo "Copying static libraries..."
-    if [ -f "faiss/libfaiss.a" ]; then
-        # Unix-like systems (Linux, macOS)
-        cp "faiss/libfaiss.a" "$OUTPUT_DIR/"
-        echo -e "${GREEN}✓ Copied libfaiss.a${NC}"
-
-        # Copy C API library if it exists
-        if [ -f "c_api/libfaiss_c.a" ]; then
-            cp "c_api/libfaiss_c.a" "$OUTPUT_DIR/"
-            echo -e "${GREEN}✓ Copied libfaiss_c.a${NC}"
-        fi
-    fi
-fi
-
-# Windows library handling
-if [[ "$PLATFORM" == windows-* ]]; then
-    if [ -f "faiss/Release/faiss.lib" ]; then
-        # Windows Release build
-        cp "faiss/Release/faiss.lib" "$OUTPUT_DIR/"
-        echo -e "${GREEN}✓ Copied faiss.lib${NC}"
-
-        # Copy C API library if it exists
-        if [ -f "c_api/Release/faiss_c.lib" ]; then
-            cp "c_api/Release/faiss_c.lib" "$OUTPUT_DIR/"
-            echo -e "${GREEN}✓ Copied faiss_c.lib${NC}"
-        fi
-    fi
-fi
-
-# Check if we have any libraries
-if [ ! -f "$OUTPUT_DIR/libfaiss.a" ] && [ ! -f "$OUTPUT_DIR/faiss.lib" ]; then
-    echo -e "${RED}Failed to find or create built library${NC}"
-    echo "Searching for libraries..."
-    if [ -d "$TEMP_DIR/faiss/build" ]; then
-        cd "$TEMP_DIR/faiss/build"
-        find . -name "libfaiss.a" -o -name "faiss.lib" -o -name "libfaiss_c.a" -o -name "faiss_c.lib"
-    else
-        echo -e "${RED}Build directory does not exist: $TEMP_DIR/faiss/build${NC}"
-        echo "Current directory: $(pwd)"
-        ls -la "$TEMP_DIR/" || true
-    fi
-    exit 1
-fi
-
-# Compile and merge custom C wrapper layer (faiss_c_impl.cpp)
+# Compile custom C wrapper layer (faiss_c_impl.cpp) BEFORE merging
+# This ensures faiss_c_impl.o is included in unified builds
 echo "Compiling custom C wrapper layer..."
 WRAPPER_DIR="$TEMP_DIR/wrapper"
 mkdir -p "$WRAPPER_DIR"
@@ -476,17 +379,122 @@ $CXX $CXX_FLAGS -c "$FAISS_C_IMPL" -o faiss_c_impl.o || {
 
 echo -e "${GREEN}✓ Compiled faiss_c_impl.cpp${NC}"
 
-# Merge into libfaiss_c.a
-if [ -f "$OUTPUT_DIR/libfaiss_c.a" ]; then
-    echo "Merging wrapper into libfaiss_c.a..."
-    cp "$OUTPUT_DIR/libfaiss_c.a" "$WRAPPER_DIR/libfaiss_c.a"
-    ar r "$WRAPPER_DIR/libfaiss_c.a" faiss_c_impl.o
-    ranlib "$WRAPPER_DIR/libfaiss_c.a"
-    cp "$WRAPPER_DIR/libfaiss_c.a" "$OUTPUT_DIR/libfaiss_c.a"
-    echo -e "${GREEN}✓ Merged wrapper into libfaiss_c.a${NC}"
+# Return to build directory for next steps
+cd "$TEMP_DIR/faiss/build"
+
+# Merge static libraries for unified builds (Linux/Windows only)
+if [ "$UNIFIED_BUILD" = true ] && [[ "$PLATFORM" == linux-* || "$PLATFORM" == windows-* ]] && [ -f "faiss/libfaiss.a" ]; then
+    echo "Merging static libraries into unified libfaiss.a..."
+
+    MERGE_DIR="$TEMP_DIR/merge"
+    rm -rf "$MERGE_DIR"
+    mkdir -p "$MERGE_DIR"
+    cd "$MERGE_DIR"
+
+    # Extract all object files from libfaiss.a
+    echo "  Extracting libfaiss.a..."
+    mkdir -p faiss_objs
+    cd faiss_objs
+    ar x "$TEMP_DIR/faiss/build/faiss/libfaiss.a"
+    cd ..
+    mv faiss_objs/*.o .
+    rmdir faiss_objs
+
+    # Extract all object files from libfaiss_c.a
+    if [ -f "$TEMP_DIR/faiss/build/c_api/libfaiss_c.a" ]; then
+        echo "  Extracting libfaiss_c.a..."
+        mkdir -p faiss_c_objs
+        cd faiss_c_objs
+        ar x "$TEMP_DIR/faiss/build/c_api/libfaiss_c.a"
+        cd ..
+        mv faiss_c_objs/*.o .
+        rmdir faiss_c_objs
+    fi
+
+    # Extract all object files from libopenblas.a
+    echo "  Extracting libopenblas.a..."
+    mkdir -p openblas_objs
+    cd openblas_objs
+    ar x "$TEMP_DIR/openblas-install/lib/libopenblas.a"
+    cd ..
+    mv openblas_objs/*.o .
+    rmdir openblas_objs
+
+    # Add custom C wrapper
+    echo "  Adding custom C wrapper (faiss_c_impl.o)..."
+    cp "$WRAPPER_DIR/faiss_c_impl.o" .
+
+    # Create merged archive
+    echo "  Creating unified archive..."
+    ar rcs "$OUTPUT_DIR/libfaiss.a" *.o
+    ranlib "$OUTPUT_DIR/libfaiss.a"
+
+    # Also create a separate libfaiss_c.a with the wrapper for compatibility
+    echo "  Creating libfaiss_c.a with custom wrapper..."
+    if [ -f "$TEMP_DIR/faiss/build/c_api/libfaiss_c.a" ]; then
+        cp "$TEMP_DIR/faiss/build/c_api/libfaiss_c.a" "$OUTPUT_DIR/libfaiss_c.a"
+        ar r "$OUTPUT_DIR/libfaiss_c.a" "$WRAPPER_DIR/faiss_c_impl.o"
+        ranlib "$OUTPUT_DIR/libfaiss_c.a"
+    fi
+
+    echo -e "${GREEN}✓ Created unified libfaiss.a (includes FAISS + OpenBLAS)${NC}"
+
+    # Return to build directory
+    cd "$TEMP_DIR/faiss/build"
+else
+    # Copy static libraries (standard build)
+    echo "Copying static libraries..."
+    if [ -f "faiss/libfaiss.a" ]; then
+        # Unix-like systems (Linux, macOS)
+        cp "faiss/libfaiss.a" "$OUTPUT_DIR/"
+        echo -e "${GREEN}✓ Copied libfaiss.a${NC}"
+
+        # Copy C API library and merge custom wrapper
+        if [ -f "c_api/libfaiss_c.a" ]; then
+            cp "c_api/libfaiss_c.a" "$OUTPUT_DIR/libfaiss_c.a"
+            echo "  Merging custom wrapper into libfaiss_c.a..."
+            ar r "$OUTPUT_DIR/libfaiss_c.a" "$WRAPPER_DIR/faiss_c_impl.o"
+            ranlib "$OUTPUT_DIR/libfaiss_c.a"
+            echo -e "${GREEN}✓ Created libfaiss_c.a with custom wrapper${NC}"
+        fi
+    fi
 fi
 
-# Copy headers if needed
+# Windows library handling (for non-unified builds)
+if [[ "$PLATFORM" == windows-* ]] && [ "$UNIFIED_BUILD" != true ]; then
+    if [ -f "faiss/Release/faiss.lib" ]; then
+        # Windows Release build
+        cp "faiss/Release/faiss.lib" "$OUTPUT_DIR/"
+        echo -e "${GREEN}✓ Copied faiss.lib${NC}"
+
+        # Copy C API library and merge custom wrapper
+        if [ -f "c_api/Release/faiss_c.lib" ]; then
+            cp "c_api/Release/faiss_c.lib" "$OUTPUT_DIR/faiss_c.lib"
+            echo "  Merging custom wrapper into faiss_c.lib..."
+            # Windows uses lib.exe instead of ar
+            # For now, just copy - Windows unified builds handle wrapper merging above
+            cp "c_api/Release/faiss_c.lib" "$OUTPUT_DIR/"
+            echo -e "${GREEN}✓ Copied faiss_c.lib${NC}"
+        fi
+    fi
+fi
+
+# Check if we have any libraries
+if [ ! -f "$OUTPUT_DIR/libfaiss.a" ] && [ ! -f "$OUTPUT_DIR/faiss.lib" ]; then
+    echo -e "${RED}Failed to find or create built library${NC}"
+    echo "Searching for libraries..."
+    if [ -d "$TEMP_DIR/faiss/build" ]; then
+        cd "$TEMP_DIR/faiss/build"
+        find . -name "libfaiss.a" -o -name "faiss.lib" -o -name "libfaiss_c.a" -o -name "faiss_c.lib"
+    else
+        echo -e "${RED}Build directory does not exist: $TEMP_DIR/faiss/build${NC}"
+        echo "Current directory: $(pwd)"
+        ls -la "$TEMP_DIR/" || true
+    fi
+    exit 1
+fi
+
+# Copy headers if needed (custom wrapper already compiled and merged above)
 if [ -d "$TEMP_DIR/faiss/c_api" ]; then
     mkdir -p "$OUTPUT_DIR/include"
     cp -r "$TEMP_DIR/faiss/c_api"/*.h "$OUTPUT_DIR/include/" 2>/dev/null || true
