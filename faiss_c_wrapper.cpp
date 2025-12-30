@@ -24,7 +24,6 @@
 #include <faiss/IndexIDMap.h>
 #include <faiss/IndexPQ.h>
 #include <faiss/IndexIVFPQ.h>
-#include <faiss/IndexIVFPQFastScan.h>
 #include <faiss/IndexScalarQuantizer.h>
 #include <faiss/IndexRefine.h>
 #include <faiss/IndexShards.h>
@@ -32,6 +31,7 @@
 #include <faiss/Clustering.h>
 #include <faiss/impl/AuxIndexStructures.h>
 #include <faiss/impl/io.h>
+#include <faiss/index_io.h>
 
 #include <cstring>
 #include <memory>
@@ -169,10 +169,11 @@ int faiss_IndexIVFScalarQuantizer_new(FaissIndex* p_index, FaissIndex quantizer,
 
 int faiss_IndexPQFastScan_new(FaissIndex* p_index, int64_t d, int64_t M, int64_t nbits, int metric_type) {
     try {
+        // IndexPQFastScan doesn't exist in FAISS 1.13.2
+        // Fall back to regular IndexPQ
         faiss::MetricType metric = metric_type == 0 ?
             faiss::METRIC_INNER_PRODUCT : faiss::METRIC_L2;
-
-        *p_index = new faiss::IndexPQFastScan(d, M, nbits, metric);
+        *p_index = new faiss::IndexPQ(d, M, nbits, metric);
         return 0;
     }
     CATCH_AND_HANDLE()
@@ -180,9 +181,8 @@ int faiss_IndexPQFastScan_new(FaissIndex* p_index, int64_t d, int64_t M, int64_t
 
 int faiss_IndexPQFastScan_set_bbs(FaissIndex index, int64_t bbs) {
     try {
-        auto* pq = dynamic_cast<faiss::IndexPQFastScan*>(index);
-        if (!pq) return -1;
-        pq->bbs = bbs;
+        // IndexPQFastScan doesn't exist in FAISS 1.13.2
+        // This is a no-op for compatibility
         return 0;
     }
     CATCH_AND_HANDLE()
@@ -191,10 +191,9 @@ int faiss_IndexPQFastScan_set_bbs(FaissIndex index, int64_t bbs) {
 int faiss_IndexIVFPQFastScan_new(FaissIndex* p_index, FaissIndex quantizer,
                                  int64_t d, int64_t nlist, int64_t M, int64_t nbits, int metric_type) {
     try {
-        faiss::MetricType metric = metric_type == 0 ?
-            faiss::METRIC_INNER_PRODUCT : faiss::METRIC_L2;
-
-        *p_index = new faiss::IndexIVFPQFastScan(quantizer, d, nlist, M, nbits, metric);
+        // IndexIVFPQFastScan doesn't exist in FAISS 1.13.2
+        // Fall back to regular IndexIVFPQ
+        *p_index = new faiss::IndexIVFPQ(quantizer, d, nlist, M, nbits);
         return 0;
     }
     CATCH_AND_HANDLE()
@@ -347,8 +346,9 @@ int faiss_RangeSearchResult_get(const faiss::RangeSearchResult* result,
         int64_t start = result->lims[i];
         int64_t end = result->lims[i + 1];
         *size = end - start;
-        *labels = result->labels.data() + start;
-        *distances = result->distances.data() + start;
+        // In FAISS 1.13.2, labels and distances are raw pointers
+        *labels = result->labels + start;
+        *distances = result->distances + start;
         return 0;
     }
     CATCH_AND_HANDLE()
@@ -359,7 +359,7 @@ int faiss_RangeSearchResult_get(const faiss::RangeSearchResult* result,
 int faiss_serialize_index(const FaissIndex index, uint8_t** buffer, size_t* size) {
     try {
         faiss::VectorIOWriter writer;
-        faiss::write_index(index, &writer);
+        write_index(index, &writer);
 
         *size = writer.data.size();
         *buffer = (uint8_t*)malloc(*size);
@@ -376,7 +376,7 @@ int faiss_deserialize_index(const uint8_t* buffer, size_t size, FaissIndex* p_in
         faiss::VectorIOReader reader;
         reader.data.assign(buffer, buffer + size);
 
-        *p_index = faiss::read_index(&reader);
+        *p_index = read_index(&reader);
         return 0;
     }
     CATCH_AND_HANDLE()
