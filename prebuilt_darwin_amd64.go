@@ -14,6 +14,6 @@ package faiss
 //       This is the optimal configuration for macOS
 
 /*
-#cgo LDFLAGS: -L${SRCDIR}/libs/darwin_amd64 -lfaiss_c -lfaiss -Wl,-framework,Accelerate -lomp -lm -lstdc++
+#cgo LDFLAGS: -L${SRCDIR}/libs/darwin_amd64 -lfaiss_c -lfaiss -Wl,-framework,Accelerate -L/usr/local/opt/libomp/lib -L/opt/homebrew/opt/libomp/lib -lomp -lm -lstdc++
 */
 import "C"
