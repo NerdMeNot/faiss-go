@@ -1,5 +1,14 @@
+//go:build ignore
+// +build ignore
+
 /**
  * Minimal FAISS C API Wrapper for Static Library Builds
+ *
+ * This file is compiled ONLY during static library builds by build_static_lib.sh.
+ * It is NOT compiled during normal go build/test (build tag: ignore).
+ *
+ * The build script compiles this into faiss_c_wrapper.o and merges it into
+ * libfaiss_c.a, making these functions available to Go code.
  *
  * This file provides C wrapper functions for FAISS features that are NOT
  * available in the official FAISS C API (libfaiss_c.a).
