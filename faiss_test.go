@@ -215,8 +215,13 @@ func TestBuildInfo(t *testing.T) {
 		t.Error("FAISSVersion should not be empty")
 	}
 
-	if info.BuildMode != "source" && info.BuildMode != "prebuilt" {
-		t.Errorf("Unexpected build mode: %s", info.BuildMode)
+	validBuildModes := map[string]bool{
+		"source":   true,  // System FAISS (faiss_use_system tag)
+		"prebuilt": true,  // Legacy
+		"static":   true,  // Static prebuilt libraries (default)
+	}
+	if !validBuildModes[info.BuildMode] {
+		t.Errorf("Unexpected build mode: %s (expected: source, prebuilt, or static)", info.BuildMode)
 	}
 
 	// Test String() method

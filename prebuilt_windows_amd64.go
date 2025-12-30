@@ -13,6 +13,6 @@ package faiss
 // For Phase 3 builds (experimental zero-dep), use: go build -tags="nogpu,faiss_phase3"
 
 /*
-#cgo LDFLAGS: -L${SRCDIR}/libs/windows_amd64 -lfaiss_c -lfaiss -lgomp -lgfortran -lm -lstdc++ -lpthread
+#cgo LDFLAGS: ${SRCDIR}/libs/windows_amd64/faiss_c.lib ${SRCDIR}/libs/windows_amd64/faiss.lib -lgomp -lgfortran -lm -lstdc++ -lpthread
 */
 import "C"
