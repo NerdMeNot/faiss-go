@@ -456,6 +456,12 @@ if [[ "$PLATFORM" == darwin-* ]]; then
     else
         CXX_FLAGS="$CXX_FLAGS -arch x86_64"
     fi
+    # Add OpenMP include paths for macOS
+    if [ -d "/opt/homebrew/opt/libomp/include" ]; then
+        CXX_FLAGS="$CXX_FLAGS -Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include"
+    elif [ -d "/usr/local/opt/libomp/include" ]; then
+        CXX_FLAGS="$CXX_FLAGS -Xpreprocessor -fopenmp -I/usr/local/opt/libomp/include"
+    fi
 elif [[ "$PLATFORM" == windows-* ]]; then
     CXX="x86_64-w64-mingw32-g++"
 else
