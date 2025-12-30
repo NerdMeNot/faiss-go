@@ -35,12 +35,14 @@ jobs:
       if: runner.os == 'Linux'
       run: |
         sudo apt-get update
-        sudo apt-get install -y libopenblas-dev libgomp1 libomp-dev
+        # Unified static libs only need runtime libraries (not dev packages)
+        sudo apt-get install -y libgomp1 libgfortran5
 
     - name: Install runtime dependencies (macOS)
       if: runner.os == 'macOS'
       run: |
-        brew install openblas libomp
+        # macOS uses Accelerate framework (built-in) and only needs libomp
+        brew install libomp
 
     - name: Cache Go modules
       uses: actions/cache@v4
@@ -58,8 +60,30 @@ jobs:
         find libs/ -name "*.a" -o -name "*.lib" | head -10
         if [ "$RUNNER_OS" == "Linux" ]; then
           ls -lh libs/linux_amd64/libfaiss.a || echo "⚠️ Linux AMD64 library not found"
+          ls -lh libs/linux_amd64/libfaiss_c.a || echo "⚠️ Linux AMD64 C wrapper library not found"
         elif [ "$RUNNER_OS" == "macOS" ]; then
           ls -lh libs/darwin_*/libfaiss.a || echo "⚠️ macOS library not found"
+          ls -lh libs/darwin_*/libfaiss_c.a || echo "⚠️ macOS C wrapper library not found"
+        fi
+
+    - name: Verify custom wrapper symbols (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        echo "Verifying custom C wrapper symbols are present..."
+        if nm libs/linux_amd64/libfaiss_c.a | grep -q "faiss_IndexBinaryFlat_new"; then
+          echo "✅ Custom wrapper symbols found"
+        else
+          echo "❌ WARNING: Custom wrapper symbols NOT found!"
+        fi
+
+    - name: Verify custom wrapper symbols (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        echo "Verifying custom C wrapper symbols are present..."
+        if nm libs/darwin_*/libfaiss_c.a | grep -q "_faiss_IndexBinaryFlat_new"; then
+          echo "✅ Custom wrapper symbols found"
+        else
+          echo "❌ WARNING: Custom wrapper symbols NOT found!"
         fi
 
     - name: Build
@@ -107,7 +131,8 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libopenblas-dev libgomp1 libomp-dev
+        # Unified static libs only need runtime libraries
+        sudo apt-get install -y libgomp1 libgfortran5
 
     - name: golangci-lint
       uses: golangci/golangci-lint-action@v4
