@@ -436,6 +436,50 @@ if [ ! -f "$OUTPUT_DIR/libfaiss.a" ] && [ ! -f "$OUTPUT_DIR/faiss.lib" ]; then
     exit 1
 fi
 
+# Compile and merge custom C wrapper layer (faiss_c_impl.cpp)
+echo "Compiling custom C wrapper layer..."
+WRAPPER_DIR="$TEMP_DIR/wrapper"
+mkdir -p "$WRAPPER_DIR"
+
+# Compile faiss_c_impl.cpp with access to FAISS headers
+cd "$WRAPPER_DIR"
+FAISS_INCLUDE="$TEMP_DIR/faiss"
+FAISS_C_IMPL="$PROJECT_ROOT/faiss_c_impl.cpp"
+
+# Platform-specific compiler flags
+CXX_FLAGS="-std=c++17 -O3 -fPIC -I$FAISS_INCLUDE"
+
+if [[ "$PLATFORM" == darwin-* ]]; then
+    CXX="clang++"
+    if [[ "$PLATFORM" == darwin-arm64 ]]; then
+        CXX_FLAGS="$CXX_FLAGS -arch arm64"
+    else
+        CXX_FLAGS="$CXX_FLAGS -arch x86_64"
+    fi
+elif [[ "$PLATFORM" == windows-* ]]; then
+    CXX="x86_64-w64-mingw32-g++"
+else
+    CXX="g++"
+fi
+
+# Compile the wrapper
+$CXX $CXX_FLAGS -c "$FAISS_C_IMPL" -o faiss_c_impl.o || {
+    echo -e "${RED}Failed to compile faiss_c_impl.cpp${NC}"
+    exit 1
+}
+
+echo -e "${GREEN}✓ Compiled faiss_c_impl.cpp${NC}"
+
+# Merge into libfaiss_c.a
+if [ -f "$OUTPUT_DIR/libfaiss_c.a" ]; then
+    echo "Merging wrapper into libfaiss_c.a..."
+    cp "$OUTPUT_DIR/libfaiss_c.a" "$WRAPPER_DIR/libfaiss_c.a"
+    ar r "$WRAPPER_DIR/libfaiss_c.a" faiss_c_impl.o
+    ranlib "$WRAPPER_DIR/libfaiss_c.a"
+    cp "$WRAPPER_DIR/libfaiss_c.a" "$OUTPUT_DIR/libfaiss_c.a"
+    echo -e "${GREEN}✓ Merged wrapper into libfaiss_c.a${NC}"
+fi
+
 # Copy headers if needed
 if [ -d "$TEMP_DIR/faiss/c_api" ]; then
     mkdir -p "$OUTPUT_DIR/include"
