@@ -15,6 +15,6 @@ package faiss
 //       Accelerate is highly optimized for Apple Silicon
 
 /*
-#cgo LDFLAGS: -L${SRCDIR}/libs/darwin_arm64 -lfaiss_c -lfaiss -Wl,-framework,Accelerate -L/opt/homebrew/opt/libomp/lib -L/usr/local/opt/libomp/lib -lomp -lm -lstdc++
+#cgo LDFLAGS: -Wl,-force_load,${SRCDIR}/libs/darwin_arm64/libfaiss_c.a -L${SRCDIR}/libs/darwin_arm64 -lfaiss -Wl,-framework,Accelerate -L/opt/homebrew/opt/libomp/lib -L/usr/local/opt/libomp/lib -lomp -lm -lstdc++
 */
 import "C"
