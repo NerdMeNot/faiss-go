@@ -2,7 +2,7 @@
   "platform": "windows-amd64",
   "faiss_version": "v1.13.2",
   "build_mode": "unified",
-  "build_date": "2025-12-30T13:13:25Z",
+  "build_date": "2025-12-30T14:17:48Z",
   "cmake_system_processor": "AMD64",
   "cmake_osx_architectures": "",
   "openblas_version": "v0.3.30",
