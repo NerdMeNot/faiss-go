@@ -2,7 +2,7 @@
   "platform": "darwin-arm64",
   "faiss_version": "v1.13.2",
   "build_mode": "standard",
-  "build_date": "2025-12-30T14:13:20Z",
+  "build_date": "2025-12-30T18:08:25Z",
   "cmake_system_processor": "arm64",
   "cmake_osx_architectures": "arm64",
   "openblas_version": "system",

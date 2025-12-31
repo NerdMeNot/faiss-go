@@ -2,7 +2,7 @@
   "platform": "linux-arm64",
   "faiss_version": "v1.13.2",
   "build_mode": "unified",
-  "build_date": "2025-12-30T14:41:03Z",
+  "build_date": "2025-12-30T18:35:08Z",
   "cmake_system_processor": "aarch64",
   "cmake_osx_architectures": "",
   "openblas_version": "v0.3.30",
