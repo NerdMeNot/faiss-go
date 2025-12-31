@@ -205,7 +205,6 @@ func (idx *IndexType) Close() error {
 - ✅ PQ indexes: 100%
 - ✅ Specialized indexes (HNSW, LSH, SQ): 100%
 - ✅ Binary indexes: 100%
-- ✅ FastScan indexes: 100%
 - ⚠️  GPU indexes: Tests created, needs compilation fixes
 - ✅ Transforms: 100%
 - ✅ Utilities: 100%

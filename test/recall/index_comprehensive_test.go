@@ -1,7 +1,6 @@
 package recall_test
 
 import (
-	"os"
 	"testing"
 
 	faiss "github.com/NerdMeNot/faiss-go"

@@ -477,12 +477,15 @@ index.SetNprobe(16)
 - Sub-10ms latency
 - High QPS (10K+)
 
+**Recommendation**: IndexHNSWFlat
 ```go
-index.Train(embeddings)
+index, _ := faiss.NewIndexHNSWFlat(128, 32, faiss.MetricL2)
+index.SetEfConstruction(40)
+index.SetEfSearch(16)
 index.Add(embeddings)
 ```
 
-**Why**: FastScan provides maximum QPS with good recall. 128-dim works well with SIMD.
+**Why**: HNSW provides excellent throughput with sub-millisecond search times. Graph structure enables high QPS with good recall.
 
 ---
 
