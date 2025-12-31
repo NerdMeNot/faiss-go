@@ -241,12 +241,18 @@ int faiss_Kmeans_new(FaissKmeans* p_kmeans, int64_t d, int64_t k) {
 }
 
 void faiss_Kmeans_free(FaissKmeans kmeans) {
-    delete kmeans;
+    try {
+        delete kmeans;
+    } catch (...) {
+        // Silently ignore exceptions in destructor
+    }
 }
 
-int faiss_Kmeans_train(FaissKmeans kmeans, int64_t n, const float* x, FaissIndex index) {
+int faiss_Kmeans_train(FaissKmeans kmeans, int64_t n, const float* x) {
     try {
-        kmeans->train(n, x, *index);
+        // Create temporary index for clustering (required by FAISS Clustering::train)
+        faiss::IndexFlatL2 index(kmeans->d);
+        kmeans->train(n, x, index);
         return 0;
     }
     CATCH_AND_HANDLE()
