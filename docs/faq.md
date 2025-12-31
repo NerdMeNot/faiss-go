@@ -58,7 +58,6 @@ All major FAISS index types:
 - HNSW indexes (best recall/speed balance)
 - PQ indexes (compression)
 - GPU indexes (acceleration)
-- OnDisk indexes (billion-scale)
 
 See [Index Types Guide](guides/index-types.md) for details.
 

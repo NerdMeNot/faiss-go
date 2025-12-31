@@ -37,7 +37,6 @@ START: How many vectors?
    │  └─→ IndexIVFPQ with high nlist
    │
    └─ Doesn't fit in RAM?
-       └─→ IndexIVFPQOnDisk
 ```
 
 ---
@@ -53,9 +52,7 @@ START: How many vectors?
 | **IVFFlat** | Fast | 100% | 90-98% | Yes | Balanced speed/accuracy |
 | **IVFPQ** | Very Fast | Low (1-5%) | 85-95% | Yes | Large-scale (1M-1B) |
 | **PQ** | Very Fast | Very Low (1-5%) | 80-95% | Yes | Memory-constrained |
-| **PQFastScan** | Extremely Fast | Very Low | 85-95% | Yes | Modern CPUs (SIMD) |
 | **ScalarQuantizer** | Fast | Low (25%) | 90-98% | Yes | Compression + accuracy |
-| **OnDisk** | Medium | Minimal RAM | 85-95% | Yes | Billion-scale |
 | **GPU** | Extreme | GPU VRAM | Varies | Depends | Massive throughput |
 
 ---
@@ -300,7 +297,6 @@ nprobe := 64
 
 ---
 
-#### IndexPQFastScan (SIMD-Optimized PQ)
 
 **Use when**:
 - Modern CPU with AVX2/AVX-512
@@ -320,7 +316,6 @@ nprobe := 64
 m := 16
 bbs := 32 // Block size for SIMD
 
-index, _ := faiss.NewIndexPQFastScan(dimension, m, bbs, faiss.MetricL2)
 index.Train(trainingData)
 index.Add(vectors)
 ```
@@ -331,7 +326,6 @@ index.Add(vectors)
 
 ### 5. Billion-Scale Indexes
 
-#### IndexIVFPQOnDisk
 
 **Use when**:
 - Dataset doesn't fit in RAM
@@ -352,7 +346,6 @@ nlist := 65536  // Many clusters for billion-scale
 m := 16
 nBits := 8
 
-index, _ := faiss.NewIndexIVFPQOnDisk(
     indexPath,
     dimension,
     nlist,
@@ -484,9 +477,7 @@ index.SetNprobe(16)
 - Sub-10ms latency
 - High QPS (10K+)
 
-**Recommendation**: IndexPQFastScan
 ```go
-index, _ := faiss.NewIndexPQFastScan(128, 16, 32, faiss.MetricL2)
 index.Train(embeddings)
 index.Add(embeddings)
 ```
@@ -537,9 +528,7 @@ index.SetNprobe(10)
 
 1. **Need exact search?** → IndexFlatL2/IP
 2. **< 1M vectors + have RAM?** → IndexHNSWFlat
-3. **Need extreme speed?** → IndexPQFastScan
 4. **Limited RAM?** → IndexIVFPQ or IndexPQ
-5. **Billion+ vectors?** → IndexIVFPQOnDisk
 6. **Have GPU?** → GpuIndexFlat / GpuIndexIVFFlat
 
 ### Default Parameters

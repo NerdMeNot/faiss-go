@@ -116,7 +116,6 @@ Quick links to documentation for specific use cases:
 
 ### Billion-Scale Search
 - [Guide: Billion-Scale Indexes](guides/billion-scale.md)
-- [Index Choice: IndexIVFPQ with OnDisk](guides/choosing-indexes.md#billion-scale)
 
 ### GPU Acceleration
 - [Installation: GPU Setup](installation.md#gpu-support)

@@ -45,7 +45,6 @@ Compression using reduced precision (e.g., 8-bit instead of 32-bit floats).
 ### GPU Index
 Index that runs on GPU for massive speedup (10-100x).
 
-### OnDisk Index
 Index stored on disk for datasets larger than RAM.
 
 ---
@@ -167,7 +166,6 @@ Time to complete a single operation.
 Number of queries processed together.
 
 ### SIMD (Single Instruction Multiple Data)
-CPU feature for parallel processing (used in PQFastScan).
 
 ---
 

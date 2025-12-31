@@ -174,7 +174,6 @@ func TestHNSW_Recall_SIFT10K(t *testing.T) {
 - ✅ IndexHNSW (various M, efSearch settings)
 - ✅ IndexPQ (compression vs recall tradeoff)
 - ✅ IndexIVFPQ (combined IVF+PQ)
-- ✅ IndexPQFastScan (SIMD optimizations)
 - ✅ IndexScalarQuantizer (8-bit quantization)
 - More...
 
@@ -204,7 +203,6 @@ func TestHNSW_Recall_SIFT10K(t *testing.T) {
 ```go
 // 10M user-item embeddings (128-dim)
 // Generate item recommendations
-// Indexes: IVF4096_PQ8, PQFastScan
 // Metrics: Recall@50, throughput
 ```
 
@@ -225,7 +223,6 @@ func TestHNSW_Recall_SIFT10K(t *testing.T) {
 // Test sizes: 1K → 10K → 100K → 1M → 10M → 100M
 // Dimensions: 128, 256, 512, 768, 1536, 2048
 // Measure: Build time, search QPS, memory usage
-// Validate: OnDisk indexes for billion-scale
 ```
 
 #### Concurrent Access

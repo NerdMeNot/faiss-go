@@ -13,7 +13,6 @@ This document provides empirically-measured recall baselines for all FAISS index
 | **Large datasets (100K-1M)** | IndexIVFFlat (nlist=√N) | 85-95% | Tune nprobe for recall |
 | **Very large (1M-10M)** | IndexIVFPQ | 75-85% | Best for scale + memory |
 | **Memory constrained** | IndexPQ or IndexIVFPQ | 65-80% | High compression |
-| **Billion-scale** | IndexIVFPQ + OnDisk | 70-80% | Memory-mapped storage |
 | **Real-time updates** | IndexIDMap(HNSW) | 95%+ | Supports add with IDs |
 | **Cosine similarity** | Same + Normalized data | Similar | Use MetricInnerProduct |
 
@@ -285,7 +284,6 @@ Combine IVF and PQ guidelines:
 
 ### 7. Other Index Types
 
-#### IndexPQFastScan
 - SIMD-optimized PQ
 - ~2-3x faster than IndexPQ
 - Same recall as IndexPQ

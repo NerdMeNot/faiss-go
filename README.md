@@ -135,7 +135,6 @@ Found 5 neighbors:
 | **Compressed** | `IndexPQ`, `IndexSQ` | Memory-constrained | 8-32x less memory |
 | **Hybrid** | `IndexIVFPQ`, `IndexIVFSQ` | Production balance | Best speed/memory/recall |
 | **GPU Accelerated** | `GpuIndexFlat`, `GpuIndexIVFFlat` | Ultra-fast search | 10-100x faster with CUDA |
-| **Billion-Scale** | `IndexIVFFlatOnDisk` | Larger than RAM | Unlimited scale |
 
 ### Core Capabilities
 

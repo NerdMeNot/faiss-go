@@ -336,10 +336,10 @@ We follow conventional commits:
 
 **Examples:**
 ```
-feat(index): add support for IndexPQFastScan
+feat(index): add support for IndexRefine
 
-- Implement NewIndexPQFastScan constructor
-- Add SetBBS method for block size configuration
+- Implement NewIndexRefine constructor
+- Add SetKFactor method for refinement configuration
 - Include tests and benchmarks
 
 Closes #45

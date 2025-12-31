@@ -36,10 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Compressed**: IndexPQ, IndexScalarQuantizer
 - **Hybrid**: IndexIVFPQ, IndexIVFScalarQuantizer
 - **GPU**: GpuIndexFlat, GpuIndexIVFFlat (optional, requires CUDA)
-- **Billion-Scale**: IndexIVFFlatOnDisk, IndexIVFPQOnDisk
 - **Composite**: IndexIDMap, IndexShards, IndexRefine, IndexPreTransform
 - **Binary**: IndexBinaryFlat, IndexBinaryIVF, IndexBinaryHash
-- **SIMD Optimized**: IndexPQFastScan, IndexIVFPQFastScan
 
 **Testing & Quality:**
 - Comprehensive CI: 11 parallel jobs

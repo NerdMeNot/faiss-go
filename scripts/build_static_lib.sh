@@ -340,47 +340,7 @@ echo -e "${GREEN}✓ Built FAISS${NC}"
 # Create output directory
 mkdir -p "$OUTPUT_DIR"
 
-# Compile minimal custom C wrapper (functions not in official FAISS C API)
-echo "Compiling minimal custom wrapper..."
-WRAPPER_DIR="$TEMP_DIR/wrapper"
-mkdir -p "$WRAPPER_DIR"
-
-cd "$WRAPPER_DIR"
-FAISS_INCLUDE="$TEMP_DIR/faiss"
-WRAPPER_CPP="$PROJECT_ROOT/faiss_c_wrapper.cpp"
-
-# Platform-specific compiler flags
-CXX_FLAGS="-std=c++17 -O3 -fPIC -I$FAISS_INCLUDE"
-
-if [[ "$PLATFORM" == darwin-* ]]; then
-    CXX="clang++"
-    if [[ "$PLATFORM" == darwin-arm64 ]]; then
-        CXX_FLAGS="$CXX_FLAGS -arch arm64"
-    else
-        CXX_FLAGS="$CXX_FLAGS -arch x86_64"
-    fi
-    # Add OpenMP include paths for macOS
-    if [ -d "/opt/homebrew/opt/libomp/include" ]; then
-        CXX_FLAGS="$CXX_FLAGS -Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include"
-    elif [ -d "/usr/local/opt/libomp/include" ]; then
-        CXX_FLAGS="$CXX_FLAGS -Xpreprocessor -fopenmp -I/usr/local/opt/libomp/include"
-    fi
-elif [[ "$PLATFORM" == windows-* ]]; then
-    CXX="x86_64-w64-mingw32-g++"
-else
-    CXX="g++"
-fi
-
-# Compile the minimal wrapper
-$CXX $CXX_FLAGS -c "$WRAPPER_CPP" -o faiss_c_wrapper.o || {
-    echo -e "${RED}Failed to compile faiss_c_wrapper.cpp${NC}"
-    exit 1
-}
-
-echo -e "${GREEN}✓ Compiled minimal wrapper (31 custom functions)${NC}"
-
-# Return to build directory
-cd "$TEMP_DIR/faiss/build"
+# No custom wrapper needed - all functions are in the official FAISS C API
 
 # Merge static libraries for unified builds (Linux/Windows only)
 if [ "$UNIFIED_BUILD" = true ] && [[ "$PLATFORM" == linux-* || "$PLATFORM" == windows-* ]] && [ -f "faiss/libfaiss.a" ]; then
@@ -420,20 +380,14 @@ if [ "$UNIFIED_BUILD" = true ] && [[ "$PLATFORM" == linux-* || "$PLATFORM" == wi
     mv openblas_objs/*.o .
     rmdir openblas_objs
 
-    # Add custom wrapper
-    echo "  Adding custom wrapper (31 functions)..."
-    cp "$WRAPPER_DIR/faiss_c_wrapper.o" .
-
     # Create merged archive
     echo "  Creating unified archive..."
     ar rcs "$OUTPUT_DIR/libfaiss.a" *.o
     ranlib "$OUTPUT_DIR/libfaiss.a"
 
-    # Also copy libfaiss_c.a with wrapper merged
+    # Also copy libfaiss_c.a
     if [ -f "$TEMP_DIR/faiss/build/c_api/libfaiss_c.a" ]; then
         cp "$TEMP_DIR/faiss/build/c_api/libfaiss_c.a" "$OUTPUT_DIR/libfaiss_c.a"
-        ar r "$OUTPUT_DIR/libfaiss_c.a" "$WRAPPER_DIR/faiss_c_wrapper.o"
-        ranlib "$OUTPUT_DIR/libfaiss_c.a"
     fi
 
     echo -e "${GREEN}✓ Created unified libfaiss.a (includes FAISS + OpenBLAS)${NC}"
@@ -448,13 +402,10 @@ else
         cp "faiss/libfaiss.a" "$OUTPUT_DIR/"
         echo -e "${GREEN}✓ Copied libfaiss.a${NC}"
 
-        # Copy C API library and merge custom wrapper
+        # Copy C API library
         if [ -f "c_api/libfaiss_c.a" ]; then
             cp "c_api/libfaiss_c.a" "$OUTPUT_DIR/libfaiss_c.a"
-            echo "  Merging custom wrapper into libfaiss_c.a..."
-            ar r "$OUTPUT_DIR/libfaiss_c.a" "$WRAPPER_DIR/faiss_c_wrapper.o"
-            ranlib "$OUTPUT_DIR/libfaiss_c.a"
-            echo -e "${GREEN}✓ Created libfaiss_c.a with custom wrapper${NC}"
+            echo -e "${GREEN}✓ Copied libfaiss_c.a${NC}"
         fi
     fi
 fi

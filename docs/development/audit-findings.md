@@ -24,7 +24,6 @@ Comprehensive audit of the faiss-go codebase for redundancies, test coverage, an
 - Code structure is clean with logical separation:
   - Core indexes: `index.go`, `faiss.go`, `index_ivf.go`, `index_hnsw.go`, etc.
   - Specialized indexes: `index_pq.go`, `index_sq.go`, `index_binary.go`
-  - Advanced features: `index_pqfast.go`, `index_ondisk.go`, `gpu.go`
   - Utilities: `utilities.go`, `transforms.go`, `preprocessing.go`
   - I/O: `serialization.go`, `factory.go`
 
@@ -40,8 +39,6 @@ Comprehensive audit of the faiss-go codebase for redundancies, test coverage, an
    - IndexScalarQuantizer, IndexIVFScalarQuantizer
    - IndexLSH for locality-sensitive hashing
    - Binary indexes: IndexBinaryFlat, IndexBinaryIVF
-   - FastScan indexes: IndexPQFastScan, IndexIVFPQFastScan
-   - OnDisk indexes: IndexIVFFlatOnDisk, IndexIVFPQOnDisk
    - Error handling tests: invalid parameters, dimensions, workflow violations
 
 2. **`composite_test.go`** (350+ lines)
@@ -114,10 +111,6 @@ Comprehensive audit of the faiss-go codebase for redundancies, test coverage, an
 9. IndexBinaryFlat
 10. IndexBinaryIVF
 11. IndexBinaryHash
-12. IndexPQFastScan
-13. IndexIVFPQFastScan
-14. IndexIVFFlatOnDisk
-15. IndexIVFPQOnDisk
 16. GpuIndex (3 types: GpuIndexFlat, GpuIndexIVFFlat, GpuIndex)
 17. IndexRefine
 18. IndexPreTransform
@@ -213,7 +206,6 @@ func (idx *IndexType) Close() error {
 - ✅ Specialized indexes (HNSW, LSH, SQ): 100%
 - ✅ Binary indexes: 100%
 - ✅ FastScan indexes: 100%
-- ✅ OnDisk indexes: 100%
 - ⚠️  GPU indexes: Tests created, needs compilation fixes
 - ✅ Transforms: 100%
 - ✅ Utilities: 100%
