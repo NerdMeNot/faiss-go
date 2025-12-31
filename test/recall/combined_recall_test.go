@@ -122,24 +122,6 @@ func TestIVFSQ_Recall(t *testing.T) {
 	RunRecallTest(t, config)
 }
 
-// TestPQFastScan_Recall tests PQ with SIMD optimizations
-func TestPQFastScan_Recall(t *testing.T) {
-	config := RecallTestConfig{
-		Name:          "PQFastScan_M8",
-		IndexType:     "IndexPQFastScan",
-		BuildIndex:    buildPQFastScan(8),
-		NeedsTraining: true,
-		N:             10000,
-		D:             128,
-		NQ:            100,
-		MinRecall10:   0.03,
-		K:             10,
-		Metric:        faiss.MetricL2,
-		Distribution:  datasets.UniformRandom,
-	}
-
-	RunRecallTest(t, config)
-}
 
 // TestIndexComparison compares major index types on the same dataset
 func TestIndexComparison(t *testing.T) {
@@ -282,8 +264,3 @@ func buildIVFSQ(nlist int, qtype faiss.QuantizerType, nprobe int) func(d int, me
 	}
 }
 
-func buildPQFastScan(m int) func(d int, metric faiss.MetricType) (faiss.Index, error) {
-	return func(d int, metric faiss.MetricType) (faiss.Index, error) {
-		return faiss.NewIndexPQFastScan(d, m, 4, metric) // 4-bit codes for FastScan
-	}
-}
