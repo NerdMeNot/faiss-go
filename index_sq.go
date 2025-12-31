@@ -249,6 +249,9 @@ func NewIndexIVFScalarQuantizer(quantizer Index, d, nlist int, qtype QuantizerTy
 		return nil, fmt.Errorf("failed to create IndexIVFScalarQuantizer")
 	}
 
+	// Set own_fields=0 so FAISS doesn't free the quantizer (Go manages it)
+	faiss_IndexIVF_set_own_fields(ptr, 0)
+
 	idx := &IndexIVFScalarQuantizer{
 		ptr:       ptr,
 		quantizer: quantizer,

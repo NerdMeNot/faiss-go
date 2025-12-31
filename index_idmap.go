@@ -52,6 +52,9 @@ func NewIndexIDMap(baseIndex Index) (*IndexIDMap, error) {
 		return nil, fmt.Errorf("faiss: failed to create IndexIDMap: %w", err)
 	}
 
+	// Set own_fields=0 so FAISS doesn't free the base index (Go manages it)
+	faiss_IndexIDMap_set_own_fields(ptr, 0)
+
 	idx := &IndexIDMap{
 		ptr:       ptr,
 		baseIndex: baseIndex,

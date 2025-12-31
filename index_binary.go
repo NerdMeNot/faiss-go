@@ -213,6 +213,9 @@ func NewIndexBinaryIVF(quantizer BinaryIndex, d, nlist int) (*IndexBinaryIVF, er
 		return nil, fmt.Errorf("failed to create IndexBinaryIVF")
 	}
 
+	// Set own_fields=0 so FAISS doesn't free the quantizer (Go manages it)
+	faiss_IndexBinaryIVF_set_own_fields(ptr, 0)
+
 	idx := &IndexBinaryIVF{
 		ptr:       ptr,
 		quantizer: quantizer,

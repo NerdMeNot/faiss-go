@@ -57,6 +57,9 @@ func NewIndexIVFFlat(quantizer Index, d, nlist int, metric MetricType) (*IndexIV
 		return nil, fmt.Errorf("faiss: failed to create IndexIVFFlat: %w", err)
 	}
 
+	// Set own_fields=0 so FAISS doesn't free the quantizer (Go manages it)
+	faiss_IndexIVF_set_own_fields(ptr, 0)
+
 	idx := &IndexIVFFlat{
 		ptr:       ptr,
 		quantizer: quantizer, // Keep reference to prevent GC

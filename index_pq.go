@@ -309,6 +309,9 @@ func NewIndexIVFPQ(quantizer Index, d, nlist, M, nbits int) (*IndexIVFPQ, error)
 		return nil, fmt.Errorf("faiss: failed to create IndexIVFPQ: %w", err)
 	}
 
+	// Set own_fields=0 so FAISS doesn't free the quantizer (Go manages it)
+	faiss_IndexIVF_set_own_fields(ptr, 0)
+
 	idx := &IndexIVFPQ{
 		ptr:       ptr,
 		quantizer: quantizer, // Keep reference to prevent GC

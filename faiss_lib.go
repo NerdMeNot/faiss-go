@@ -56,6 +56,7 @@ extern int faiss_IndexFlatIP_new(FaissIndex* p_index, int64_t d);
 extern int faiss_IndexIVFFlat_new(FaissIndex* p_index, FaissIndex quantizer, int64_t d, int64_t nlist, int metric_type);
 extern int faiss_IndexIVF_set_nprobe(FaissIndex index, int64_t nprobe);
 extern int faiss_IndexIVF_get_nprobe(FaissIndex index, int64_t* nprobe);
+extern void faiss_IndexIVF_set_own_fields(FaissIndex index, int own_fields);
 
 // ==== HNSW Index Functions ====
 extern int faiss_IndexHNSWFlat_new(FaissIndex* p_index, int64_t d, int M, int metric_type);
@@ -70,6 +71,7 @@ extern int faiss_IndexIVFPQ_new(FaissIndex* p_index, FaissIndex quantizer, int64
 
 // ==== ID Map Functions ====
 extern int faiss_IndexIDMap_new(FaissIndex* p_index, FaissIndex base_index);
+extern void faiss_IndexIDMap_set_own_fields(FaissIndex index, int own_fields);
 extern int faiss_IndexIDMap_add_with_ids(FaissIndex index, int64_t n, const float* x, const int64_t* ids);
 extern int faiss_IndexIDMap_remove_ids(FaissIndex index, const int64_t* ids, int64_t n_ids, int64_t* n_removed);
 
@@ -121,6 +123,7 @@ extern int faiss_IndexBinary_reset(FaissIndexBinary index);
 extern int faiss_IndexBinary_ntotal(FaissIndexBinary index, int64_t* ntotal);
 extern int faiss_IndexBinary_is_trained(FaissIndexBinary index, int* is_trained);
 extern int faiss_IndexBinaryIVF_set_nprobe(FaissIndexBinary index, int64_t nprobe);
+extern void faiss_IndexBinaryIVF_set_own_fields(FaissIndexBinary index, int own_fields);
 extern void faiss_IndexBinary_free(FaissIndexBinary index);
 
 // ==== LSH Index Functions ====
@@ -138,9 +141,12 @@ extern void faiss_VectorTransform_free(FaissVectorTransform transform);
 // ==== Composite Index Functions ====
 extern int faiss_IndexRefine_new(FaissIndex* p_index, FaissIndex base_index, FaissIndex refine_index);
 extern int faiss_IndexRefine_set_k_factor(FaissIndex index, float k_factor);
+extern void faiss_IndexRefineFlat_set_own_fields(FaissIndex index, int own_fields);
 extern int faiss_IndexPreTransform_new(FaissIndex* p_index, FaissVectorTransform transform, FaissIndex base_index);
+extern void faiss_IndexPreTransform_set_own_fields(FaissIndex index, int own_fields);
 extern int faiss_IndexShards_new(FaissIndex* p_index, int64_t d, int metric_type);
 extern int faiss_IndexShards_add_shard(FaissIndex index, FaissIndex shard);
+extern void faiss_IndexShards_set_own_fields(FaissIndex index, int own_fields);
 
 // ==== GPU Support Functions ====
 typedef void* FaissGpuResources;
@@ -814,6 +820,36 @@ func faiss_IndexIVF_set_nprobe(index uintptr, nprobe int64) int {
 	idx := C.FaissIndex(unsafe.Pointer(index))
 	ret := C.faiss_IndexIVF_set_nprobe(idx, C.int64_t(nprobe))
 	return int(ret)
+}
+
+func faiss_IndexIVF_set_own_fields(index uintptr, own_fields int) {
+	idx := C.FaissIndex(unsafe.Pointer(index))
+	C.faiss_IndexIVF_set_own_fields(idx, C.int(own_fields))
+}
+
+func faiss_IndexBinaryIVF_set_own_fields(index uintptr, own_fields int) {
+	idx := C.FaissIndexBinary(unsafe.Pointer(index))
+	C.faiss_IndexBinaryIVF_set_own_fields(idx, C.int(own_fields))
+}
+
+func faiss_IndexIDMap_set_own_fields(index uintptr, own_fields int) {
+	idx := C.FaissIndex(unsafe.Pointer(index))
+	C.faiss_IndexIDMap_set_own_fields(idx, C.int(own_fields))
+}
+
+func faiss_IndexRefineFlat_set_own_fields(index uintptr, own_fields int) {
+	idx := C.FaissIndex(unsafe.Pointer(index))
+	C.faiss_IndexRefineFlat_set_own_fields(idx, C.int(own_fields))
+}
+
+func faiss_IndexPreTransform_set_own_fields(index uintptr, own_fields int) {
+	idx := C.FaissIndex(unsafe.Pointer(index))
+	C.faiss_IndexPreTransform_set_own_fields(idx, C.int(own_fields))
+}
+
+func faiss_IndexShards_set_own_fields(index uintptr, own_fields int) {
+	idx := C.FaissIndex(unsafe.Pointer(index))
+	C.faiss_IndexShards_set_own_fields(idx, C.int(own_fields))
 }
 
 // ==== LSH Index Wrapper Functions ====

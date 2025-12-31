@@ -75,6 +75,9 @@ func NewIndexRefine(baseIndex, refineIndex Index) (*IndexRefine, error) {
 		return nil, fmt.Errorf("failed to create IndexRefine")
 	}
 
+	// Set own_fields=0 so FAISS doesn't free the base/refine indexes (Go manages them)
+	faiss_IndexRefineFlat_set_own_fields(ptr, 0)
+
 	idx := &IndexRefine{
 		ptr:         ptr,
 		baseIndex:   baseIndex,
@@ -287,6 +290,9 @@ func NewIndexPreTransform(transform VectorTransform, index Index) (*IndexPreTran
 		return nil, fmt.Errorf("failed to create IndexPreTransform")
 	}
 
+	// Set own_fields=0 so FAISS doesn't free the transform/index (Go manages them)
+	faiss_IndexPreTransform_set_own_fields(ptr, 0)
+
 	idx := &IndexPreTransform{
 		ptr:       ptr,
 		transform: transform,
@@ -456,6 +462,9 @@ func NewIndexShards(d int, metric MetricType) (*IndexShards, error) {
 	if ret != 0 {
 		return nil, fmt.Errorf("failed to create IndexShards")
 	}
+
+	// Set own_fields=0 so FAISS doesn't free the shards (Go manages them)
+	faiss_IndexShards_set_own_fields(ptr, 0)
 
 	idx := &IndexShards{
 		ptr:       ptr,
