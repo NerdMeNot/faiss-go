@@ -270,10 +270,11 @@ int faiss_Kmeans_set_verbose(FaissKmeans kmeans, int verbose) {
     CATCH_AND_HANDLE()
 }
 
-int faiss_Kmeans_get_centroids(FaissKmeans kmeans, float** centroids, int64_t* size) {
+int faiss_Kmeans_get_centroids(FaissKmeans kmeans, float* centroids) {
     try {
-        *centroids = kmeans->centroids.data();
-        *size = kmeans->centroids.size();
+        // Copy centroids to the provided buffer (Go allocates k*d floats)
+        std::memcpy(centroids, kmeans->centroids.data(),
+                    kmeans->centroids.size() * sizeof(float));
         return 0;
     }
     CATCH_AND_HANDLE()
