@@ -17,11 +17,14 @@
  * - Binary index constructors (IndexBinaryFlat, IndexBinaryHash, IndexBinaryIVF)
  * - HNSW index functions
  * - Advanced index types (IndexPQ, IndexIVFPQ, IndexIVFScalarQuantizer, IndexRefine)
- * - Composite index functions (IndexPreTransform, IndexShards)
+ * - Composite index functions (IndexPreTransform, IndexShards + own_indices getter/setter)
  * - K-means clustering
  * - Vector transforms (PCA, OPQ, RandomRotation)
  * - Serialization helpers (serialize/deserialize)
  * - Range search result helpers
+ *
+ * Note: IndexShards own_indices getter/setter are included here because FAISS C API
+ * has a bug where the header declares them but they're not exported with extern "C".
  *
  * NOTE: Common functions like Index_add, Index_search, Index_train etc.
  * are already in the official FAISS C API and should NOT be duplicated here.
@@ -228,6 +231,18 @@ int faiss_IndexShards_add_shard(FaissIndex index, FaissIndex shard) {
         return 0;
     }
     CATCH_AND_HANDLE()
+}
+
+void faiss_IndexShards_set_own_indices(FaissIndex index, int own_indices) {
+    auto* shards = dynamic_cast<faiss::IndexShards*>(index);
+    if (shards) {
+        shards->own_indices = (bool)own_indices;
+    }
+}
+
+int faiss_IndexShards_own_indices(FaissIndex index) {
+    auto* shards = dynamic_cast<faiss::IndexShards*>(index);
+    return shards ? (int)shards->own_indices : 0;
 }
 
 // ==== K-means Clustering ====
