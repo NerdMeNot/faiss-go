@@ -17,14 +17,15 @@
  * - Binary index constructors (IndexBinaryFlat, IndexBinaryHash, IndexBinaryIVF)
  * - HNSW index functions
  * - Advanced index types (IndexPQ, IndexIVFPQ, IndexIVFScalarQuantizer, IndexRefine)
- * - Composite index functions (IndexPreTransform, IndexShards + own_indices getter/setter)
+ * - IndexShards own_indices getter/setter (FAISS C API bug - not exported)
  * - K-means clustering
  * - Vector transforms (PCA, OPQ, RandomRotation)
  * - Serialization helpers (serialize/deserialize)
  * - Range search result helpers
  *
- * Note: IndexShards own_indices getter/setter are included here because FAISS C API
- * has a bug where the header declares them but they're not exported with extern "C".
+ * NOTE: Most composite index functions (IndexPreTransform, IndexShards, IndexRefine, etc.)
+ * ARE in the official FAISS 1.13.2 C API and should NOT be duplicated here.
+ * Only functions truly missing from the official C API should be added to this file.
  *
  * NOTE: Common functions like Index_add, Index_search, Index_train etc.
  * are already in the official FAISS C API and should NOT be duplicated here.
@@ -200,38 +201,10 @@ int faiss_IndexRefine_set_k_factor(FaissIndex index, float k_factor) {
     CATCH_AND_HANDLE()
 }
 
-// ==== IndexPreTransform Functions ====
-
-int faiss_IndexPreTransform_new(FaissIndex* p_index, FaissVectorTransform transform,
-                                FaissIndex base_index) {
-    try {
-        // Note: IndexPreTransform takes ownership of the transform
-        *p_index = new faiss::IndexPreTransform(transform, base_index);
-        return 0;
-    }
-    CATCH_AND_HANDLE()
-}
-
-// ==== IndexShards Functions ====
-
-int faiss_IndexShards_new(FaissIndex* p_index, int64_t d, int metric_type) {
-    try {
-        (void)metric_type; // IndexShards doesn't use metric in constructor
-        *p_index = new faiss::IndexShards(d, false, true); // threaded=false, successive_ids=true
-        return 0;
-    }
-    CATCH_AND_HANDLE()
-}
-
-int faiss_IndexShards_add_shard(FaissIndex index, FaissIndex shard) {
-    try {
-        auto* shards = dynamic_cast<faiss::IndexShards*>(index);
-        if (!shards) return -1;
-        shards->add_shard(shard);
-        return 0;
-    }
-    CATCH_AND_HANDLE()
-}
+// ==== IndexShards own_indices Functions ====
+// NOTE: These functions are needed because FAISS C API has a bug where
+// IndexShards_c.h declares own_fields but implementation uses own_indices
+// and doesn't export them with extern "C" linkage.
 
 void faiss_IndexShards_set_own_indices(FaissIndex index, int own_indices) {
     auto* shards = dynamic_cast<faiss::IndexShards*>(index);
