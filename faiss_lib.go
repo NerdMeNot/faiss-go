@@ -146,7 +146,7 @@ extern int faiss_IndexPreTransform_new(FaissIndex* p_index, FaissVectorTransform
 extern void faiss_IndexPreTransform_set_own_fields(FaissIndex index, int own_fields);
 extern int faiss_IndexShards_new(FaissIndex* p_index, int64_t d, int metric_type);
 extern int faiss_IndexShards_add_shard(FaissIndex index, FaissIndex shard);
-extern void faiss_IndexShards_set_own_fields(FaissIndex index, int own_fields);
+extern void faiss_IndexShards_set_own_indices(FaissIndex index, int own_indices);
 
 // ==== GPU Support Functions ====
 typedef void* FaissGpuResources;
@@ -847,9 +847,9 @@ func faiss_IndexPreTransform_set_own_fields(index uintptr, own_fields int) {
 	C.faiss_IndexPreTransform_set_own_fields(idx, C.int(own_fields))
 }
 
-func faiss_IndexShards_set_own_fields(index uintptr, own_fields int) {
+func faiss_IndexShards_set_own_indices(index uintptr, own_indices int) {
 	idx := C.FaissIndex(unsafe.Pointer(index))
-	C.faiss_IndexShards_set_own_fields(idx, C.int(own_fields))
+	C.faiss_IndexShards_set_own_indices(idx, C.int(own_indices))
 }
 
 // ==== LSH Index Wrapper Functions ====

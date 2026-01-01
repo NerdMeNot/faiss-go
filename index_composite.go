@@ -463,8 +463,8 @@ func NewIndexShards(d int, metric MetricType) (*IndexShards, error) {
 		return nil, fmt.Errorf("failed to create IndexShards")
 	}
 
-	// Set own_fields=0 so FAISS doesn't free the shards (Go manages them)
-	faiss_IndexShards_set_own_fields(ptr, 0)
+	// Set own_indices=0 so FAISS doesn't free the shards (Go manages them)
+	faiss_IndexShards_set_own_indices(ptr, 0)
 
 	idx := &IndexShards{
 		ptr:       ptr,
