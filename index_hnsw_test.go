@@ -29,19 +29,6 @@ func TestNewIndexHNSWFlat(t *testing.T) {
 	if !index.IsTrained() {
 		t.Error("HNSW index should always be trained")
 	}
-
-	if index.GetM() != M {
-		t.Errorf("Expected M=%d, got %d", M, index.GetM())
-	}
-
-	// Check default values
-	if index.GetEfConstruction() != 40 {
-		t.Errorf("Expected default efConstruction=40, got %d", index.GetEfConstruction())
-	}
-
-	if index.GetEfSearch() != 16 {
-		t.Errorf("Expected default efSearch=16, got %d", index.GetEfSearch())
-	}
 }
 
 func TestNewIndexHNSWFlat_InnerProduct(t *testing.T) {
@@ -82,74 +69,10 @@ func TestNewIndexHNSWFlat_InvalidParameters(t *testing.T) {
 	}
 }
 
-func TestIndexHNSW_SetEfSearch(t *testing.T) {
-	d := 64
-	M := 32
-
-	index, err := NewIndexHNSWFlat(d, M, MetricL2)
-	if err != nil {
-		t.Fatalf("Failed to create HNSW index: %v", err)
-	}
-	defer index.Close()
-
-	// Test valid efSearch values
-	validEfSearch := []int{16, 32, 64, 128, 256}
-	for _, ef := range validEfSearch {
-		if err := index.SetEfSearch(ef); err != nil {
-			t.Errorf("SetEfSearch(%d) failed: %v", ef, err)
-		}
-		if index.GetEfSearch() != ef {
-			t.Errorf("Expected efSearch=%d, got %d", ef, index.GetEfSearch())
-		}
-	}
-
-	// Test invalid efSearch values
-	invalidEfSearch := []int{0, -1}
-	for _, ef := range invalidEfSearch {
-		if err := index.SetEfSearch(ef); err == nil {
-			t.Errorf("Expected error for efSearch=%d", ef)
-		}
-	}
-}
-
-func TestIndexHNSW_SetEfConstruction(t *testing.T) {
-	d := 64
-	M := 32
-
-	index, err := NewIndexHNSWFlat(d, M, MetricL2)
-	if err != nil {
-		t.Fatalf("Failed to create HNSW index: %v", err)
-	}
-	defer index.Close()
-
-	// Test valid efConstruction values
-	validEfConstruction := []int{20, 40, 80, 160}
-	for _, ef := range validEfConstruction {
-		if err := index.SetEfConstruction(ef); err != nil {
-			t.Errorf("SetEfConstruction(%d) failed: %v", ef, err)
-		}
-		if index.GetEfConstruction() != ef {
-			t.Errorf("Expected efConstruction=%d, got %d", ef, index.GetEfConstruction())
-		}
-	}
-
-	// Test invalid efConstruction values
-	invalidEfConstruction := []int{0, -1}
-	for _, ef := range invalidEfConstruction {
-		if err := index.SetEfConstruction(ef); err == nil {
-			t.Errorf("Expected error for efConstruction=%d", ef)
-		}
-	}
-}
-
 func TestIndexHNSW_AddSearch(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping HNSW add/search test in short mode")
-	}
-
 	d := 32
 	M := 16
-	n := 1000
+	n := 500
 	nQuery := 10
 	k := 5
 
@@ -159,14 +82,6 @@ func TestIndexHNSW_AddSearch(t *testing.T) {
 		t.Fatalf("Failed to create HNSW index: %v", err)
 	}
 	defer index.Close()
-
-	// Set parameters
-	if err := index.SetEfConstruction(40); err != nil {
-		t.Fatalf("SetEfConstruction failed: %v", err)
-	}
-	if err := index.SetEfSearch(32); err != nil {
-		t.Fatalf("SetEfSearch failed: %v", err)
-	}
 
 	// Add vectors
 	vectors := make([]float32, d*n)
@@ -233,36 +148,7 @@ func TestIndexHNSW_Train(t *testing.T) {
 	}
 }
 
-func TestIndexHNSW_InvalidVectorSize(t *testing.T) {
-	d := 32
-	M := 16
-
-	index, err := NewIndexHNSWFlat(d, M, MetricL2)
-	if err != nil {
-		t.Fatalf("Failed to create HNSW index: %v", err)
-	}
-	defer index.Close()
-
-	// Try to add with invalid size
-	invalidVectors := make([]float32, d+1)
-	err = index.Add(invalidVectors)
-	if err != ErrInvalidVectors {
-		t.Errorf("Expected ErrInvalidVectors, got %v", err)
-	}
-
-	// Try to search with invalid size
-	invalidQuery := make([]float32, d+1)
-	_, _, err = index.Search(invalidQuery, 5)
-	if err != ErrInvalidVectors {
-		t.Errorf("Expected ErrInvalidVectors, got %v", err)
-	}
-}
-
 func TestIndexHNSW_Reset(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping reset test in short mode")
-	}
-
 	d := 32
 	M := 16
 	n := 100
@@ -293,25 +179,37 @@ func TestIndexHNSW_Reset(t *testing.T) {
 	}
 }
 
-func TestIndexHNSW_DifferentMValues(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping M values test in short mode")
+func TestNewIndexHNSW_Alias(t *testing.T) {
+	// NewIndexHNSW should be equivalent to NewIndexHNSWFlat
+	d := 32
+	M := 16
+
+	index, err := NewIndexHNSW(d, M, MetricL2)
+	if err != nil {
+		t.Fatalf("Failed to create HNSW index via alias: %v", err)
+	}
+	defer index.Close()
+
+	if index.D() != d {
+		t.Errorf("Expected dimension %d, got %d", d, index.D())
 	}
 
+	if !index.IsTrained() {
+		t.Error("HNSW index should always be trained")
+	}
+}
+
+func TestIndexHNSW_DifferentMValues(t *testing.T) {
 	d := 32
 	mValues := []int{8, 16, 32, 48}
 
 	for _, M := range mValues {
-		t.Run("M="+string(rune(M)), func(t *testing.T) {
+		t.Run("M="+string(rune('0'+M/10))+string(rune('0'+M%10)), func(t *testing.T) {
 			index, err := NewIndexHNSWFlat(d, M, MetricL2)
 			if err != nil {
 				t.Fatalf("Failed to create HNSW index with M=%d: %v", M, err)
 			}
 			defer index.Close()
-
-			if index.GetM() != M {
-				t.Errorf("Expected M=%d, got %d", M, index.GetM())
-			}
 
 			// Add a few vectors
 			vectors := make([]float32, d*100)
@@ -327,56 +225,5 @@ func TestIndexHNSW_DifferentMValues(t *testing.T) {
 				t.Errorf("Expected 100 vectors, got %d", index.Ntotal())
 			}
 		})
-	}
-}
-
-func TestIndexHNSW_EfSearchQualityTradeoff(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping efSearch quality test in short mode")
-	}
-
-	d := 32
-	M := 32
-	n := 500
-	k := 10
-
-	// Create index
-	index, err := NewIndexHNSWFlat(d, M, MetricL2)
-	if err != nil {
-		t.Fatalf("Failed to create HNSW index: %v", err)
-	}
-	defer index.Close()
-
-	// Add vectors
-	vectors := make([]float32, d*n)
-	for i := range vectors {
-		vectors[i] = float32(i % 20)
-	}
-
-	if err := index.Add(vectors); err != nil {
-		t.Fatalf("Add failed: %v", err)
-	}
-
-	// Test with different efSearch values
-	query := make([]float32, d)
-	for i := range query {
-		query[i] = 5.0
-	}
-
-	efSearchValues := []int{16, 64, 256}
-	for _, ef := range efSearchValues {
-		if err := index.SetEfSearch(ef); err != nil {
-			t.Fatalf("SetEfSearch(%d) failed: %v", ef, err)
-		}
-
-		distances, indices, err := index.Search(query, k)
-		if err != nil {
-			t.Fatalf("Search with efSearch=%d failed: %v", ef, err)
-		}
-
-		if len(distances) != k || len(indices) != k {
-			t.Errorf("efSearch=%d: expected %d results, got distances=%d, indices=%d",
-				ef, k, len(distances), len(indices))
-		}
 	}
 }

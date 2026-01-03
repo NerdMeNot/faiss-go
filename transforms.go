@@ -50,7 +50,7 @@ func NewPCAMatrix(dIn, dOut int) (*PCAMatrix, error) {
 	}
 
 	var ptr uintptr
-	ret := faiss_PCAMatrix_new(&ptr, int64(dIn), int64(dOut), 0, 0)
+	ret := faiss_PCAMatrix_new_with(&ptr, int64(dIn), int64(dOut), 0, 0)
 	if ret != 0 {
 		return nil, fmt.Errorf("failed to create PCAMatrix")
 	}
@@ -76,7 +76,7 @@ func NewPCAMatrixWithEigen(dIn, dOut int, eigenPower float32) (*PCAMatrix, error
 	}
 
 	var ptr uintptr
-	ret := faiss_PCAMatrix_new(&ptr, int64(dIn), int64(dOut), eigenPower, 1)
+	ret := faiss_PCAMatrix_new_with(&ptr, int64(dIn), int64(dOut), eigenPower, 1)
 	if ret != 0 {
 		return nil, fmt.Errorf("failed to create PCAMatrix")
 	}
@@ -144,10 +144,7 @@ func (pca *PCAMatrix) Apply(vectors []float32) ([]float32, error) {
 	n := len(vectors) / pca.dIn
 	output := make([]float32, n*pca.dOut)
 
-	ret := faiss_VectorTransform_apply(pca.ptr, int64(n), &vectors[0], &output[0])
-	if ret != 0 {
-		return nil, fmt.Errorf("PCA apply failed")
-	}
+	faiss_VectorTransform_apply(pca.ptr, int64(n), &vectors[0], &output[0])
 
 	return output, nil
 }
@@ -167,10 +164,7 @@ func (pca *PCAMatrix) ReverseTransform(vectors []float32) ([]float32, error) {
 	n := len(vectors) / pca.dOut
 	output := make([]float32, n*pca.dIn)
 
-	ret := faiss_VectorTransform_reverse_transform(pca.ptr, int64(n), &vectors[0], &output[0])
-	if ret != 0 {
-		return nil, fmt.Errorf("PCA reverse transform failed")
-	}
+	faiss_VectorTransform_reverse_transform(pca.ptr, int64(n), &vectors[0], &output[0])
 
 	return output, nil
 }
@@ -211,7 +205,8 @@ func NewOPQMatrix(d, M int) (*OPQMatrix, error) {
 	}
 
 	var ptr uintptr
-	ret := faiss_OPQMatrix_new(&ptr, int64(d), int64(M))
+	// d2 is output dimension (typically same as input dimension d)
+	ret := faiss_OPQMatrix_new_with(&ptr, d, M, d)
 	if ret != 0 {
 		return nil, fmt.Errorf("failed to create OPQMatrix")
 	}
@@ -284,10 +279,7 @@ func (opq *OPQMatrix) Apply(vectors []float32) ([]float32, error) {
 	n := len(vectors) / opq.d
 	output := make([]float32, len(vectors))
 
-	ret := faiss_VectorTransform_apply(opq.ptr, int64(n), &vectors[0], &output[0])
-	if ret != 0 {
-		return nil, fmt.Errorf("OPQ apply failed")
-	}
+	faiss_VectorTransform_apply(opq.ptr, int64(n), &vectors[0], &output[0])
 
 	return output, nil
 }
@@ -307,10 +299,7 @@ func (opq *OPQMatrix) ReverseTransform(vectors []float32) ([]float32, error) {
 	n := len(vectors) / opq.d
 	output := make([]float32, len(vectors))
 
-	ret := faiss_VectorTransform_reverse_transform(opq.ptr, int64(n), &vectors[0], &output[0])
-	if ret != 0 {
-		return nil, fmt.Errorf("OPQ reverse transform failed")
-	}
+	faiss_VectorTransform_reverse_transform(opq.ptr, int64(n), &vectors[0], &output[0])
 
 	return output, nil
 }
@@ -349,7 +338,7 @@ func NewRandomRotationMatrix(dIn, dOut int) (*RandomRotationMatrix, error) {
 	}
 
 	var ptr uintptr
-	ret := faiss_RandomRotationMatrix_new(&ptr, int64(dIn), int64(dOut))
+	ret := faiss_RandomRotationMatrix_new_with(&ptr, int64(dIn), int64(dOut))
 	if ret != 0 {
 		return nil, fmt.Errorf("failed to create RandomRotationMatrix")
 	}
@@ -358,7 +347,7 @@ func NewRandomRotationMatrix(dIn, dOut int) (*RandomRotationMatrix, error) {
 		ptr:       ptr,
 		dIn:       dIn,
 		dOut:      dOut,
-		isTrained: true, // no training needed
+		isTrained: false, // Must call Train() to initialize the rotation matrix
 	}
 
 	runtime.SetFinalizer(rr, func(r *RandomRotationMatrix) {
@@ -383,13 +372,39 @@ func (rr *RandomRotationMatrix) IsTrained() bool {
 	return rr.isTrained
 }
 
-// Train is a no-op (random rotation doesn't need training)
+// Train initializes the random rotation matrix.
+// Unlike PCA, RandomRotation doesn't learn from data, but the C library
+// requires train() to be called to initialize the rotation matrix.
 func (rr *RandomRotationMatrix) Train(vectors []float32) error {
+	if rr.isTrained {
+		return nil // Already trained
+	}
+
+	// RandomRotation needs at least one vector to initialize
+	if len(vectors) == 0 {
+		// Use dummy data - RandomRotation doesn't learn from it
+		vectors = make([]float32, rr.dIn)
+	}
+
+	if len(vectors)%rr.dIn != 0 {
+		return fmt.Errorf("vectors length must be multiple of input dimension %d", rr.dIn)
+	}
+
+	n := int64(len(vectors) / rr.dIn)
+	ret := faiss_VectorTransform_train(rr.ptr, n, &vectors[0])
+	if ret != 0 {
+		return fmt.Errorf("random rotation training failed")
+	}
+
+	rr.isTrained = true
 	return nil
 }
 
 // Apply applies the random rotation to vectors
 func (rr *RandomRotationMatrix) Apply(vectors []float32) ([]float32, error) {
+	if !rr.isTrained {
+		return nil, fmt.Errorf("random rotation must be trained before applying")
+	}
 	if len(vectors) == 0 {
 		return []float32{}, nil
 	}
@@ -400,10 +415,7 @@ func (rr *RandomRotationMatrix) Apply(vectors []float32) ([]float32, error) {
 	n := len(vectors) / rr.dIn
 	output := make([]float32, n*rr.dOut)
 
-	ret := faiss_VectorTransform_apply(rr.ptr, int64(n), &vectors[0], &output[0])
-	if ret != 0 {
-		return nil, fmt.Errorf("random rotation apply failed")
-	}
+	faiss_VectorTransform_apply(rr.ptr, int64(n), &vectors[0], &output[0])
 
 	return output, nil
 }
@@ -423,10 +435,7 @@ func (rr *RandomRotationMatrix) ReverseTransform(vectors []float32) ([]float32, 
 	n := len(vectors) / rr.dOut
 	output := make([]float32, n*rr.dIn)
 
-	ret := faiss_VectorTransform_reverse_transform(rr.ptr, int64(n), &vectors[0], &output[0])
-	if ret != 0 {
-		return nil, fmt.Errorf("random rotation reverse transform failed")
-	}
+	faiss_VectorTransform_reverse_transform(rr.ptr, int64(n), &vectors[0], &output[0])
 
 	return output, nil
 }

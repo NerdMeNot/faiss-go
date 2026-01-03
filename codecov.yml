@@ -1,0 +1,77 @@
+# Codecov configuration for faiss-go
+# https://docs.codecov.com/docs/codecovyml-reference
+
+coverage:
+  # Coverage precision (number of decimal places)
+  precision: 2
+
+  # Round coverage (up, down, nearest)
+  round: down
+
+  # Range for coverage colors (red to green)
+  range: "60...90"
+
+  status:
+    # Project-level coverage status
+    project:
+      default:
+        # Target coverage percentage
+        target: 75%
+        # Allow coverage to drop by this much
+        threshold: 2%
+        # Only check coverage on changed files
+        only_changed_files: false
+
+    # Patch-level coverage (new/changed code)
+    patch:
+      default:
+        # Target for new code
+        target: 70%
+        # Allow patch coverage to drop by this much
+        threshold: 5%
+
+# Parse configuration
+parsers:
+  gcov:
+    branch_detection:
+      conditional: true
+      loop: true
+      macro: false
+      method: false
+
+# Comment configuration for PRs
+comment:
+  # Post coverage comment on PRs
+  layout: "reach,diff,flags,files"
+  # Update existing comment instead of posting new
+  behavior: default
+  # Require changes to post comment
+  require_changes: true
+  # Show coverage for changed files only
+  require_base: false
+  require_head: true
+
+# Flags for different test types
+flags:
+  unittests:
+    paths:
+      - "*.go"
+      - "!*_test.go"
+    carryforward: true
+
+# Ignore certain paths from coverage
+ignore:
+  # Example files
+  - "examples/**/*"
+  # Test helpers
+  - "test/**/*"
+  # GPU-specific code (not testable in CI)
+  - "faiss_gpu.go"
+  - "index_gpu.go"
+  - "gpu.go"
+  # Build configuration
+  - "faiss_system.go"
+
+# GitHub integration
+github_checks:
+  annotations: true

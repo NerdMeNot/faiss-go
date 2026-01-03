@@ -96,6 +96,35 @@ func (d *SyntheticDataset) GenerateQueries(numQueries int, distribution DataDist
 	}
 }
 
+// GeneratePerturbedQueries creates query vectors as noisy perturbations of actual vectors
+// This ensures queries have known nearest neighbors (the vectors they were perturbed from)
+// noiseLevel controls the amount of noise (0.0 = identical, 0.1 = 10% noise, etc.)
+func (d *SyntheticDataset) GeneratePerturbedQueries(numQueries int, noiseLevel float32) {
+	if len(d.Vectors) == 0 {
+		panic("Cannot generate perturbed queries from empty dataset")
+	}
+
+	d.Queries = make([]float32, numQueries*d.D)
+	d.NumQueries = numQueries
+
+	// For each query, pick a uniformly distributed random vector and add noise
+	// We distribute source vectors evenly across the dataset to ensure good coverage
+	for i := 0; i < numQueries; i++ {
+		// Use modulo to distribute queries evenly, with some randomness
+		// This ensures we sample from across the entire dataset
+		baseIdx := (i * d.N) / numQueries  // Evenly distribute
+		offset := rand.Intn(max(1, d.N/numQueries))  // Add some randomness
+		srcIdx := (baseIdx + offset) % d.N
+
+		// Copy the vector and add Gaussian noise
+		for j := 0; j < d.D; j++ {
+			originalValue := d.Vectors[srcIdx*d.D+j]
+			noise := float32(rand.NormFloat64()) * noiseLevel
+			d.Queries[i*d.D+j] = originalValue + noise
+		}
+	}
+}
+
 // generateUniformRandom creates uniformly distributed random vectors
 func generateUniformRandom(vectors []float32, n, d int) {
 	for i := 0; i < n*d; i++ {
@@ -393,6 +422,105 @@ func GetDatasetConfig(name string) DatasetConfig {
 
 	// Default local config if name not found
 	return DatasetConfig{N: 10000, D: 256, NQ: 100, K: 10}
+}
+
+// GenerateClusteredDataWithGroundTruth creates clustered data with known nearest neighbors
+// This is superior to random data for testing because:
+// - Recall is predictable (vectors in same cluster should be nearest neighbors)
+// - Tests are reproducible with fixed seed
+// - Can validate that indexes correctly identify cluster membership
+func GenerateClusteredDataWithGroundTruth(n, d, numClusters int, seed int64) *SyntheticDataset {
+	if seed != 0 {
+		rand.Seed(seed)
+	}
+
+	dataset := &SyntheticDataset{
+		Vectors: make([]float32, n*d),
+		N:       n,
+		D:       d,
+	}
+
+	// Generate well-separated cluster centers for better recall
+	centers := make([][]float32, numClusters)
+	for i := 0; i < numClusters; i++ {
+		centers[i] = make([]float32, d)
+		// Place clusters far apart in a grid pattern for better separation
+		gridSize := int(math.Ceil(math.Sqrt(float64(numClusters))))
+		gridX := i % gridSize
+		gridY := i / gridSize
+
+		for j := 0; j < d; j++ {
+			// First two dimensions determine grid position, rest are random
+			if j == 0 {
+				centers[i][j] = float32(gridX) * 100.0
+			} else if j == 1 {
+				centers[i][j] = float32(gridY) * 100.0
+			} else {
+				centers[i][j] = rand.Float32() * 10.0 // Small variance in other dims
+			}
+		}
+	}
+
+	// Assign vectors to clusters with tight clustering (low stddev)
+	labels := make([]int, n)
+	for i := 0; i < n; i++ {
+		clusterID := i % numClusters // Evenly distribute across clusters
+		labels[i] = clusterID
+
+		for j := 0; j < d; j++ {
+			// Tight Gaussian noise around cluster center (stddev = 1.0)
+			noise := rand.NormFloat64() * 1.0
+			dataset.Vectors[i*d+j] = centers[clusterID][j] + float32(noise)
+		}
+	}
+
+	dataset.Labels = labels
+	return dataset
+}
+
+// GenerateQueriesFromClusters creates queries that are close to specific clusters
+// This allows for predictable recall testing:
+// - Query i will have its K nearest neighbors in cluster i % numClusters
+func (d *SyntheticDataset) GenerateQueriesFromClusters(numQueries int, noiseLevel float32) {
+	if len(d.Labels) == 0 {
+		panic("Dataset must have cluster labels to generate cluster-based queries")
+	}
+
+	numClusters := max(d.Labels...) + 1
+	d.Queries = make([]float32, numQueries*d.D)
+	d.NumQueries = numQueries
+
+	// Compute cluster centers from actual data
+	centers := make([][]float32, numClusters)
+	counts := make([]int, numClusters)
+	for i := 0; i < numClusters; i++ {
+		centers[i] = make([]float32, d.D)
+	}
+
+	// Average vectors in each cluster to find center
+	for i := 0; i < d.N; i++ {
+		clusterID := d.Labels[i]
+		counts[clusterID]++
+		for j := 0; j < d.D; j++ {
+			centers[clusterID][j] += d.Vectors[i*d.D+j]
+		}
+	}
+	for i := 0; i < numClusters; i++ {
+		if counts[i] > 0 {
+			for j := 0; j < d.D; j++ {
+				centers[i][j] /= float32(counts[i])
+			}
+		}
+	}
+
+	// Generate queries near cluster centers
+	for i := 0; i < numQueries; i++ {
+		clusterID := i % numClusters
+		for j := 0; j < d.D; j++ {
+			noise := float32(rand.NormFloat64()) * noiseLevel
+			d.Queries[i*d.D+j] = centers[clusterID][j] + noise
+		}
+	}
 }
 
 // Helper function to find max in slice

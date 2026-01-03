@@ -1,12 +1,23 @@
 name: Build Static Libraries
 
+# Builds fully self-contained static FAISS libraries with all dependencies bundled.
+# For Linux, this includes static OpenBLAS, eliminating runtime dependencies.
+# For macOS, uses the system Accelerate framework (always available).
+#
+# Run this workflow to update the pre-built libraries in libs/
+
 on:
   workflow_dispatch:
     inputs:
       faiss_version:
-        description: 'FAISS version tag (e.g., v1.13.2)'
+        description: 'FAISS version tag (e.g., v1.8.0)'
         required: true
-        default: 'v1.13.2'
+        default: 'v1.8.0'
+      build_fully_static:
+        description: 'Build fully static libs (bundle OpenBLAS)'
+        required: true
+        default: 'true'
+        type: boolean
       platforms:
         description: 'Platforms to build (comma-separated: linux-amd64,linux-arm64,darwin-amd64,darwin-arm64,windows-amd64 or "all")'
         required: true
@@ -28,13 +39,20 @@ jobs:
             build-essential \
             cmake \
             git \
+            gfortran \
             libopenblas-dev \
             libomp-dev
 
       - name: Build FAISS static library
         run: |
-          chmod +x scripts/build_static_lib.sh
-          ./scripts/build_static_lib.sh linux-amd64 ${{ github.event.inputs.faiss_version }}
+          chmod +x scripts/build-static-libs.sh
+          if [ "${{ github.event.inputs.build_fully_static }}" = "true" ]; then
+            # Build with OpenBLAS statically linked (no runtime deps)
+            ./scripts/build-static-libs.sh
+          else
+            # Build with system dependencies
+            ./scripts/build_static_lib.sh linux-amd64 ${{ github.event.inputs.faiss_version }}
+          fi
 
       - name: Verify library
         run: |
@@ -353,8 +371,8 @@ jobs:
           ## Test the Build
 
           ```bash
-          go build -tags=faiss_use_lib,nogpu -v ./...
-          go test -tags=faiss_use_lib,nogpu -v ./...
+          go build -v ./...
+          go test -v ./...
           ```
           EOF
 

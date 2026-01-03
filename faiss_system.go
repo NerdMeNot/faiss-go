@@ -53,13 +53,16 @@ typedef void* FaissIndex;
 typedef void* FaissIndexBinary;
 typedef void* FaissVectorTransform;
 typedef void* FaissKmeans;
+typedef void* FaissIndexRefineFlat;
+typedef void* FaissIndexIVFFlat;
+typedef void* FaissIndexPreTransform;
 
 // ==== Flat Index Functions ====
-extern int faiss_IndexFlatL2_new(FaissIndex* p_index, int64_t d);
-extern int faiss_IndexFlatIP_new(FaissIndex* p_index, int64_t d);
+extern int faiss_IndexFlatL2_new_with(FaissIndex* p_index, int64_t d);
+extern int faiss_IndexFlatIP_new_with(FaissIndex* p_index, int64_t d);
 
 // ==== IVF Index Functions ====
-extern int faiss_IndexIVFFlat_new(FaissIndex* p_index, FaissIndex quantizer, int64_t d, int64_t nlist, int metric_type);
+extern int faiss_IndexIVFFlat_new_with_metric(FaissIndexIVFFlat** p_index, FaissIndex quantizer, size_t d, size_t nlist, int metric_type);
 extern int faiss_IndexIVF_set_nprobe(FaissIndex index, int64_t nprobe);
 extern int faiss_IndexIVF_get_nprobe(FaissIndex index, int64_t* nprobe);
 
@@ -87,6 +90,7 @@ extern int faiss_Index_range_search(FaissIndex index, int64_t n, const float* x,
 extern int faiss_RangeSearchResult_get(void* result, int64_t** lims, int64_t** labels, float** distances);
 extern void faiss_RangeSearchResult_free(void* result);
 extern int faiss_Index_train(FaissIndex index, int64_t n, const float* x);
+// Note: faiss_c_impl.cpp provides a 4-arg version that casts to IndexIVF internally
 extern int faiss_Index_assign(FaissIndex index, int64_t n, const float* x, int64_t* labels);
 extern int faiss_Index_reconstruct(FaissIndex index, int64_t key, float* recons);
 extern int faiss_Index_reconstruct_n(FaissIndex index, int64_t i0, int64_t ni, float* recons);
@@ -144,7 +148,7 @@ extern void faiss_VectorTransform_free(FaissVectorTransform transform);
 // ==== Composite Index Functions ====
 extern int faiss_IndexRefine_new(FaissIndex* p_index, FaissIndex base_index, FaissIndex refine_index);
 extern int faiss_IndexRefine_set_k_factor(FaissIndex index, float k_factor);
-extern int faiss_IndexPreTransform_new(FaissIndex* p_index, FaissVectorTransform transform, FaissIndex base_index);
+extern int faiss_IndexPreTransform_new_with_transform(FaissIndexPreTransform** p_index, FaissVectorTransform* ltrans, FaissIndex* index);
 extern int faiss_IndexShards_new(FaissIndex* p_index, int64_t d, int metric_type);
 extern int faiss_IndexShards_add_shard(FaissIndex index, FaissIndex shard);
 
@@ -192,7 +196,7 @@ import (
 // faissIndexFlatL2New creates a new IndexFlatL2
 func faissIndexFlatL2New(d int) (uintptr, error) {
 	var idx C.FaissIndex
-	ret := C.faiss_IndexFlatL2_new(&idx, C.int64_t(d))
+	ret := C.faiss_IndexFlatL2_new_with(&idx, C.int64_t(d))
 	if ret != 0 {
 		return 0, fmt.Errorf("FAISS error code: %d", ret)
 	}
@@ -205,7 +209,7 @@ func faissIndexFlatL2New(d int) (uintptr, error) {
 // faissIndexFlatIPNew creates a new IndexFlatIP
 func faissIndexFlatIPNew(d int) (uintptr, error) {
 	var idx C.FaissIndex
-	ret := C.faiss_IndexFlatIP_new(&idx, C.int64_t(d))
+	ret := C.faiss_IndexFlatIP_new_with(&idx, C.int64_t(d))
 	if ret != 0 {
 		return 0, fmt.Errorf("FAISS error code: %d", ret)
 	}
@@ -290,9 +294,9 @@ func getBLASBackend() string {
 // ==== IVF Index Functions ====
 
 func faissIndexIVFFlatNew(quantizerPtr uintptr, d, nlist, metric int) (uintptr, error) {
-	var idx C.FaissIndex
+	var idx *C.FaissIndexIVFFlat
 	quantizer := C.FaissIndex(unsafe.Pointer(quantizerPtr))
-	ret := C.faiss_IndexIVFFlat_new(&idx, quantizer, C.int64_t(d), C.int64_t(nlist), C.int(metric))
+	ret := C.faiss_IndexIVFFlat_new_with_metric(&idx, quantizer, C.size_t(d), C.size_t(nlist), C.int(metric))
 	if ret != 0 {
 		return 0, fmt.Errorf("FAISS error code: %d", ret)
 	}
@@ -323,15 +327,6 @@ func faissIndexHNSWFlatNew(d, M, metric int) (uintptr, error) {
 		return 0, errors.New("null index pointer")
 	}
 	return uintptr(unsafe.Pointer(idx)), nil
-}
-
-func faissIndexHNSWSetEfConstruction(ptr uintptr, ef int) error {
-	idx := C.FaissIndex(unsafe.Pointer(ptr))
-	ret := C.faiss_IndexHNSW_set_efConstruction(idx, C.int(ef))
-	if ret != 0 {
-		return fmt.Errorf("FAISS error code: %d", ret)
-	}
-	return nil
 }
 
 func faissIndexHNSWSetEfSearch(ptr uintptr, ef int) error {
@@ -392,7 +387,9 @@ func faissIndexTrain(ptr uintptr, vectors []float32, n int) error {
 	return nil
 }
 
-func faissIndexAssign(ptr uintptr, vectors []float32, n int, labels []int64) error {
+func faissIndexAssign(ptr uintptr, vectors []float32, n int, labels []int64, k int) error {
+	// Note: k parameter is ignored in system mode as faiss_c_impl.cpp uses IndexIVF::assign()
+	// which implicitly assigns to the nearest centroid (k=1)
 	idx := C.FaissIndex(unsafe.Pointer(ptr))
 	vecPtr := (*C.float)(unsafe.Pointer(&vectors[0]))
 	labelPtr := (*C.int64_t)(unsafe.Pointer(&labels[0]))
@@ -417,62 +414,8 @@ func faissWriteIndex(ptr uintptr, filename string) error {
 	return nil
 }
 
-func faissReadIndex(filename string) (uintptr, string, int, int, int64, error) {
-	var idx C.FaissIndex
-	var indexType [256]C.char
-	var d, metric C.int
-	var ntotal C.int64_t
-
-	cFilename := C.CString(filename)
-	defer C.free(unsafe.Pointer(cFilename))
-
-	ret := C.faiss_read_index(cFilename, &idx, &indexType[0], &d, &metric, &ntotal)
-	if ret != 0 {
-		return 0, "", 0, 0, 0, fmt.Errorf("FAISS error code: %d", ret)
-	}
-	if idx == nil {
-		return 0, "", 0, 0, 0, errors.New("null index pointer")
-	}
-
-	return uintptr(unsafe.Pointer(idx)), C.GoString(&indexType[0]), int(d), int(metric), int64(ntotal), nil
-}
-
-func faissSerializeIndex(ptr uintptr) ([]byte, error) {
-	idx := C.FaissIndex(unsafe.Pointer(ptr))
-	var data *C.uint8_t
-	var size C.size_t
-
-	ret := C.faiss_serialize_index(idx, &data, &size)
-	if ret != 0 {
-		return nil, fmt.Errorf("FAISS error code: %d", ret)
-	}
-
-	// Copy C data to Go slice
-	goData := C.GoBytes(unsafe.Pointer(data), C.int(size))
-	C.free(unsafe.Pointer(data))
-
-	return goData, nil
-}
-
-func faissDeserializeIndex(data []byte) (uintptr, string, int, int, int64, error) {
-	var idx C.FaissIndex
-	var indexType [256]C.char
-	var d, metric C.int
-	var ntotal C.int64_t
-
-	dataPtr := (*C.uint8_t)(unsafe.Pointer(&data[0]))
-	size := C.size_t(len(data))
-
-	ret := C.faiss_deserialize_index(dataPtr, size, &idx, &indexType[0], &d, &metric, &ntotal)
-	if ret != 0 {
-		return 0, "", 0, 0, 0, fmt.Errorf("FAISS error code: %d", ret)
-	}
-	if idx == nil {
-		return 0, "", 0, 0, 0, errors.New("null index pointer")
-	}
-
-	return uintptr(unsafe.Pointer(idx)), C.GoString(&indexType[0]), int(d), int(metric), int64(ntotal), nil
-}
+// Note: Byte-level serialization functions removed due to ABI compatibility issues.
+// Use persistence.go (WriteIndexToFile, ReadIndexFromFile) for serialization.
 
 // ==== Kmeans Functions ====
 
@@ -797,10 +740,12 @@ func faiss_IndexRefine_set_k_factor(index uintptr, k_factor float32) int {
 }
 
 func faiss_IndexPreTransform_new(p_index *uintptr, transform, base_index uintptr) int {
-	var idx C.FaissIndex
-	t := C.FaissVectorTransform(unsafe.Pointer(transform))
-	base := C.FaissIndex(unsafe.Pointer(base_index))
-	ret := C.faiss_IndexPreTransform_new(&idx, t, base)
+	var idx *C.FaissIndexPreTransform
+	// C API: int faiss_IndexPreTransform_new_with_transform(FaissIndexPreTransform** p_index, FaissVectorTransform* ltrans, FaissIndex* index)
+	// FaissVectorTransform* is void*, FaissIndex* is void*
+	ret := C.faiss_IndexPreTransform_new_with_transform(&idx,
+		(C.FaissVectorTransform)(unsafe.Pointer(transform)),
+		(C.FaissIndex)(unsafe.Pointer(base_index)))
 	if ret == 0 && idx != nil {
 		*p_index = uintptr(unsafe.Pointer(idx))
 	}
@@ -808,8 +753,10 @@ func faiss_IndexPreTransform_new(p_index *uintptr, transform, base_index uintptr
 }
 
 func faiss_IndexShards_new(p_index *uintptr, d int64, metric_type int) int {
-	var idx C.FaissIndex
-	ret := C.faiss_IndexShards_new(&idx, C.int64_t(d), C.int(metric_type))
+	var idx *C.FaissIndexShards
+	// C API: int faiss_IndexShards_new(FaissIndexShards** p_index, idx_t d)
+	// Note: metric_type is NOT used in the C API, it's set via the added indexes
+	ret := C.faiss_IndexShards_new(&idx, C.int64_t(d))
 	if ret == 0 && idx != nil {
 		*p_index = uintptr(unsafe.Pointer(idx))
 	}
@@ -817,9 +764,11 @@ func faiss_IndexShards_new(p_index *uintptr, d int64, metric_type int) int {
 }
 
 func faiss_IndexShards_add_shard(index, shard uintptr) int {
-	idx := C.FaissIndex(unsafe.Pointer(index))
-	sh := C.FaissIndex(unsafe.Pointer(shard))
-	ret := C.faiss_IndexShards_add_shard(idx, sh)
+	// C API: int faiss_IndexShards_add_shard(FaissIndexShards* index, FaissIndex* shard)
+	// FaissIndexShards* is void*, FaissIndex* is void*
+	ret := C.faiss_IndexShards_add_shard(
+		(C.FaissIndexShards)(unsafe.Pointer(index)),
+		(C.FaissIndex)(unsafe.Pointer(shard)))
 	return int(ret)
 }
 

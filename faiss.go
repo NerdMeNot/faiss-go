@@ -205,12 +205,34 @@ import (
 )
 
 // Version information
+//
+// Versioning scheme: v{FAISS_VERSION}-{BINDING_MAJOR}.{BINDING_MINOR}
+// Example: v1.13.2-0.1
+//
+// - FAISS_VERSION: The upstream FAISS library version this is built against
+// - BINDING_MAJOR: Incremented for new faiss-go features/interfaces (not in upstream FAISS)
+// - BINDING_MINOR: Incremented for bug fixes and minor improvements
+//
+// When FAISS releases a new version, reset binding version to 0.1
 const (
-	// Version is the faiss-go binding version
-	Version = "0.1.0-alpha"
-	// FAISSVersion is the embedded FAISS library version
-	FAISSVersion = "1.13.2" // Updated to match static library builds
+	// FAISSVersion is the upstream FAISS library version
+	FAISSVersion = "1.13.2"
+
+	// BindingMajor is incremented for new faiss-go features/interfaces
+	BindingMajor = 0
+
+	// BindingMinor is incremented for bug fixes and improvements
+	BindingMinor = 1
+
+	// Version is the full faiss-go version string (auto-generated)
+	Version = FAISSVersion + "-" + "0.1" // Note: Can't use fmt.Sprintf in const
 )
+
+// FullVersion returns the complete version string with 'v' prefix
+// Example: "v1.13.2-0.1"
+func FullVersion() string {
+	return fmt.Sprintf("v%s-%d.%d", FAISSVersion, BindingMajor, BindingMinor)
+}
 
 var (
 	// ErrInvalidDimension is returned when dimension is invalid
@@ -258,6 +280,32 @@ type IndexFlat struct {
 
 // Ensure IndexFlat implements Index
 var _ Index = (*IndexFlat)(nil)
+
+// NewIndexFlat creates a new flat index with the specified metric.
+// This is the recommended constructor for flat indexes as it follows the same
+// pattern as other index constructors (NewIndexHNSW, NewIndexPQ, etc.).
+//
+// Parameters:
+//   - d: dimension of vectors
+//   - metric: distance metric (MetricL2 or MetricInnerProduct)
+//
+// Example:
+//
+//	index, err := faiss.NewIndexFlat(128, faiss.MetricL2)
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	defer index.Close()
+func NewIndexFlat(d int, metric MetricType) (*IndexFlat, error) {
+	switch metric {
+	case MetricL2:
+		return NewIndexFlatL2(d)
+	case MetricInnerProduct:
+		return NewIndexFlatIP(d)
+	default:
+		return nil, fmt.Errorf("faiss: unsupported metric type %d for flat index", metric)
+	}
+}
 
 // NewIndexFlatL2 creates a new flat index using L2 distance
 func NewIndexFlatL2(d int) (*IndexFlat, error) {
@@ -362,9 +410,11 @@ func (idx *IndexFlat) Add(vectors []float32) error {
 
 	n := len(vectors) / idx.d
 
+	timer := StartTimer()
 	if err := faissIndexAdd(idx.ptr, vectors, n); err != nil {
 		return fmt.Errorf("faiss: failed to add vectors: %w", err)
 	}
+	timer.RecordAdd(n)
 
 	idx.ntotal += int64(n)
 	return nil
@@ -402,9 +452,11 @@ func (idx *IndexFlat) Search(queries []float32, k int) (distances []float32, ind
 		defer runtime.UnlockOSThread()
 	}
 
+	timer := StartTimer()
 	if err := faissIndexSearch(idx.ptr, queries, nq, k, distances, indices); err != nil {
 		return nil, nil, fmt.Errorf("faiss: search failed: %w", err)
 	}
+	timer.RecordSearch(nq, nq*k)
 
 	return distances, indices, nil
 }
@@ -415,12 +467,24 @@ func (idx *IndexFlat) Reset() error {
 		return ErrNullPointer
 	}
 
+	timer := StartTimer()
 	if err := faissIndexReset(idx.ptr); err != nil {
 		return fmt.Errorf("faiss: reset failed: %w", err)
 	}
+	timer.RecordReset()
 
 	idx.ntotal = 0
 	return nil
+}
+
+// SetNprobe is not supported for flat indexes (not an IVF index)
+func (idx *IndexFlat) SetNprobe(nprobe int) error {
+	return fmt.Errorf("faiss: SetNprobe not supported for IndexFlat (not an IVF index)")
+}
+
+// SetEfSearch is not supported for flat indexes (not an HNSW index)
+func (idx *IndexFlat) SetEfSearch(efSearch int) error {
+	return fmt.Errorf("faiss: SetEfSearch not supported for IndexFlat (not an HNSW index)")
 }
 
 // Close releases resources associated with the index

@@ -215,7 +215,7 @@ func TestBuildInfo(t *testing.T) {
 		t.Error("FAISSVersion should not be empty")
 	}
 
-	if info.BuildMode != "source" && info.BuildMode != "prebuilt" {
+	if info.BuildMode != "source" && info.BuildMode != "prebuilt" && info.BuildMode != "static" {
 		t.Errorf("Unexpected build mode: %s", info.BuildMode)
 	}
 
@@ -258,5 +258,127 @@ func BenchmarkAddVectors(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_ = index.Reset()
 		_ = index.Add(vectors)
+	}
+}
+
+// Test to verify distances are computed correctly with NewIndexFlatL2
+func TestIndexFlatL2SearchDistances(t *testing.T) {
+	d := 4
+	vectors := []float32{
+		1, 2, 3, 4,    // Vec 0
+		5, 6, 7, 8,    // Vec 1
+		9, 10, 11, 12, // Vec 2
+	}
+
+	index, err := NewIndexFlatL2(d)
+	if err != nil {
+		t.Fatalf("Failed to create index: %v", err)
+	}
+	defer index.Close()
+
+	err = index.Add(vectors)
+	if err != nil {
+		t.Fatalf("Failed to add vectors: %v", err)
+	}
+
+	// Search with Vec 0
+	query := vectors[:4]
+	distances, ids, err := index.Search(query, 3)
+	if err != nil {
+		t.Fatalf("Search failed: %v", err)
+	}
+
+	t.Logf("NewIndexFlatL2 - Query: %v", query)
+	t.Logf("NewIndexFlatL2 - IDs: %v", ids)
+	t.Logf("NewIndexFlatL2 - Distances: %v", distances)
+
+	// Check IDs
+	if len(ids) != 3 {
+		t.Errorf("Expected 3 IDs, got %d", len(ids))
+	}
+	if len(distances) != 3 {
+		t.Errorf("Expected 3 distances, got %d", len(distances))
+	}
+
+	// Vec 0 should be closest (distance 0)
+	if ids[0] != 0 {
+		t.Errorf("Expected closest vector to be ID 0, got %d", ids[0])
+	}
+	if distances[0] > 0.01 {
+		t.Errorf("Expected distance to Vec 0 to be ~0, got %f", distances[0])
+	}
+
+	// Check that distances are NOT all zeros
+	allZero := true
+	for _, dist := range distances {
+		if dist > 0.01 {
+			allZero = false
+			break
+		}
+	}
+	if allZero && len(distances) > 1 {
+		t.Error("BUG DETECTED (NewIndexFlatL2): All distances are zero! Expected non-zero distances for Vec 1 and Vec 2")
+	}
+}
+
+// Test the same thing using IndexFactory to see if it has the same bug
+func TestIndexFactoryFlatSearchDistances(t *testing.T) {
+	d := 4
+	vectors := []float32{
+		1, 2, 3, 4,    // Vec 0
+		5, 6, 7, 8,    // Vec 1
+		9, 10, 11, 12, // Vec 2
+	}
+
+	index, err := IndexFactory(d, "Flat", MetricL2)
+	if err != nil {
+		t.Fatalf("Failed to create index via factory: %v", err)
+	}
+	defer index.Close()
+
+	err = index.Add(vectors)
+	if err != nil {
+		t.Fatalf("Failed to add vectors: %v", err)
+	}
+
+	// Search with Vec 0
+	query := vectors[:4]
+	distances, ids, err := index.Search(query, 3)
+	if err != nil {
+		t.Fatalf("Search failed: %v", err)
+	}
+
+	t.Logf("IndexFactory - Query: %v", query)
+	t.Logf("IndexFactory - IDs: %v", ids)
+	t.Logf("IndexFactory - Distances: %v", distances)
+
+	// Check IDs
+	if len(ids) != 3 {
+		t.Errorf("Expected 3 IDs, got %d", len(ids))
+	}
+	if len(distances) != 3 {
+		t.Errorf("Expected 3 distances, got %d", len(distances))
+	}
+
+	// Vec 0 should be closest (distance 0)
+	if ids[0] != 0 {
+		t.Errorf("Expected closest vector to be ID 0, got %d", ids[0])
+	}
+	if distances[0] > 0.01 {
+		t.Errorf("Expected distance to Vec 0 to be ~0, got %f", distances[0])
+	}
+
+	// Check that distances are NOT all zeros
+	allZero := true
+	for _, dist := range distances {
+		if dist > 0.01 {
+			allZero = false
+			break
+		}
+	}
+	if allZero && len(distances) > 1 {
+		t.Error("BUG DETECTED (IndexFactory): All distances are zero! Expected non-zero distances for Vec 1 and Vec 2")
+	} else {
+		t.Log("IndexFactory Flat works correctly - distances are non-zero")
 	}
 }

@@ -1,4 +1,5 @@
-// +build !nogpu
+//go:build gpu
+// +build gpu
 
 package faiss
 
@@ -52,9 +53,9 @@ func newGpuIndexFlat(res *StandardGpuResources, d, device int, metric MetricType
 	}
 
 	var ptr uintptr
-	ret := faiss_GpuIndexFlat_new(&ptr, res.ptr, int64(d), int(metric), int64(device))
-	if ret != 0 {
-		return nil, fmt.Errorf("failed to create GPU flat index")
+	err := faiss_GpuIndexFlat_new(&ptr, res.ptr, device, int64(d), int(metric))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create GPU flat index: %w", err)
 	}
 
 	idx := &GpuIndexFlat{
@@ -140,6 +141,16 @@ func (idx *GpuIndexFlat) Search(queries []float32, k int) (distances []float32, 
 	return distances, indices, nil
 }
 
+// SetNprobe is not supported for GPU flat indexes (not an IVF index)
+func (idx *GpuIndexFlat) SetNprobe(nprobe int) error {
+	return fmt.Errorf("faiss: SetNprobe not supported for GpuIndexFlat (not an IVF index)")
+}
+
+// SetEfSearch is not supported for GPU flat indexes (not an HNSW index)
+func (idx *GpuIndexFlat) SetEfSearch(efSearch int) error {
+	return fmt.Errorf("faiss: SetEfSearch not supported for GpuIndexFlat (not an HNSW index)")
+}
+
 // Reset removes all vectors
 func (idx *GpuIndexFlat) Reset() error {
 	ret := faiss_Index_reset(idx.ptr)
@@ -213,9 +224,9 @@ func NewGpuIndexIVFFlat(res *StandardGpuResources, quantizer Index, d, nlist, de
 	}
 
 	var ptr uintptr
-	ret := faiss_GpuIndexIVFFlat_new(&ptr, res.ptr, quantizerPtr, int64(d), int64(nlist), int(metric), int64(device))
-	if ret != 0 {
-		return nil, fmt.Errorf("failed to create GPU IVF flat index")
+	err := faiss_GpuIndexIVFFlat_new(&ptr, res.ptr, device, quantizerPtr, int64(d), int64(nlist), int(metric))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create GPU IVF flat index: %w", err)
 	}
 
 	idx := &GpuIndexIVFFlat{
@@ -351,6 +362,11 @@ func (idx *GpuIndexIVFFlat) Search(queries []float32, k int) (distances []float3
 	}
 
 	return distances, indices, nil
+}
+
+// SetEfSearch is not supported for GPU IVF indexes (not an HNSW index)
+func (idx *GpuIndexIVFFlat) SetEfSearch(efSearch int) error {
+	return fmt.Errorf("faiss: SetEfSearch not supported for GpuIndexIVFFlat (not an HNSW index)")
 }
 
 // Reset removes all vectors

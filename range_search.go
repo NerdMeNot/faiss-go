@@ -127,36 +127,5 @@ func (idx *IndexIVFFlat) RangeSearch(queries []float32, radius float32) (*RangeS
 	return result, nil
 }
 
-// RangeSearch for HNSW indexes
-func (idx *IndexHNSW) RangeSearch(queries []float32, radius float32) (*RangeSearchResult, error) {
-	if idx.ptr == 0 {
-		return nil, ErrNullPointer
-	}
-	if len(queries) == 0 {
-		return &RangeSearchResult{Nq: 0, Lims: []int64{0}, Labels: []int64{}, Distances: []float32{}}, nil
-	}
-	if len(queries)%idx.d != 0 {
-		return nil, ErrInvalidVectors
-	}
-
-	nq := len(queries) / idx.d
-
-	resultPtr, lims, labels, distances, err := faissIndexRangeSearch(idx.ptr, queries, nq, radius)
-	if err != nil {
-		return nil, fmt.Errorf("faiss: range search failed: %w", err)
-	}
-	defer faissRangeSearchResultFree(resultPtr)
-
-	result := &RangeSearchResult{
-		Nq:        nq,
-		Lims:      make([]int64, nq+1),
-		Labels:    make([]int64, len(labels)),
-		Distances: make([]float32, len(distances)),
-	}
-
-	copy(result.Lims, lims)
-	copy(result.Labels, labels)
-	copy(result.Distances, distances)
-
-	return result, nil
-}
+// RangeSearch for HNSW indexes - disabled (HNSW not available in static library)
+// func (idx *IndexHNSW) RangeSearch(queries []float32, radius float32) (*RangeSearchResult, error) { ... }

@@ -149,17 +149,7 @@ func (idx *IndexIVFFlat) ReconstructBatch(keys []int64) ([]float32, error) {
 	return recons, nil
 }
 
-// HNSW doesn't support reconstruction
-// Attempting to reconstruct will return an error
-
-func (idx *IndexHNSW) Reconstruct(key int64) ([]float32, error) {
-	return nil, fmt.Errorf("faiss: IndexHNSW does not support reconstruction")
-}
-
-func (idx *IndexHNSW) ReconstructN(i0, n int64) ([]float32, error) {
-	return nil, fmt.Errorf("faiss: IndexHNSW does not support reconstruction")
-}
-
-func (idx *IndexHNSW) ReconstructBatch(keys []int64) ([]float32, error) {
-	return nil, fmt.Errorf("faiss: IndexHNSW does not support reconstruction")
-}
+// HNSW doesn't support reconstruction - methods removed (HNSW not available in static library)
+// func (idx *IndexHNSW) Reconstruct(key int64) ([]float32, error) { ... }
+// func (idx *IndexHNSW) ReconstructN(i0, n int64) ([]float32, error) { ... }
+// func (idx *IndexHNSW) ReconstructBatch(keys []int64) ([]float32, error) { ... }

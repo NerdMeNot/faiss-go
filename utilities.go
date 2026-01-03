@@ -359,19 +359,18 @@ func GetIndexSize(index Index) int64 {
 	d := int64(index.D())
 	n := index.Ntotal()
 
-	switch idx := index.(type) {
+	switch index.(type) {
 	case *IndexFlat:
 		// d * ntotal * 4 bytes per float32
 		return d * n * 4
 
-	case *IndexPQ:
-		// Compressed: M * nbits per vector + codebook
-		nbytes := int64(idx.M * idx.nbits / 8)
-		return n*nbytes + d*256*4 // rough estimate
+	case *IndexIVFFlat:
+		// IVF overhead + flat vectors
+		return d * n * 4
 
-	case *IndexHNSW:
-		// Vectors + HNSW graph
-		return d*n*4 + n*int64(idx.M)*8 // rough estimate
+	case *IndexLSH:
+		// Hash codes + vectors
+		return d * n * 4
 
 	default:
 		// Generic fallback

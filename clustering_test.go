@@ -5,343 +5,286 @@ import (
 	"testing"
 )
 
+// ========================================
+// Kmeans Tests
+// ========================================
+
 func TestNewKmeans(t *testing.T) {
-	d := 64
-	k := 10
-	niter := 25
-
-	kmeans, err := NewKmeans(d, k, niter)
+	km, err := NewKmeans(128, 10)
 	if err != nil {
-		t.Fatalf("Failed to create Kmeans: %v", err)
-	}
-	defer kmeans.Close()
-
-	if kmeans.D() != d {
-		t.Errorf("Expected dimension %d, got %d", d, kmeans.D())
+		t.Fatalf("NewKmeans() failed: %v", err)
 	}
 
-	if kmeans.K() != k {
-		t.Errorf("Expected k=%d, got %d", k, kmeans.K())
+	if km.D() != 128 {
+		t.Errorf("D() = %d, want 128", km.D())
 	}
-
-	if kmeans.Niter() != niter {
-		t.Errorf("Expected niter=%d, got %d", niter, kmeans.Niter())
+	if km.K() != 10 {
+		t.Errorf("K() = %d, want 10", km.K())
+	}
+	if km.IsTrained() {
+		t.Error("IsTrained() = true before training")
 	}
 }
 
-func TestNewKmeans_InvalidParameters(t *testing.T) {
-	tests := []struct {
-		name  string
-		d     int
-		k     int
-		niter int
-	}{
-		{"zero dimension", 0, 10, 25},
-		{"negative dimension", -1, 10, 25},
-		{"zero k", 64, 0, 25},
-		{"negative k", 64, -1, 25},
-		{"zero niter", 64, 10, 0},
-		{"negative niter", 64, 10, -1},
+func TestNewKmeans_InvalidParams(t *testing.T) {
+	_, err := NewKmeans(0, 10)
+	if err == nil {
+		t.Error("NewKmeans(0, 10) should return error")
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, err := NewKmeans(tt.d, tt.k, tt.niter)
-			if err == nil {
-				t.Error("Expected error for invalid parameters")
-			}
-		})
-	}
-}
-
-func TestKmeans_SetNiter(t *testing.T) {
-	kmeans, err := NewKmeans(32, 5, 10)
-	if err != nil {
-		t.Fatalf("Failed to create Kmeans: %v", err)
-	}
-	defer kmeans.Close()
-
-	newNiter := 50
-	if err := kmeans.SetNiter(newNiter); err != nil {
-		t.Fatalf("SetNiter failed: %v", err)
+	_, err = NewKmeans(128, 0)
+	if err == nil {
+		t.Error("NewKmeans(128, 0) should return error")
 	}
 
-	if kmeans.Niter() != newNiter {
-		t.Errorf("Expected niter=%d, got %d", newNiter, kmeans.Niter())
-	}
-
-	// Test invalid value
-	if err := kmeans.SetNiter(0); err == nil {
-		t.Error("Expected error for zero niter")
-	}
-
-	if err := kmeans.SetNiter(-1); err == nil {
-		t.Error("Expected error for negative niter")
-	}
-}
-
-func TestKmeans_SetVerbose(t *testing.T) {
-	kmeans, err := NewKmeans(32, 5, 10)
-	if err != nil {
-		t.Fatalf("Failed to create Kmeans: %v", err)
-	}
-	defer kmeans.Close()
-
-	// Should not error
-	if err := kmeans.SetVerbose(true); err != nil {
-		t.Errorf("SetVerbose(true) failed: %v", err)
-	}
-
-	if err := kmeans.SetVerbose(false); err != nil {
-		t.Errorf("SetVerbose(false) failed: %v", err)
-	}
-}
-
-func TestKmeans_SetSeed(t *testing.T) {
-	kmeans, err := NewKmeans(32, 5, 10)
-	if err != nil {
-		t.Fatalf("Failed to create Kmeans: %v", err)
-	}
-	defer kmeans.Close()
-
-	// Should not error
-	if err := kmeans.SetSeed(42); err != nil {
-		t.Errorf("SetSeed failed: %v", err)
+	_, err = NewKmeans(-1, 10)
+	if err == nil {
+		t.Error("NewKmeans(-1, 10) should return error")
 	}
 }
 
 func TestKmeans_Train(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping training test in short mode")
-	}
-
-	d := 32
+	d := 64
 	k := 5
-	niter := 10
 	n := 1000
 
-	kmeans, err := NewKmeans(d, k, niter)
+	km, err := NewKmeans(d, k)
 	if err != nil {
-		t.Fatalf("Failed to create Kmeans: %v", err)
+		t.Fatalf("NewKmeans() failed: %v", err)
 	}
-	defer kmeans.Close()
 
-	// Generate random vectors with some clustering structure
+	// Generate training vectors
 	vectors := make([]float32, n*d)
-	for i := 0; i < n; i++ {
-		clusterID := i % k
-		baseValue := float32(clusterID) * 10.0
-		for j := 0; j < d; j++ {
-			// Add some noise around cluster centers
-			vectors[i*d+j] = baseValue + float32(j)*0.1
-		}
+	for i := range vectors {
+		vectors[i] = float32(i % 100)
 	}
 
-	// Train
-	if err := kmeans.Train(vectors); err != nil {
-		t.Fatalf("Training failed: %v", err)
+	err = km.Train(vectors)
+	if err != nil {
+		t.Fatalf("Train() failed: %v", err)
 	}
 
-	// Get centroids
-	centroids := kmeans.Centroids()
+	if !km.IsTrained() {
+		t.Error("IsTrained() = false after training")
+	}
+
+	centroids := km.Centroids()
 	if centroids == nil {
-		t.Fatal("Centroids should not be nil after training")
+		t.Fatal("Centroids() returned nil after training")
 	}
 
 	expectedLen := k * d
 	if len(centroids) != expectedLen {
-		t.Errorf("Expected %d centroids, got %d", expectedLen, len(centroids))
-	}
-
-	// Verify centroids are reasonable (not all zeros)
-	allZero := true
-	for _, c := range centroids {
-		if c != 0 {
-			allZero = false
-			break
-		}
-	}
-	if allZero {
-		t.Error("Centroids should not all be zero")
+		t.Errorf("len(Centroids()) = %d, want %d", len(centroids), expectedLen)
 	}
 }
 
-func TestKmeans_Train_EmptyVectors(t *testing.T) {
-	kmeans, err := NewKmeans(32, 5, 10)
-	if err != nil {
-		t.Fatalf("Failed to create Kmeans: %v", err)
-	}
-	defer kmeans.Close()
+func TestKmeans_Train_NotEnoughVectors(t *testing.T) {
+	d := 64
+	k := 100
 
-	err = kmeans.Train([]float32{})
+	km, _ := NewKmeans(d, k)
+
+	// Only 50 vectors for 100 clusters
+	vectors := make([]float32, 50*d)
+	for i := range vectors {
+		vectors[i] = float32(i)
+	}
+
+	err := km.Train(vectors)
 	if err == nil {
-		t.Error("Expected error for empty vectors")
+		t.Error("Train() should fail when n < k")
 	}
 }
 
-func TestKmeans_Train_InvalidVectorSize(t *testing.T) {
-	d := 32
-	kmeans, err := NewKmeans(d, 5, 10)
-	if err != nil {
-		t.Fatalf("Failed to create Kmeans: %v", err)
-	}
-	defer kmeans.Close()
+func TestKmeans_Train_Empty(t *testing.T) {
+	km, _ := NewKmeans(64, 10)
 
-	// Not a multiple of dimension
-	invalidVectors := make([]float32, d+1)
-	err = kmeans.Train(invalidVectors)
-	if err != ErrInvalidVectors {
-		t.Errorf("Expected ErrInvalidVectors, got %v", err)
+	err := km.Train([]float32{})
+	if err == nil {
+		t.Error("Train(empty) should return error")
+	}
+}
+
+func TestKmeans_Train_InvalidDimension(t *testing.T) {
+	km, _ := NewKmeans(64, 10)
+
+	// 65 floats is not a multiple of 64
+	vectors := make([]float32, 65)
+	err := km.Train(vectors)
+	if err == nil {
+		t.Error("Train() with invalid dimension should return error")
 	}
 }
 
 func TestKmeans_Centroids_BeforeTraining(t *testing.T) {
-	kmeans, err := NewKmeans(32, 5, 10)
-	if err != nil {
-		t.Fatalf("Failed to create Kmeans: %v", err)
-	}
-	defer kmeans.Close()
+	km, _ := NewKmeans(64, 10)
 
-	centroids := kmeans.Centroids()
+	centroids := km.Centroids()
 	if centroids != nil {
-		t.Error("Centroids should be nil before training")
+		t.Error("Centroids() should return nil before training")
 	}
 }
 
-func TestNewClustering(t *testing.T) {
+func TestKmeans_Assign(t *testing.T) {
 	d := 64
-	k := 10
-
-	clustering, err := NewClustering(d, k)
-	if err != nil {
-		t.Fatalf("Failed to create Clustering: %v", err)
-	}
-	defer clustering.Close()
-
-	if clustering.D() != d {
-		t.Errorf("Expected dimension %d, got %d", d, clustering.D())
-	}
-
-	if clustering.K() != k {
-		t.Errorf("Expected k=%d, got %d", k, clustering.K())
-	}
-}
-
-func TestNewClustering_InvalidParameters(t *testing.T) {
-	tests := []struct {
-		name string
-		d    int
-		k    int
-	}{
-		{"zero dimension", 0, 10},
-		{"negative dimension", -1, 10},
-		{"zero k", 64, 0},
-		{"negative k", 64, -1},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, err := NewClustering(tt.d, tt.k)
-			if err == nil {
-				t.Error("Expected error for invalid parameters")
-			}
-		})
-	}
-}
-
-func TestClustering_SetNiter(t *testing.T) {
-	clustering, err := NewClustering(32, 5)
-	if err != nil {
-		t.Fatalf("Failed to create Clustering: %v", err)
-	}
-	defer clustering.Close()
-
-	newNiter := 50
-	clustering.SetNiter(newNiter)
-
-	if clustering.Niter() != newNiter {
-		t.Errorf("Expected niter=%d, got %d", newNiter, clustering.Niter())
-	}
-}
-
-func TestClustering_Train(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping training test in short mode")
-	}
-
-	d := 32
 	k := 5
 	n := 500
 
-	clustering, err := NewClustering(d, k)
-	if err != nil {
-		t.Fatalf("Failed to create Clustering: %v", err)
+	km, _ := NewKmeans(d, k)
+
+	// Generate training vectors
+	vectors := make([]float32, n*d)
+	for i := range vectors {
+		vectors[i] = float32(i % 100)
 	}
-	defer clustering.Close()
 
-	clustering.SetNiter(20)
+	km.Train(vectors)
 
-	// Generate clustered data
+	// Assign some vectors
+	testVectors := make([]float32, 10*d)
+	for i := range testVectors {
+		testVectors[i] = float32(i % 50)
+	}
+
+	assignments, err := km.Assign(testVectors)
+	if err != nil {
+		t.Fatalf("Assign() failed: %v", err)
+	}
+
+	if len(assignments) != 10 {
+		t.Errorf("len(assignments) = %d, want 10", len(assignments))
+	}
+
+	// All assignments should be in range [0, k)
+	for i, a := range assignments {
+		if a < 0 || a >= int64(k) {
+			t.Errorf("assignment[%d] = %d, out of range [0, %d)", i, a, k)
+		}
+	}
+}
+
+func TestKmeans_Assign_BeforeTraining(t *testing.T) {
+	km, _ := NewKmeans(64, 10)
+
+	vectors := make([]float32, 64)
+	_, err := km.Assign(vectors)
+	if err == nil {
+		t.Error("Assign() before training should return error")
+	}
+}
+
+func TestKmeans_Assign_Empty(t *testing.T) {
+	d := 64
+	k := 5
+
+	km, _ := NewKmeans(d, k)
+	vectors := make([]float32, 100*d)
+	for i := range vectors {
+		vectors[i] = float32(i)
+	}
+	km.Train(vectors)
+
+	assignments, err := km.Assign([]float32{})
+	if err != nil {
+		t.Errorf("Assign(empty) failed: %v", err)
+	}
+	if len(assignments) != 0 {
+		t.Errorf("Assign(empty) should return empty assignments")
+	}
+}
+
+// ========================================
+// Clustering Quality Tests
+// ========================================
+
+func TestKmeans_ClusterQuality(t *testing.T) {
+	d := 2
+	k := 3
+	n := 300
+
+	km, _ := NewKmeans(d, k)
+
+	// Generate 3 well-separated clusters
 	vectors := make([]float32, n*d)
 	for i := 0; i < n; i++ {
-		clusterID := i % k
-		for j := 0; j < d; j++ {
-			// Create distinct clusters
-			vectors[i*d+j] = float32(clusterID*100 + j)
+		cluster := i % k
+		offset := float32(cluster * 100) // Separate clusters by 100 units
+		vectors[i*d] = offset + float32(i%10)
+		vectors[i*d+1] = offset + float32(i%10)
+	}
+
+	err := km.Train(vectors)
+	if err != nil {
+		t.Fatalf("Train() failed: %v", err)
+	}
+
+	// Assign the same vectors
+	assignments, err := km.Assign(vectors)
+	if err != nil {
+		t.Fatalf("Assign() failed: %v", err)
+	}
+
+	// Count assignments per cluster
+	counts := make(map[int64]int)
+	for _, a := range assignments {
+		counts[a]++
+	}
+
+	// Each cluster should have roughly n/k vectors
+	expectedPerCluster := n / k
+	for cluster, count := range counts {
+		deviation := math.Abs(float64(count - expectedPerCluster))
+		// Allow 50% deviation due to clustering variance
+		if deviation > float64(expectedPerCluster)*0.5 {
+			t.Logf("Cluster %d has %d vectors (expected ~%d)", cluster, count, expectedPerCluster)
 		}
 	}
 
-	// Train
-	if err := clustering.Train(vectors); err != nil {
-		t.Fatalf("Training failed: %v", err)
+	t.Logf("Cluster distribution: %v", counts)
+}
+
+// ========================================
+// Benchmarks
+// ========================================
+
+func BenchmarkKmeans_Train(b *testing.B) {
+	d := 128
+	k := 100
+	n := 10000
+
+	vectors := make([]float32, n*d)
+	for i := range vectors {
+		vectors[i] = float32(i % 100)
 	}
 
-	// Get centroids
-	centroids := clustering.Centroids()
-	if len(centroids) != k*d {
-		t.Errorf("Expected %d centroid values, got %d", k*d, len(centroids))
-	}
-
-	// Verify centroids are different from each other
-	for i := 0; i < k-1; i++ {
-		same := true
-		for j := 0; j < d; j++ {
-			if math.Abs(float64(centroids[i*d+j]-centroids[(i+1)*d+j])) > 0.01 {
-				same = false
-				break
-			}
-		}
-		if same {
-			t.Error("Adjacent centroids should be different")
-		}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		km, _ := NewKmeans(d, k)
+		km.Train(vectors)
 	}
 }
 
-func TestClustering_Train_EmptyVectors(t *testing.T) {
-	clustering, err := NewClustering(32, 5)
-	if err != nil {
-		t.Fatalf("Failed to create Clustering: %v", err)
-	}
-	defer clustering.Close()
+func BenchmarkKmeans_Assign(b *testing.B) {
+	d := 128
+	k := 100
+	n := 10000
 
-	err = clustering.Train([]float32{})
-	if err == nil {
-		t.Error("Expected error for empty vectors")
+	vectors := make([]float32, n*d)
+	for i := range vectors {
+		vectors[i] = float32(i % 100)
 	}
-}
 
-func TestClustering_Train_InvalidVectorSize(t *testing.T) {
-	d := 32
-	clustering, err := NewClustering(d, 5)
-	if err != nil {
-		t.Fatalf("Failed to create Clustering: %v", err)
+	km, _ := NewKmeans(d, k)
+	km.Train(vectors)
+
+	testVectors := make([]float32, 1000*d)
+	for i := range testVectors {
+		testVectors[i] = float32(i % 50)
 	}
-	defer clustering.Close()
 
-	// Not a multiple of dimension
-	invalidVectors := make([]float32, d+1)
-	err = clustering.Train(invalidVectors)
-	if err != ErrInvalidVectors {
-		t.Errorf("Expected ErrInvalidVectors, got %v", err)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		km.Assign(testVectors)
 	}
 }

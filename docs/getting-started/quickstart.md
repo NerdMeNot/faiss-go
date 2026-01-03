@@ -1,39 +1,13 @@
-# Quick Start Guide
+# Quickstart
 
-Get up and running with faiss-go in 5 minutes!
+Build your first vector similarity search in 5 minutes.
 
-## 1. Install Dependencies
+## Prerequisites
 
-### Option A: Use Pre-built Libraries (No Dependencies!)
+- Go 1.21 or later
+- faiss-go installed: `go get github.com/NerdMeNot/faiss-go`
 
-Skip to step 2 if using pre-built libraries.
-
-### Option B: Build from Source
-
-**Ubuntu/Debian:**
-```bash
-sudo apt-get update
-sudo apt-get install -y build-essential libopenblas-dev
-```
-
-**macOS:**
-```bash
-brew install openblas
-```
-
-**Windows:**
-Install [MSYS2](https://www.msys2.org/), then:
-```bash
-pacman -S mingw-w64-x86_64-gcc mingw-w64-x86_64-openblas
-```
-
-## 2. Install faiss-go
-
-```bash
-go get github.com/NerdMeNot/faiss-go
-```
-
-## 3. Write Your First Program
+## Basic Example
 
 Create `main.go`:
 
@@ -42,232 +16,211 @@ package main
 
 import (
     "fmt"
-    "log"
-    "math/rand"
-
-    "github.com/NerdMeNot/faiss-go"
+    faiss "github.com/NerdMeNot/faiss-go"
 )
 
 func main() {
     // Create an index for 128-dimensional vectors
-    dim := 128
-    index, err := faiss.NewIndexFlatL2(dim)
+    index, err := faiss.IndexFactory(128, "Flat", faiss.MetricL2)
     if err != nil {
-        log.Fatal(err)
+        panic(err)
     }
     defer index.Close()
 
-    // Generate 1000 random vectors
-    numVectors := 1000
-    vectors := make([]float32, numVectors*dim)
+    // Add vectors (1000 vectors of 128 dimensions each)
+    vectors := make([]float32, 1000*128)
     for i := range vectors {
-        vectors[i] = rand.Float32()
+        vectors[i] = float32(i % 100)
     }
-
-    // Add vectors to the index
     if err := index.Add(vectors); err != nil {
-        log.Fatal(err)
+        panic(err)
     }
 
-    fmt.Printf("Added %d vectors to index\n", index.Ntotal())
+    fmt.Printf("Index contains %d vectors\n", index.Ntotal())
 
-    // Create a query vector
-    query := make([]float32, dim)
-    for i := range query {
-        query[i] = rand.Float32()
-    }
-
-    // Search for 5 nearest neighbors
-    distances, indices, err := index.Search(query, 5)
+    // Search for nearest neighbors
+    query := vectors[:128] // Use first vector as query
+    distances, labels, err := index.Search(query, 5)
     if err != nil {
-        log.Fatal(err)
+        panic(err)
     }
 
-    // Print results
-    fmt.Println("\nTop 5 nearest neighbors:")
-    for i := 0; i < 5; i++ {
-        fmt.Printf("%d. Index=%d, Distance=%.4f\n",
-            i+1, indices[i], distances[i])
+    fmt.Println("Top 5 nearest neighbors:")
+    for i := range labels {
+        fmt.Printf("  %d. Vector #%d (distance: %.2f)\n", i+1, labels[i], distances[i])
     }
 }
 ```
 
-## 4. Build and Run
-
-### Option A: Pre-built Libraries (Fast!)
+Run it:
 
 ```bash
-go build -tags=faiss_use_lib
-./your-program
+go run main.go
 ```
 
-Build time: ~30 seconds
-
-### Option B: From Source
-
-```bash
-go build
-./your-program
+Output:
 ```
-
-Build time: ~5-10 minutes (first time only, subsequent builds are fast!)
-
-## 5. Expected Output
-
-```
-Added 1000 vectors to index
-
+Index contains 1000 vectors
 Top 5 nearest neighbors:
-1. Index=742, Distance=12.3456
-2. Index=123, Distance=13.7890
-3. Index=456, Distance=14.2341
-4. Index=789, Distance=15.6789
-5. Index=234, Distance=16.1234
+  1. Vector #0 (distance: 0.00)
+  2. Vector #1 (distance: 128.00)
+  ...
 ```
 
-## What's Next?
+## Using Different Index Types
 
-### Learn More
-
-- 📖 Read the [full documentation](https://pkg.go.dev/github.com/NerdMeNot/faiss-go)
-- 📝 Check out [examples](../examples/)
-- ❓ Read the [FAQ](FAQ.md)
-
-### Try Different Index Types
-
-**Inner Product (Similarity) Search:**
-```go
-// Create index with inner product metric
-index, _ := faiss.NewIndexFlatIP(dim)
-
-// Normalize vectors for cosine similarity
-normalized := normalize(vectors)
-index.Add(normalized)
-```
-
-### Common Use Cases
-
-#### Semantic Search
+### IVF (Fast Approximate Search)
 
 ```go
-// Embed your documents using your favorite embedding model
-embeddings := embedDocuments(documents)  // Your embedding function
-
-// Create and populate index
-index, _ := faiss.NewIndexFlatIP(dim)
-index.Add(embeddings)
-
-// Search for similar documents
-queryEmbedding := embedText("your search query")
-distances, indices, _ := index.Search(queryEmbedding, 10)
-
-// Get top 10 most similar documents
-for i, idx := range indices {
-    fmt.Printf("%d. %s (score: %.4f)\n",
-        i+1, documents[idx], distances[i])
+// Create IVF index - faster search with slight accuracy tradeoff
+index, err := faiss.IndexFactory(128, "IVF100,Flat", faiss.MetricL2)
+if err != nil {
+    panic(err)
 }
+defer index.Close()
+
+// IVF requires training before adding vectors
+trainingData := generateTrainingData(10000, 128)
+if err := index.Train(trainingData); err != nil {
+    panic(err)
+}
+
+// Now add vectors
+if err := index.Add(vectors); err != nil {
+    panic(err)
+}
+
+// Search
+distances, labels, _ := index.Search(query, 10)
 ```
 
-#### Image Similarity
+### HNSW (Graph-Based Search)
 
 ```go
-// Extract image features using a CNN
-features := extractFeatures(images)  // Your feature extraction
-
-// Build index
-index, _ := faiss.NewIndexFlatL2(featureDim)
-index.Add(features)
-
-// Find similar images
-queryFeatures := extractFeatures(queryImage)
-_, indices, _ := index.Search(queryFeatures, 5)
-
-// Display similar images
-for _, idx := range indices {
-    displayImage(images[idx])
+// Create HNSW index - high recall, very fast
+index, err := faiss.IndexFactory(128, "HNSW32", faiss.MetricL2)
+if err != nil {
+    panic(err)
 }
+defer index.Close()
+
+// HNSW doesn't require training
+if err := index.Add(vectors); err != nil {
+    panic(err)
+}
+
+distances, labels, _ := index.Search(query, 10)
 ```
 
-#### Recommendation System
+### PQ (Memory-Efficient)
 
 ```go
-// User/item embeddings
-userEmbeddings := trainEmbeddings(users)
-itemEmbeddings := trainEmbeddings(items)
-
-// Index items
-itemIndex, _ := faiss.NewIndexFlatIP(dim)
-itemIndex.Add(itemEmbeddings)
-
-// Recommend items for a user
-userEmb := userEmbeddings[userID]
-_, recommendedItems, _ := itemIndex.Search(userEmb, 10)
-
-// Show recommendations
-for _, itemID := range recommendedItems {
-    fmt.Printf("Recommended: %s\n", items[itemID].Name)
+// Create PQ index - compressed vectors, uses less memory
+index, err := faiss.IndexFactory(128, "PQ8", faiss.MetricL2)
+if err != nil {
+    panic(err)
 }
+defer index.Close()
+
+// PQ requires training
+if err := index.Train(trainingData); err != nil {
+    panic(err)
+}
+
+if err := index.Add(vectors); err != nil {
+    panic(err)
+}
+
+distances, labels, _ := index.Search(query, 10)
 ```
 
-## Tips for Best Performance
+## Using Inner Product (Cosine Similarity)
 
-1. **Use the right metric:**
-   - L2 distance: When vector magnitude matters
-   - Inner product: For normalized vectors (cosine similarity)
+For normalized vectors, inner product gives cosine similarity:
 
-2. **Normalize for cosine similarity:**
-   ```go
-   normalized := normalize(vectors)  // Divide by L2 norm
-   index, _ := faiss.NewIndexFlatIP(dim)
-   index.Add(normalized)
-   ```
+```go
+index, err := faiss.IndexFactory(128, "Flat", faiss.MetricInnerProduct)
+if err != nil {
+    panic(err)
+}
+defer index.Close()
 
-3. **Batch operations:**
-   ```go
-   // Add vectors in batches for better performance
-   batchSize := 10000
-   for i := 0; i < len(vectors); i += batchSize*dim {
-       end := min(i+batchSize*dim, len(vectors))
-       index.Add(vectors[i:end])
-   }
-   ```
+// Normalize your vectors before adding
+normalizedVectors := normalize(vectors)
+index.Add(normalizedVectors)
 
-4. **Choose build mode:**
-   - Development: Use `-tags=faiss_use_lib` for fast builds
-   - Production: Build from source for optimal performance
-
-## Troubleshooting
-
-### Build Errors
-
-**Error: "BLAS not found"**
-```bash
-# Install OpenBLAS (see step 1)
-# Or use pre-built libraries
-go build -tags=faiss_use_lib
+// Normalize query too
+normalizedQuery := normalize(query)
+distances, labels, _ := index.Search(normalizedQuery, 10)
+// distances are now cosine similarities (higher = more similar)
 ```
 
-**Error: "C++ compiler not found"**
-```bash
-# Install build tools (see step 1)
-# Or use pre-built libraries
-go build -tags=faiss_use_lib
+## Saving and Loading Indexes
+
+```go
+// Save index to file
+if err := faiss.WriteIndex(index, "my_index.faiss"); err != nil {
+    panic(err)
+}
+
+// Load index from file
+loaded, err := faiss.ReadIndex("my_index.faiss")
+if err != nil {
+    panic(err)
+}
+defer loaded.Close()
+
+// Use loaded index
+distances, labels, _ := loaded.Search(query, 10)
 ```
 
-### Runtime Errors
+## Using Custom IDs
 
-**Error: "not implemented"**
+```go
+// Create base index
+baseIndex, _ := faiss.IndexFactory(128, "Flat", faiss.MetricL2)
 
-The stub implementation is active. You need to generate the FAISS amalgamation:
-```bash
-cd scripts
-./generate_amalgamation.sh
+// Wrap with ID map
+idMap, err := faiss.NewIndexIDMap(baseIndex)
+if err != nil {
+    panic(err)
+}
+defer idMap.Close()
+
+// Add vectors with custom IDs
+ids := []int64{100, 200, 300, 400, 500}
+vectors := make([]float32, 5*128)
+// ... fill vectors
+if err := idMap.AddWithIDs(vectors, ids); err != nil {
+    panic(err)
+}
+
+// Search returns your custom IDs
+distances, labels, _ := idMap.Search(query, 5)
+// labels contains: [100, 200, ...] (your IDs)
 ```
 
-## Need Help?
+## Key Concepts
 
-- 🐛 [Report an issue](https://github.com/NerdMeNot/faiss-go/issues)
-- 💬 [Ask a question](https://github.com/NerdMeNot/faiss-go/discussions)
-- 📖 [Read the FAQ](FAQ.md)
+### Dimensions
 
-Happy searching! 🚀
+All vectors in an index must have the same number of dimensions. Common embedding dimensions:
+- OpenAI embeddings: 1536
+- BERT: 768
+- Sentence transformers: 384
+
+### Metrics
+
+- **L2 (Euclidean)**: Lower distance = more similar
+- **InnerProduct**: Higher value = more similar (use with normalized vectors for cosine similarity)
+
+### Training
+
+Some indexes need training to learn the data distribution:
+- **Flat, HNSW**: No training needed
+- **IVF, PQ**: Training required before adding vectors
+
+## Next Steps
+
+- [Choosing an Index](choosing-an-index.md) - Pick the right index for your use case
+- [API Reference](../guides/api-reference.md) - Complete API documentation

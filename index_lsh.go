@@ -185,6 +185,16 @@ func (idx *IndexLSH) Search(queries []float32, k int) (distances []float32, indi
 	return distances, indices, nil
 }
 
+// SetNprobe is not supported for LSH indexes (not an IVF index)
+func (idx *IndexLSH) SetNprobe(nprobe int) error {
+	return fmt.Errorf("faiss: SetNprobe not supported for IndexLSH (not an IVF index)")
+}
+
+// SetEfSearch is not supported for LSH indexes (not an HNSW index)
+func (idx *IndexLSH) SetEfSearch(efSearch int) error {
+	return fmt.Errorf("faiss: SetEfSearch not supported for IndexLSH (not an HNSW index)")
+}
+
 // Reset removes all vectors from the index
 func (idx *IndexLSH) Reset() error {
 	ret := faiss_Index_reset(idx.ptr)

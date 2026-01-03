@@ -162,6 +162,16 @@ func (idx *IndexScalarQuantizer) Search(queries []float32, k int) (distances []f
 	return distances, indices, nil
 }
 
+// SetNprobe is not supported for scalar quantizer indexes (not an IVF index)
+func (idx *IndexScalarQuantizer) SetNprobe(nprobe int) error {
+	return fmt.Errorf("faiss: SetNprobe not supported for IndexScalarQuantizer (not an IVF index)")
+}
+
+// SetEfSearch is not supported for scalar quantizer indexes (not an HNSW index)
+func (idx *IndexScalarQuantizer) SetEfSearch(efSearch int) error {
+	return fmt.Errorf("faiss: SetEfSearch not supported for IndexScalarQuantizer (not an HNSW index)")
+}
+
 // Reset removes all vectors from the index
 func (idx *IndexScalarQuantizer) Reset() error {
 	ret := faiss_Index_reset(idx.ptr)
@@ -386,6 +396,11 @@ func (idx *IndexIVFScalarQuantizer) Search(queries []float32, k int) (distances 
 	}
 
 	return distances, indices, nil
+}
+
+// SetEfSearch is not supported for IVF scalar quantizer indexes (not an HNSW index)
+func (idx *IndexIVFScalarQuantizer) SetEfSearch(efSearch int) error {
+	return fmt.Errorf("faiss: SetEfSearch not supported for IndexIVFScalarQuantizer (not an HNSW index)")
 }
 
 // Reset removes all vectors from the index

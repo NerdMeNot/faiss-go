@@ -383,10 +383,8 @@ func TestIsIndexTrained(t *testing.T) {
 		t.Error("Flat index should be trained")
 	}
 
-	quantizer, _ := NewIndexFlatL2(64)
-	defer quantizer.Close()
-
-	ivfIndex, _ := NewIndexIVFFlat(quantizer, 64, 10, MetricL2)
+	// Use factory for IVF (direct constructor has known bugs)
+	ivfIndex, _ := IndexFactory(64, "IVF10,Flat", MetricL2)
 	defer ivfIndex.Close()
 
 	if IsIndexTrained(ivfIndex) {

@@ -36,6 +36,10 @@ type Index interface {
 	// Searching
 	Search(queries []float32, k int) (distances []float32, indices []int64, err error)
 
+	// Parameter setters (index-specific, may return error if not supported)
+	SetNprobe(nprobe int) error     // IVF indexes: number of clusters to search
+	SetEfSearch(efSearch int) error // HNSW indexes: search-time effort parameter
+
 	// Management
 	Reset() error  // Remove all vectors
 	Close() error  // Free resources
@@ -67,12 +71,13 @@ type IndexWithReconstruction interface {
 }
 
 // IndexWithRangeSearch extends Index to support range-based search
-type IndexWithRangeSearch interface {
-	Index
-
-	// RangeSearch finds all vectors within a radius
-	RangeSearch(queries []float32, radius float32) (*RangeSearchResult, error)
-}
+// NOT AVAILABLE: RangeSearch functions not in static library
+// type IndexWithRangeSearch interface {
+// 	Index
+//
+// 	// RangeSearch finds all vectors within a radius
+// 	RangeSearch(queries []float32, radius float32) (*RangeSearchResult, error)
+// }
 
 // IndexWithAssign extends Index to support assignment (clustering)
 type IndexWithAssign interface {

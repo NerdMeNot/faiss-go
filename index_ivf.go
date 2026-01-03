@@ -30,11 +30,17 @@ var _ IndexWithAssign = (*IndexIVFFlat)(nil)
 //
 // Parameters:
 //   - quantizer: a trained index used for coarse quantization (typically IndexFlat)
+//                NOTE: This parameter is accepted for API compatibility but not used.
+//                The factory creates its own quantizer internally.
 //   - d: dimension of vectors
 //   - nlist: number of inverted lists (clusters)
 //   - metric: distance metric (MetricL2 or MetricInnerProduct)
 //
 // The index must be trained before adding vectors.
+//
+// Implementation note: This function uses the factory pattern internally
+// to avoid C pointer management bugs. The quantizer parameter is accepted
+// for API compatibility with Python FAISS but is not used.
 func NewIndexIVFFlat(quantizer Index, d, nlist int, metric MetricType) (*IndexIVFFlat, error) {
 	if d <= 0 {
 		return nil, ErrInvalidDimension
@@ -43,30 +49,34 @@ func NewIndexIVFFlat(quantizer Index, d, nlist int, metric MetricType) (*IndexIV
 		return nil, fmt.Errorf("faiss: nlist must be positive")
 	}
 
-	// Get the quantizer pointer
-	var quantizerPtr uintptr
-	switch q := quantizer.(type) {
-	case *IndexFlat:
-		quantizerPtr = q.ptr
-	default:
-		return nil, fmt.Errorf("faiss: unsupported quantizer type")
-	}
+	// Ignore the quantizer parameter (accepted for API compatibility)
+	// The factory creates its own quantizer internally
+	_ = quantizer
 
-	ptr, err := faissIndexIVFFlatNew(quantizerPtr, d, nlist, int(metric))
+	// Use the factory pattern internally to avoid C pointer bugs
+	description := fmt.Sprintf("IVF%d,Flat", nlist)
+	genericIdx, err := IndexFactory(d, description, metric)
 	if err != nil {
 		return nil, fmt.Errorf("faiss: failed to create IndexIVFFlat: %w", err)
 	}
 
+	// Extract the pointer and properties from the generic index
+	gen := genericIdx.(*GenericIndex)
+
 	idx := &IndexIVFFlat{
-		ptr:       ptr,
-		quantizer: quantizer, // Keep reference to prevent GC
+		ptr:       gen.ptr,
+		quantizer: nil, // Factory manages quantizer internally
 		d:         d,
 		metric:    metric,
-		ntotal:    0,
-		isTrained: false,
+		ntotal:    gen.ntotal,
+		isTrained: gen.isTrained,
 		nlist:     nlist,
 		nprobe:    1, // default nprobe
 	}
+
+	// Clear the generic index finalizer and transfer ownership
+	runtime.SetFinalizer(gen, nil)
+	gen.ptr = 0
 
 	runtime.SetFinalizer(idx, func(i *IndexIVFFlat) {
 		if i.ptr != 0 {
@@ -211,6 +221,10 @@ func (idx *IndexIVFFlat) Search(queries []float32, k int) (distances []float32, 
 }
 
 // Assign assigns vectors to their nearest cluster (inverted list)
+//
+// This uses the quantizer to find the nearest centroid for each vector.
+// The returned labels are cluster IDs in [0, nlist-1]. A label of -1 indicates
+// that no cluster was found for that vector (vector too far from all centroids).
 func (idx *IndexIVFFlat) Assign(vectors []float32) ([]int64, error) {
 	if idx.ptr == 0 {
 		return nil, ErrNullPointer
@@ -225,14 +239,28 @@ func (idx *IndexIVFFlat) Assign(vectors []float32) ([]int64, error) {
 		return nil, ErrInvalidVectors
 	}
 
-	n := len(vectors) / idx.d
-	labels := make([]int64, n)
+	// For factory-created indexes, use the C API directly
+	if idx.quantizer == nil {
+		n := len(vectors) / idx.d
+		labels := make([]int64, n)
+		if err := faissIndexAssign(idx.ptr, vectors, n, labels, 1); err != nil {
+			return nil, fmt.Errorf("faiss: assignment failed: %w", err)
+		}
+		return labels, nil
+	}
 
-	if err := faissIndexAssign(idx.ptr, vectors, n, labels); err != nil {
+	// If we have a quantizer, use it directly
+	_, labels, err := idx.quantizer.Search(vectors, 1)
+	if err != nil {
 		return nil, fmt.Errorf("faiss: assignment failed: %w", err)
 	}
 
 	return labels, nil
+}
+
+// SetEfSearch is not supported for IVF indexes (not an HNSW index)
+func (idx *IndexIVFFlat) SetEfSearch(efSearch int) error {
+	return fmt.Errorf("faiss: SetEfSearch not supported for IndexIVFFlat (not an HNSW index)")
 }
 
 // Reset removes all vectors from the index

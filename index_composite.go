@@ -49,31 +49,28 @@ func NewIndexRefine(baseIndex, refineIndex Index) (*IndexRefine, error) {
 		return nil, fmt.Errorf("base and refine indexes must use same metric")
 	}
 
-	// Get pointers based on type
-	var basePtr, refinePtr uintptr
+	// Get base index pointer
+	var basePtr uintptr
 	switch b := baseIndex.(type) {
 	case *IndexIVFFlat:
 		basePtr = b.ptr
-	case *IndexHNSW:
-		basePtr = b.ptr
-	case *IndexPQ:
-		basePtr = b.ptr
-	default:
-		return nil, fmt.Errorf("unsupported base index type")
-	}
-
-	switch r := refineIndex.(type) {
 	case *IndexFlat:
-		refinePtr = r.ptr
+		basePtr = b.ptr
 	default:
-		return nil, fmt.Errorf("unsupported refine index type")
+		return nil, fmt.Errorf("unsupported base index type (only IndexIVFFlat and IndexFlat supported)")
 	}
 
+	// IndexRefineFlat automatically creates its own flat index for refinement
+	// The refineIndex parameter is ignored (kept for API compatibility)
 	var ptr uintptr
-	ret := faiss_IndexRefine_new(&ptr, basePtr, refinePtr)
+	ret := faiss_IndexRefineFlat_new(&ptr, basePtr)
 	if ret != 0 {
-		return nil, fmt.Errorf("failed to create IndexRefine")
+		return nil, fmt.Errorf("failed to create IndexRefineFlat")
 	}
+
+	// CRITICAL: Set own_fields=0 to prevent FAISS from freeing the base index
+	// (Go manages its lifecycle via GC and finalizers)
+	faiss_IndexRefineFlat_set_own_fields(ptr, 0)
 
 	idx := &IndexRefine{
 		ptr:         ptr,
@@ -121,9 +118,9 @@ func (idx *IndexRefine) SetK_factor(kFactor float32) error {
 	if kFactor < 1.0 {
 		return fmt.Errorf("k_factor must be >= 1.0")
 	}
-	ret := faiss_IndexRefine_set_k_factor(idx.ptr, kFactor)
-	if ret != 0 {
-		return fmt.Errorf("failed to set k_factor")
+	err := faiss_IndexRefineFlat_set_k_factor(idx.ptr, kFactor)
+	if err != nil {
+		return fmt.Errorf("failed to set k_factor: %w", err)
 	}
 	idx.kFactor = kFactor
 	return nil
@@ -190,6 +187,16 @@ func (idx *IndexRefine) Search(queries []float32, k int) (distances []float32, i
 	}
 
 	return distances, indices, nil
+}
+
+// SetNprobe delegates to the base index if it supports it
+func (idx *IndexRefine) SetNprobe(nprobe int) error {
+	return idx.baseIndex.SetNprobe(nprobe)
+}
+
+// SetEfSearch delegates to the base index if it supports it
+func (idx *IndexRefine) SetEfSearch(efSearch int) error {
+	return idx.baseIndex.SetEfSearch(efSearch)
 }
 
 // Reset removes all vectors from both indexes
@@ -275,10 +282,10 @@ func NewIndexPreTransform(transform VectorTransform, index Index) (*IndexPreTran
 		indexPtr = i.ptr
 	case *IndexIVFFlat:
 		indexPtr = i.ptr
-	case *IndexHNSW:
+	case *IndexLSH:
 		indexPtr = i.ptr
 	default:
-		return nil, fmt.Errorf("unsupported index type")
+		return nil, fmt.Errorf("unsupported index type (only IndexFlat, IndexIVFFlat, IndexLSH supported)")
 	}
 
 	var ptr uintptr
@@ -286,6 +293,10 @@ func NewIndexPreTransform(transform VectorTransform, index Index) (*IndexPreTran
 	if ret != 0 {
 		return nil, fmt.Errorf("failed to create IndexPreTransform")
 	}
+
+	// CRITICAL: Set own_fields=0 to prevent FAISS from freeing the transform and index
+	// (Go manages their lifecycle via GC and finalizers)
+	faiss_IndexPreTransform_set_own_fields(ptr, 0)
 
 	idx := &IndexPreTransform{
 		ptr:       ptr,
@@ -396,6 +407,16 @@ func (idx *IndexPreTransform) Search(queries []float32, k int) (distances []floa
 	return distances, indices, nil
 }
 
+// SetNprobe delegates to the underlying index if it supports it
+func (idx *IndexPreTransform) SetNprobe(nprobe int) error {
+	return idx.index.SetNprobe(nprobe)
+}
+
+// SetEfSearch delegates to the underlying index if it supports it
+func (idx *IndexPreTransform) SetEfSearch(efSearch int) error {
+	return idx.index.SetEfSearch(efSearch)
+}
+
 // Reset removes all vectors from the underlying index
 func (idx *IndexPreTransform) Reset() error {
 	if err := idx.index.Reset(); err != nil {
@@ -456,6 +477,12 @@ func NewIndexShards(d int, metric MetricType) (*IndexShards, error) {
 	if ret != 0 {
 		return nil, fmt.Errorf("failed to create IndexShards")
 	}
+
+	// CRITICAL: Set own_indices=0 to prevent FAISS from freeing the shards
+	// (Go manages their lifecycle via GC and finalizers)
+	// NOTE: faiss_IndexShards_set_own_indices not available in static library
+	// TODO: Manually manage shard lifecycle to avoid double-free
+	// faiss_IndexShards_set_own_indices(ptr, 0)
 
 	idx := &IndexShards{
 		ptr:       ptr,
@@ -597,6 +624,28 @@ func (idx *IndexShards) Search(queries []float32, k int) (distances []float32, i
 	}
 
 	return distances, indices, nil
+}
+
+// SetNprobe sets nprobe on all shards that support it
+func (idx *IndexShards) SetNprobe(nprobe int) error {
+	// Try to set on all shards, return error if any shard fails
+	for _, shard := range idx.shards {
+		if err := shard.SetNprobe(nprobe); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// SetEfSearch sets efSearch on all shards that support it
+func (idx *IndexShards) SetEfSearch(efSearch int) error {
+	// Try to set on all shards, return error if any shard fails
+	for _, shard := range idx.shards {
+		if err := shard.SetEfSearch(efSearch); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Reset removes all vectors from all shards

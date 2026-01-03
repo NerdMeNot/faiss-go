@@ -2,7 +2,6 @@ package faiss
 
 import (
 	"fmt"
-	"runtime"
 )
 
 // Kmeans performs k-means clustering on vectors
@@ -10,18 +9,15 @@ import (
 // Python equivalent: faiss.Kmeans
 //
 // Example:
-//   kmeans, _ := faiss.NewKmeans(128, 100, 25) // d=128, k=100, niter=25
-//   kmeans.Train(trainingVectors)
-//   centroids := kmeans.Centroids()
-//   assignments, _ := kmeans.Assign(vectors)
+//
+//	kmeans, _ := faiss.NewKmeans(128, 100) // d=128, k=100
+//	kmeans.Train(trainingVectors)
+//	centroids := kmeans.Centroids()
 type Kmeans struct {
-	ptr        uintptr  // C pointer
-	d          int      // dimension
-	k          int      // number of clusters
-	niter      int      // number of iterations
+	d          int       // dimension
+	k          int       // number of clusters
 	centroids  []float32 // cluster centroids (k * d)
-	isTrained  bool     // training status
-	// Note: obj field removed - objective values can be queried from FAISS if needed
+	isTrained  bool      // training status
 }
 
 // NewKmeans creates a new k-means clustering object
@@ -29,41 +25,19 @@ type Kmeans struct {
 // Parameters:
 //   - d: dimension of vectors
 //   - k: number of clusters
-//   - niter: number of k-means iterations (default: 25)
-//
-// Optional configuration can be done via SetXXX methods before training
-func NewKmeans(d, k, niter int) (*Kmeans, error) {
+func NewKmeans(d, k int) (*Kmeans, error) {
 	if d <= 0 {
 		return nil, ErrInvalidDimension
 	}
 	if k <= 0 {
 		return nil, fmt.Errorf("faiss: k must be positive")
 	}
-	if niter <= 0 {
-		return nil, fmt.Errorf("faiss: niter must be positive")
-	}
-
-	ptr, err := faissKmeansNew(d, k)
-	if err != nil {
-		return nil, fmt.Errorf("faiss: failed to create Kmeans: %w", err)
-	}
 
 	km := &Kmeans{
-		ptr:       ptr,
 		d:         d,
 		k:         k,
-		niter:     niter,
 		isTrained: false,
 	}
-
-	runtime.SetFinalizer(km, func(k *Kmeans) {
-		if k.ptr != 0 {
-			_ = k.Close()
-		}
-	})
-
-	// Set default parameters
-	_ = faissKmeansSetNiter(ptr, niter)
 
 	return km, nil
 }
@@ -78,39 +52,6 @@ func (km *Kmeans) K() int {
 	return km.k
 }
 
-// Niter returns the number of iterations
-func (km *Kmeans) Niter() int {
-	return km.niter
-}
-
-// SetNiter sets the number of k-means iterations
-func (km *Kmeans) SetNiter(niter int) error {
-	if niter <= 0 {
-		return fmt.Errorf("faiss: niter must be positive")
-	}
-
-	if err := faissKmeansSetNiter(km.ptr, niter); err != nil {
-		return err
-	}
-
-	km.niter = niter
-	return nil
-}
-
-// SetVerbose enables/disables verbose output during training
-func (km *Kmeans) SetVerbose(verbose bool) error {
-	v := 0
-	if verbose {
-		v = 1
-	}
-	return faissKmeansSetVerbose(km.ptr, v)
-}
-
-// SetSeed sets the random seed for initialization
-func (km *Kmeans) SetSeed(seed int64) error {
-	return faissKmeansSetSeed(km.ptr, seed)
-}
-
 // Train performs k-means clustering on the training vectors
 //
 // Parameters:
@@ -118,9 +59,6 @@ func (km *Kmeans) SetSeed(seed int64) error {
 //
 // The centroids are stored internally and can be accessed via Centroids()
 func (km *Kmeans) Train(vectors []float32) error {
-	if km.ptr == 0 {
-		return ErrNullPointer
-	}
 	if len(vectors) == 0 {
 		return fmt.Errorf("faiss: cannot train on empty vectors")
 	}
@@ -129,16 +67,17 @@ func (km *Kmeans) Train(vectors []float32) error {
 	}
 
 	n := len(vectors) / km.d
-
-	// Train
-	if err := faissKmeansTrain(km.ptr, vectors, n); err != nil {
-		return fmt.Errorf("faiss: k-means training failed: %w", err)
+	if n < km.k {
+		return fmt.Errorf("faiss: need at least %d training vectors for %d clusters, got %d", km.k, km.k, n)
 	}
 
-	// Retrieve centroids
+	// Allocate space for centroids
 	km.centroids = make([]float32, km.k*km.d)
-	if err := faissKmeansGetCentroids(km.ptr, km.centroids); err != nil {
-		return fmt.Errorf("faiss: failed to get centroids: %w", err)
+
+	// Call faiss_kmeans_clustering
+	err := faiss_kmeans_clustering(km.d, n, km.k, vectors, km.centroids)
+	if err != nil {
+		return fmt.Errorf("faiss: k-means clustering failed: %w", err)
 	}
 
 	km.isTrained = true
@@ -154,18 +93,20 @@ func (km *Kmeans) Centroids() []float32 {
 	return km.centroids
 }
 
-// Assign assigns vectors to their nearest cluster
+// IsTrained returns whether the clustering has been trained
+func (km *Kmeans) IsTrained() bool {
+	return km.isTrained
+}
+
+// Assign assigns vectors to their nearest cluster using L2 distance
 //
 // Parameters:
 //   - vectors: vectors to assign (n vectors of dimension d)
 //
 // Returns: cluster assignments (n integers, each in range [0, k))
 func (km *Kmeans) Assign(vectors []float32) ([]int64, error) {
-	if km.ptr == 0 {
-		return nil, ErrNullPointer
-	}
 	if !km.isTrained {
-		return nil, ErrNotTrained
+		return nil, fmt.Errorf("faiss: must train before assigning")
 	}
 	if len(vectors) == 0 {
 		return []int64{}, nil
@@ -177,49 +118,27 @@ func (km *Kmeans) Assign(vectors []float32) ([]int64, error) {
 	n := len(vectors) / km.d
 	assignments := make([]int64, n)
 
-	if err := faissKmeansAssign(km.ptr, vectors, n, assignments); err != nil {
-		return nil, fmt.Errorf("faiss: assignment failed: %w", err)
+	// Create a flat index with centroids to perform assignment
+	idx, err := NewIndexFlatL2(km.d)
+	if err != nil {
+		return nil, fmt.Errorf("faiss: failed to create index for assignment: %w", err)
+	}
+	defer idx.Close()
+
+	// Add centroids to index
+	if err := idx.Add(km.centroids); err != nil {
+		return nil, fmt.Errorf("faiss: failed to add centroids: %w", err)
 	}
 
+	// Search for nearest centroid for each vector
+	_, labels, err := idx.Search(vectors, 1)
+	if err != nil {
+		return nil, fmt.Errorf("faiss: assignment search failed: %w", err)
+	}
+
+	copy(assignments, labels)
 	return assignments, nil
 }
 
-// IsTrained returns whether the clustering has been trained
-func (km *Kmeans) IsTrained() bool {
-	return km.isTrained
-}
-
-// Close releases resources
-func (km *Kmeans) Close() error {
-	if km.ptr == 0 {
-		return nil
-	}
-
-	err := faissKmeansFree(km.ptr)
-	km.ptr = 0
-	km.centroids = nil
-	km.isTrained = false
-
-	if err != nil {
-		return fmt.Errorf("faiss: failed to free Kmeans: %w", err)
-	}
-
-	return nil
-}
-
-// Clustering is a more flexible clustering interface
-// Python equivalent: faiss.Clustering
-type Clustering struct {
-	*Kmeans
-	// Can add more clustering algorithms here in the future
-}
-
-// NewClustering creates a new clustering object (currently wraps Kmeans)
-func NewClustering(d, k int) (*Clustering, error) {
-	kmeans, err := NewKmeans(d, k, 25) // default 25 iterations
-	if err != nil {
-		return nil, err
-	}
-
-	return &Clustering{Kmeans: kmeans}, nil
-}
+// NOTE: Full Clustering API (faiss.Clustering) not exposed due to C binding complexity.
+// Use Kmeans which provides the core functionality via faiss_kmeans_clustering.

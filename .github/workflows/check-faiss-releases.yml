@@ -1,0 +1,149 @@
+name: Check FAISS Releases
+
+# Checks for new FAISS releases and creates an issue if a new version is found
+
+on:
+  schedule:
+    # Run nightly at 9:00 UTC
+    - cron: '0 9 * * *'
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  check-release:
+    name: Check for New FAISS Release
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Get current FAISS version from codebase
+      id: current
+      run: |
+        # Extract FAISSVersion from faiss.go
+        CURRENT_VERSION=$(grep -oP 'FAISSVersion\s*=\s*"\K[^"]+' faiss.go)
+        echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+        echo "Current FAISS version in codebase: $CURRENT_VERSION"
+
+    - name: Get latest FAISS release
+      id: latest
+      run: |
+        # Get latest release from GitHub API
+        LATEST=$(curl -s https://api.github.com/repos/facebookresearch/faiss/releases/latest | jq -r '.tag_name')
+        # Remove 'v' prefix if present
+        LATEST_VERSION=${LATEST#v}
+        echo "version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+        echo "tag=$LATEST" >> $GITHUB_OUTPUT
+        echo "Latest FAISS release: $LATEST_VERSION"
+
+    - name: Compare versions
+      id: compare
+      run: |
+        CURRENT="${{ steps.current.outputs.version }}"
+        LATEST="${{ steps.latest.outputs.version }}"
+
+        echo "Comparing: current=$CURRENT vs latest=$LATEST"
+
+        if [ "$CURRENT" = "$LATEST" ]; then
+          echo "up_to_date=true" >> $GITHUB_OUTPUT
+          echo "Already on latest version"
+        else
+          echo "up_to_date=false" >> $GITHUB_OUTPUT
+          echo "New version available!"
+        fi
+
+    - name: Check for existing issue
+      id: existing
+      if: steps.compare.outputs.up_to_date == 'false'
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        LATEST="${{ steps.latest.outputs.version }}"
+
+        # Search for existing open issue about this version
+        EXISTING=$(gh issue list --state open --search "FAISS $LATEST" --json number --jq 'length')
+
+        if [ "$EXISTING" -gt 0 ]; then
+          echo "exists=true" >> $GITHUB_OUTPUT
+          echo "Issue already exists for FAISS $LATEST"
+        else
+          echo "exists=false" >> $GITHUB_OUTPUT
+          echo "No existing issue found"
+        fi
+
+    - name: Create issue for new release
+      if: steps.compare.outputs.up_to_date == 'false' && steps.existing.outputs.exists == 'false'
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        CURRENT="${{ steps.current.outputs.version }}"
+        LATEST="${{ steps.latest.outputs.version }}"
+        LATEST_TAG="${{ steps.latest.outputs.tag }}"
+
+        # Get release notes
+        RELEASE_URL="https://github.com/facebookresearch/faiss/releases/tag/${LATEST_TAG}"
+
+        gh issue create \
+          --title "Update to FAISS $LATEST" \
+          --label "enhancement,dependency" \
+          --body "## New FAISS Release Available
+
+A new version of FAISS has been released!
+
+| | Version |
+|---|---------|
+| **Current** | $CURRENT |
+| **Latest** | $LATEST |
+
+### Release Notes
+See: $RELEASE_URL
+
+### Checklist
+
+- [ ] Review FAISS changelog for breaking changes
+- [ ] Update \`FAISSVersion\` constant in \`faiss.go\`
+- [ ] Reset \`BindingMajor\` to 0 and \`BindingMinor\` to 1
+- [ ] Update \`Version\` constant string
+- [ ] Run \`build-static-libs\` workflow to build new static libraries
+- [ ] Test all platforms (Linux AMD64/ARM64, macOS Intel/ARM64)
+- [ ] Test with system FAISS (\`ci-system-faiss\` workflow)
+- [ ] Update any changed C API bindings in \`faiss_lib.go\` and \`faiss_system.go\`
+- [ ] Run full test suite
+- [ ] Create release with new version tag (e.g., \`v${LATEST}-0.1\`)
+
+### Commands
+
+\`\`\`bash
+# Update version in faiss.go
+# FAISSVersion = \"$LATEST\"
+# BindingMajor = 0
+# BindingMinor = 1
+# Version = \"$LATEST-0.1\"
+
+# Build static libraries (run workflow)
+# gh workflow run build-static-libs.yml -f faiss_version=v$LATEST -f platforms=all
+
+# Test
+go test -v ./...
+\`\`\`
+
+---
+*This issue was automatically created by the FAISS release checker workflow.*"
+
+        echo "Created issue for FAISS $LATEST"
+
+    - name: Summary
+      run: |
+        echo "## FAISS Version Check Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| | Version |" >> $GITHUB_STEP_SUMMARY
+        echo "|---|---------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Current | ${{ steps.current.outputs.version }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Latest | ${{ steps.latest.outputs.version }} |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        if [ "${{ steps.compare.outputs.up_to_date }}" = "true" ]; then
+          echo "**Status:** Up to date" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "**Status:** New version available!" >> $GITHUB_STEP_SUMMARY
+        fi

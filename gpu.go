@@ -1,4 +1,5 @@
-// +build !nogpu
+//go:build gpu
+// +build gpu
 
 package faiss
 
@@ -30,9 +31,9 @@ type StandardGpuResources struct {
 // NewStandardGpuResources creates GPU resources with default settings
 func NewStandardGpuResources() (*StandardGpuResources, error) {
 	var ptr uintptr
-	ret := faiss_StandardGpuResources_new(&ptr)
-	if ret != 0 {
-		return nil, fmt.Errorf("failed to create GPU resources (CUDA not available?)")
+	err := faiss_StandardGpuResources_new(&ptr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create GPU resources (CUDA not available?): %w", err)
 	}
 
 	res := &StandardGpuResources{
@@ -55,9 +56,9 @@ func (res *StandardGpuResources) SetTempMemory(bytes int64) error {
 		return fmt.Errorf("temp memory must be positive")
 	}
 
-	ret := faiss_StandardGpuResources_setTempMemory(res.ptr, bytes)
-	if ret != 0 {
-		return fmt.Errorf("failed to set temp memory")
+	err := faiss_StandardGpuResources_setTempMemory(res.ptr, bytes)
+	if err != nil {
+		return fmt.Errorf("failed to set temp memory: %w", err)
 	}
 
 	res.tempMemory = bytes
@@ -71,9 +72,9 @@ func (res *StandardGpuResources) GetTempMemory() int64 {
 
 // SetDefaultNullStreamAllDevices sets whether to use the null stream
 func (res *StandardGpuResources) SetDefaultNullStreamAllDevices() error {
-	ret := faiss_StandardGpuResources_setDefaultNullStreamAllDevices(res.ptr)
-	if ret != 0 {
-		return fmt.Errorf("failed to set null stream")
+	err := faiss_StandardGpuResources_setDefaultNullStreamAllDevices(res.ptr)
+	if err != nil {
+		return fmt.Errorf("failed to set null stream: %w", err)
 	}
 	return nil
 }
@@ -166,18 +167,16 @@ func IndexCpuToGpu(res *StandardGpuResources, device int, index Index) (Index, e
 		indexPtr = idx.ptr
 	case *IndexIVFFlat:
 		indexPtr = idx.ptr
-	case *IndexPQ:
-		indexPtr = idx.ptr
-	case *IndexIVFPQ:
+	case *GenericIndex:
 		indexPtr = idx.ptr
 	default:
 		return nil, fmt.Errorf("unsupported index type for GPU transfer")
 	}
 
 	var gpuPtr uintptr
-	ret := faiss_index_cpu_to_gpu(res.ptr, int64(device), indexPtr, &gpuPtr)
-	if ret != 0 {
-		return nil, fmt.Errorf("failed to transfer index to GPU")
+	err := faiss_index_cpu_to_gpu(res.ptr, device, indexPtr, &gpuPtr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to transfer index to GPU: %w", err)
 	}
 
 	// Wrap in generic GPU index
@@ -218,23 +217,18 @@ func IndexGpuToCpu(gpuIndex Index) (Index, error) {
 	}
 
 	var cpuPtr uintptr
-	var indexType [32]byte
-	var d, metric int
-	var ntotal int64
-
-	ret := faiss_index_gpu_to_cpu(gpuPtr, &cpuPtr, &indexType[0], &d, &metric, &ntotal)
-	if ret != 0 {
-		return nil, fmt.Errorf("failed to transfer index to CPU")
+	err := faiss_index_gpu_to_cpu(gpuPtr, &cpuPtr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to transfer index to CPU: %w", err)
 	}
 
-	// Determine index type and wrap appropriately
-	// For now, return generic wrapper
-	metricType := MetricType(metric)
+	// Return a generic index wrapper
+	// TODO: Properly detect index type and create specific wrapper
 	cpuIndex := &IndexFlat{
 		ptr:       cpuPtr,
-		d:         d,
-		metric:    metricType,
-		ntotal:    ntotal,
+		d:         gpuIndex.D(),
+		metric:    gpuIndex.MetricType(),
+		ntotal:    gpuIndex.Ntotal(),
 		isTrained: true,
 	}
 
@@ -254,10 +248,9 @@ func IndexCpuToAllGpus(index Index) (Index, error) {
 	}
 
 	// Get number of GPUs
-	var ngpus int
-	ret := faiss_get_num_gpus(&ngpus)
-	if ret != 0 || ngpus == 0 {
-		return nil, fmt.Errorf("no GPUs available")
+	ngpus, err := faiss_get_num_gpus()
+	if err != nil || ngpus == 0 {
+		return nil, fmt.Errorf("no GPUs available: %w", err)
 	}
 
 	var indexPtr uintptr
@@ -270,10 +263,16 @@ func IndexCpuToAllGpus(index Index) (Index, error) {
 		return nil, fmt.Errorf("unsupported index type for multi-GPU")
 	}
 
+	// Create default GPU resources for multi-GPU
+	res, err := NewStandardGpuResources()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create GPU resources: %w", err)
+	}
+
 	var gpuPtr uintptr
-	ret = faiss_index_cpu_to_all_gpus(indexPtr, &gpuPtr)
-	if ret != 0 {
-		return nil, fmt.Errorf("failed to transfer index to all GPUs")
+	err = faiss_index_cpu_to_all_gpus(res.ptr, indexPtr, &gpuPtr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to transfer index to all GPUs: %w", err)
 	}
 
 	// Wrap in multi-GPU index
@@ -296,9 +295,11 @@ func IndexCpuToAllGpus(index Index) (Index, error) {
 //
 // Python equivalent: faiss.get_num_gpus()
 func GetNumGpus() int {
-	var ngpus int
-	faiss_get_num_gpus(&ngpus)
-	return ngpus
+	num, err := faiss_get_num_gpus()
+	if err != nil {
+		return 0
+	}
+	return num
 }
 
 // ========================================
@@ -383,6 +384,16 @@ func (idx *GpuIndex) Search(queries []float32, k int) (distances []float32, indi
 	}
 
 	return distances, indices, nil
+}
+
+// SetNprobe is not generally supported for GPU indexes
+func (idx *GpuIndex) SetNprobe(nprobe int) error {
+	return fmt.Errorf("faiss: SetNprobe not supported for generic GpuIndex")
+}
+
+// SetEfSearch is not generally supported for GPU indexes
+func (idx *GpuIndex) SetEfSearch(efSearch int) error {
+	return fmt.Errorf("faiss: SetEfSearch not supported for generic GpuIndex")
 }
 
 // Reset removes all vectors

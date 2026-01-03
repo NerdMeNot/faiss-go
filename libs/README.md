@@ -9,22 +9,31 @@ This directory contains pre-compiled static FAISS libraries for different platfo
 | `linux_amd64` | x86_64 | GCC 11 | OpenBLAS 0.3.21 |
 | `linux_arm64` | ARM64 | GCC 11 | OpenBLAS 0.3.21 |
 | `darwin_amd64` | x86_64 | Clang 15 | Accelerate Framework |
-| `darwin_arm64` | ARM64 (M1/M2) | Clang 15 | Accelerate Framework |
+| `darwin_arm64` | ARM64 (M1/M2/M3) | Clang 15 | Accelerate Framework |
 | `windows_amd64` | x86_64 | MSVC 2022 | OpenBLAS 0.3.21 |
 
 ## File Structure
 
 Each platform directory contains:
-- `libfaiss.a` (or `.lib` on Windows) - Static FAISS library
-- `libopenblas.a` - Static OpenBLAS library (Linux/Windows only)
+- `libfaiss.a` - Core FAISS library (C++)
+- `libfaiss_c.a` - FAISS C API wrapper
+- `libfaiss_go_ext.a` - Go-specific extensions (macOS only, for HNSW accessors)
 - `build_info.json` - Build metadata and configuration
+
+## Runtime Dependencies
+
+| Platform | Dependencies |
+|----------|-------------|
+| macOS | None (uses system Accelerate framework) |
+| Linux | `libopenblas`, `libgfortran`, `libgomp` (install via apt/yum) |
+| Windows | `libopenblas`, `libgfortran`, `libquadmath` |
 
 ## Usage
 
-These libraries are automatically used when building with the `faiss_use_lib` tag:
+These libraries are used by default (no build tags needed):
 
 ```bash
-go build -tags=faiss_use_lib
+go build ./...
 ```
 
 The appropriate library is selected based on `GOOS` and `GOARCH`.
@@ -59,6 +68,31 @@ Each library includes SHA256 checksums in `checksums.txt` for verification:
 cd libs/linux_amd64
 sha256sum -c checksums.txt
 ```
+
+## Using Custom Libraries
+
+To use your own FAISS build instead of these pre-built libraries:
+
+```bash
+# Use system-installed FAISS
+go build -tags=faiss_use_system ./...
+
+# Or set custom library paths
+export CGO_LDFLAGS="-L/path/to/your/libs -lfaiss_c -lfaiss"
+go build -tags=faiss_use_system ./...
+```
+
+## Future: Separate Bindings Module
+
+This directory may be extracted into a separate Go module
+(`github.com/NerdMeNot/faiss-go-bindings`) following the pattern
+used by [duckdb-go-bindings](https://github.com/duckdb/duckdb-go-bindings).
+
+Benefits of separation:
+- Independent versioning of bindings vs library code
+- Smaller main module download size
+- Easier to provide custom bindings
+- Better caching in CI/CD pipelines
 
 ## License
 

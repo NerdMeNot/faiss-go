@@ -41,16 +41,20 @@ func NewIndexIDMap(baseIndex Index) (*IndexIDMap, error) {
 		basePtr = idx.ptr
 	case *IndexIVFFlat:
 		basePtr = idx.ptr
-	case *IndexHNSW:
+	case *IndexLSH:
 		basePtr = idx.ptr
 	default:
-		return nil, fmt.Errorf("faiss: unsupported base index type")
+		return nil, fmt.Errorf("faiss: unsupported base index type (only IndexFlat, IndexIVFFlat, IndexLSH supported)")
 	}
 
 	ptr, err := faissIndexIDMapNew(basePtr)
 	if err != nil {
 		return nil, fmt.Errorf("faiss: failed to create IndexIDMap: %w", err)
 	}
+
+	// CRITICAL: Set own_fields=0 to prevent FAISS from freeing the base index
+	// (Go manages the base index lifecycle via GC and finalizers)
+	faiss_IndexIDMap_set_own_fields(ptr, 0)
 
 	idx := &IndexIDMap{
 		ptr:       ptr,
@@ -185,21 +189,36 @@ func (idx *IndexIDMap) Search(queries []float32, k int) (distances []float32, in
 //   - ids: slice of IDs to remove
 //
 // Returns the number of vectors actually removed
+//
+// NOT AVAILABLE: faiss_IndexIDMap_remove_ids not in static library
 func (idx *IndexIDMap) RemoveIDs(ids []int64) error {
-	if idx.ptr == 0 {
-		return ErrNullPointer
-	}
-	if len(ids) == 0 {
-		return nil
-	}
+	return fmt.Errorf("faiss: RemoveIDs not supported - faiss_IndexIDMap_remove_ids not available in static library")
 
-	nRemoved, err := faissIndexRemoveIDs(idx.ptr, ids, len(ids))
-	if err != nil {
-		return fmt.Errorf("faiss: failed to remove IDs: %w", err)
-	}
+	// Original implementation (disabled):
+	// if idx.ptr == 0 {
+	// 	return ErrNullPointer
+	// }
+	// if len(ids) == 0 {
+	// 	return nil
+	// }
+	//
+	// nRemoved, err := faissIndexRemoveIDs(idx.ptr, ids, len(ids))
+	// if err != nil {
+	// 	return fmt.Errorf("faiss: failed to remove IDs: %w", err)
+	// }
+	//
+	// idx.ntotal -= int64(nRemoved)
+	// return nil
+}
 
-	idx.ntotal -= int64(nRemoved)
-	return nil
+// SetNprobe delegates to the base index if it supports it
+func (idx *IndexIDMap) SetNprobe(nprobe int) error {
+	return idx.baseIndex.SetNprobe(nprobe)
+}
+
+// SetEfSearch delegates to the base index if it supports it
+func (idx *IndexIDMap) SetEfSearch(efSearch int) error {
+	return idx.baseIndex.SetEfSearch(efSearch)
 }
 
 // Reset removes all vectors

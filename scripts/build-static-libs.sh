@@ -362,8 +362,8 @@ main() {
     log_info "Output: $OUTPUT_DIR/$PLATFORM"
     log_info ""
     log_info "Next steps:"
-    log_info "  1. Verify the build: go build -tags=nogpu"
-    log_info "  2. Test: go test -tags=nogpu -v ./..."
+    log_info "  1. Verify the build: go build"
+    log_info "  2. Test: go test -v ./..."
     log_info "  3. Commit the new libraries to git"
 }
 

@@ -124,7 +124,10 @@ func loadOrGenerateDataset(t *testing.T, config RecallTestConfig) (datasetResult
 		}
 
 		synData := datasets.GenerateSyntheticData(genConfig)
-		synData.GenerateQueries(config.NQ, config.Distribution)
+		// Generate queries as perturbed versions of actual vectors
+		// This ensures meaningful recall (queries have known nearest neighbors)
+		// noiseLevel=0.05 means ~5% noise, balancing recall quality with test difficulty
+		synData.GeneratePerturbedQueries(config.NQ, 0.05)
 
 		res.vectors = synData.Vectors
 		res.queries = synData.Queries

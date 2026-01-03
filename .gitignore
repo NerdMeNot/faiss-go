@@ -30,6 +30,12 @@ vendor/
 bin/
 build/
 dist/
+*.o
+faiss-go-test
+
+# Script build artifacts (not libs/)
+scripts/*.o
+scripts/*.a
 
 # FAISS build artifacts
 faiss/build/
@@ -42,6 +48,10 @@ CMakeFiles/
 tmp/
 temp/
 *.tmp
+
+# Test data (generated)
+test/recall/test/
+test/recall/testdata/
 
 # Pre-built library build artifacts
 libs/build/

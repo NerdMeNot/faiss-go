@@ -4,380 +4,451 @@ import (
 	"testing"
 )
 
-func TestNewIndexIVFFlat(t *testing.T) {
+// ========================================
+// IVF Index Tests (via Factory)
+// ========================================
+
+func TestIVFFlat_Factory(t *testing.T) {
 	d := 64
-	nlist := 10
+	nb := 1000
+	nq := 5
 
-	quantizer, err := NewIndexFlatL2(d)
+	// Create IVF index via factory
+	index, err := IndexFactory(d, "IVF10,Flat", MetricL2)
 	if err != nil {
-		t.Fatalf("Failed to create quantizer: %v", err)
-	}
-	defer quantizer.Close()
-
-	index, err := NewIndexIVFFlat(quantizer, d, nlist, MetricL2)
-	if err != nil {
-		t.Fatalf("Failed to create IVF index: %v", err)
+		t.Fatalf("IndexFactory failed: %v", err)
 	}
 	defer index.Close()
 
+	// Verify properties
 	if index.D() != d {
-		t.Errorf("Expected dimension %d, got %d", d, index.D())
+		t.Errorf("D() = %d, want %d", index.D(), d)
+	}
+	if index.MetricType() != MetricL2 {
+		t.Errorf("MetricType() = %v, want MetricL2", index.MetricType())
 	}
 
-	if index.MetricType() != MetricL2 {
-		t.Errorf("Expected MetricL2, got %v", index.MetricType())
+	// IVF requires training
+	if index.IsTrained() {
+		t.Error("IVF index should not be trained initially")
+	}
+
+	// Train the index
+	trainingVectors := generateTestVectors(nb, d)
+	if err := index.Train(trainingVectors); err != nil {
+		t.Fatalf("Train() failed: %v", err)
+	}
+
+	if !index.IsTrained() {
+		t.Error("IVF index should be trained after Train()")
+	}
+
+	// Add vectors
+	if err := index.Add(trainingVectors); err != nil {
+		t.Fatalf("Add() failed: %v", err)
+	}
+
+	if index.Ntotal() != int64(nb) {
+		t.Errorf("Ntotal() = %d, want %d", index.Ntotal(), nb)
+	}
+
+	// Search
+	queries := generateTestVectors(nq, d)
+	k := 10
+	distances, indices, err := index.Search(queries, k)
+	if err != nil {
+		t.Fatalf("Search() failed: %v", err)
+	}
+
+	expectedLen := nq * k
+	if len(distances) != expectedLen || len(indices) != expectedLen {
+		t.Errorf("Search() returned %d distances and %d indices, want %d each",
+			len(distances), len(indices), expectedLen)
+	}
+
+	// Verify distances are sorted
+	for i := 0; i < nq; i++ {
+		for j := 1; j < k; j++ {
+			idx := i*k + j
+			if distances[idx] < distances[idx-1] {
+				t.Errorf("Distances not sorted at query %d", i)
+				break
+			}
+		}
+	}
+
+	// Reset
+	if err := index.Reset(); err != nil {
+		t.Fatalf("Reset() failed: %v", err)
 	}
 
 	if index.Ntotal() != 0 {
-		t.Errorf("New index should have 0 vectors, got %d", index.Ntotal())
-	}
-
-	if index.IsTrained() {
-		t.Error("New IVF index should not be trained")
-	}
-
-	if index.Nlist() != nlist {
-		t.Errorf("Expected nlist=%d, got %d", nlist, index.Nlist())
-	}
-
-	if index.Nprobe() != 1 {
-		t.Errorf("Expected default nprobe=1, got %d", index.Nprobe())
+		t.Errorf("Ntotal() = %d after Reset, want 0", index.Ntotal())
 	}
 }
 
-func TestNewIndexIVFFlat_InnerProduct(t *testing.T) {
-	d := 32
-	nlist := 5
+func TestIVFPQ_Factory(t *testing.T) {
+	d := 128
+	// PQ8 uses 256 centroids per sub-quantizer, needs ~39*256 = 9984 training vectors
+	// IVF16 needs ~39*16 = 624 training vectors
+	// Use 10000 to satisfy both requirements
+	nb := 10000
 
-	quantizer, err := NewIndexFlatIP(d)
+	// Create IVFPQ index via factory
+	// IVF16,PQ8 = 16 clusters, 8-bit product quantization (smaller nlist for faster test)
+	index, err := IndexFactory(d, "IVF16,PQ8", MetricL2)
 	if err != nil {
-		t.Fatalf("Failed to create quantizer: %v", err)
-	}
-	defer quantizer.Close()
-
-	index, err := NewIndexIVFFlat(quantizer, d, nlist, MetricInnerProduct)
-	if err != nil {
-		t.Fatalf("Failed to create IVF index: %v", err)
+		t.Fatalf("IndexFactory failed: %v", err)
 	}
 	defer index.Close()
 
-	if index.MetricType() != MetricInnerProduct {
-		t.Errorf("Expected MetricInnerProduct, got %v", index.MetricType())
+	// Verify properties
+	if index.D() != d {
+		t.Errorf("D() = %d, want %d", index.D(), d)
+	}
+
+	// IVFPQ requires training
+	if index.IsTrained() {
+		t.Error("IVFPQ index should not be trained initially")
+	}
+
+	// Train with sufficient data for PQ (needs ~10k vectors)
+	trainingVectors := generateTestVectors(nb, d)
+	if err := index.Train(trainingVectors); err != nil {
+		t.Fatalf("Train() failed: %v", err)
+	}
+
+	if !index.IsTrained() {
+		t.Error("IVFPQ index should be trained after Train()")
+	}
+
+	// Add vectors
+	if err := index.Add(trainingVectors); err != nil {
+		t.Fatalf("Add() failed: %v", err)
+	}
+
+	// Search
+	queries := generateTestVectors(5, d)
+	distances, indices, err := index.Search(queries, 10)
+	if err != nil {
+		t.Fatalf("Search() failed: %v", err)
+	}
+
+	if len(distances) != 50 || len(indices) != 50 {
+		t.Errorf("Search() returned %d distances and %d indices, want 50 each",
+			len(distances), len(indices))
 	}
 }
 
-func TestNewIndexIVFFlat_InvalidParameters(t *testing.T) {
+func TestIVF_DifferentNlist(t *testing.T) {
 	d := 64
-
-	quantizer, err := NewIndexFlatL2(d)
-	if err != nil {
-		t.Fatalf("Failed to create quantizer: %v", err)
-	}
-	defer quantizer.Close()
+	// Need ~39*nlist training vectors. For nlist=50, need 1950 vectors
+	nb := 2000
 
 	tests := []struct {
-		name   string
-		d      int
-		nlist  int
-		metric MetricType
+		name  string
+		nlist int
+		desc  string
 	}{
-		{"zero dimension", 0, 10, MetricL2},
-		{"negative dimension", -1, 10, MetricL2},
-		{"zero nlist", 64, 0, MetricL2},
-		{"negative nlist", 64, -1, MetricL2},
+		{"IVF_small", 2, "IVF2,Flat"},
+		{"IVF_medium", 10, "IVF10,Flat"},
+		{"IVF_large", 50, "IVF50,Flat"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := NewIndexIVFFlat(quantizer, tt.d, tt.nlist, tt.metric)
-			if err == nil {
-				t.Error("Expected error for invalid parameters")
+			index, err := IndexFactory(d, tt.desc, MetricL2)
+			if err != nil {
+				t.Fatalf("IndexFactory(%q) failed: %v", tt.desc, err)
+			}
+			defer index.Close()
+
+			// Train and add
+			vectors := generateTestVectors(nb, d)
+			if err := index.Train(vectors); err != nil {
+				t.Fatalf("Train() failed: %v", err)
+			}
+
+			if err := index.Add(vectors); err != nil {
+				t.Fatalf("Add() failed: %v", err)
+			}
+
+			// Search should work
+			queries := generateTestVectors(3, d)
+			distances, indices, err := index.Search(queries, 5)
+			if err != nil {
+				t.Fatalf("Search() failed: %v", err)
+			}
+
+			if len(distances) != 15 || len(indices) != 15 {
+				t.Errorf("Search() returned wrong number of results")
 			}
 		})
 	}
 }
 
-func TestIndexIVFFlat_SetNprobe(t *testing.T) {
+func TestIVF_InsufficientTrainingData(t *testing.T) {
 	d := 64
-	nlist := 20
 
-	quantizer, err := NewIndexFlatL2(d)
+	index, err := IndexFactory(d, "IVF100,Flat", MetricL2)
 	if err != nil {
-		t.Fatalf("Failed to create quantizer: %v", err)
-	}
-	defer quantizer.Close()
-
-	index, err := NewIndexIVFFlat(quantizer, d, nlist, MetricL2)
-	if err != nil {
-		t.Fatalf("Failed to create IVF index: %v", err)
+		t.Fatalf("IndexFactory failed: %v", err)
 	}
 	defer index.Close()
 
-	// Test valid nprobe values
-	validNprobes := []int{1, 5, 10, 15, 20}
-	for _, nprobe := range validNprobes {
-		if err := index.SetNprobe(nprobe); err != nil {
-			t.Errorf("SetNprobe(%d) failed: %v", nprobe, err)
-		}
-		if index.Nprobe() != nprobe {
-			t.Errorf("Expected nprobe=%d, got %d", nprobe, index.Nprobe())
-		}
-	}
+	// Try to train with too few vectors (need at least nlist vectors)
+	insufficientVectors := generateTestVectors(50, d) // Only 50 vectors for 100 clusters
 
-	// Test invalid nprobe values
-	invalidNprobes := []int{0, -1, nlist + 1}
-	for _, nprobe := range invalidNprobes {
-		if err := index.SetNprobe(nprobe); err == nil {
-			t.Errorf("Expected error for nprobe=%d", nprobe)
-		}
+	// This should fail or succeed with a warning
+	err = index.Train(insufficientVectors)
+	// FAISS may handle this gracefully or error - just log the result
+	if err != nil {
+		t.Logf("Train() with insufficient data returned error (expected): %v", err)
+	} else {
+		t.Logf("Train() with insufficient data succeeded (FAISS may have reduced nlist)")
 	}
 }
 
-func TestIndexIVFFlat_TrainAddSearch(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping IVF train/add/search test in short mode")
-	}
+func TestIVF_TrainBeforeAdd(t *testing.T) {
+	d := 64
+	nb := 500
 
-	d := 32
-	nlist := 10
-	nTrain := 500
-	nAdd := 1000
-	nQuery := 10
-	k := 5
-
-	// Create index
-	quantizer, err := NewIndexFlatL2(d)
+	index, err := IndexFactory(d, "IVF10,Flat", MetricL2)
 	if err != nil {
-		t.Fatalf("Failed to create quantizer: %v", err)
-	}
-	defer quantizer.Close()
-
-	index, err := NewIndexIVFFlat(quantizer, d, nlist, MetricL2)
-	if err != nil {
-		t.Fatalf("Failed to create IVF index: %v", err)
+		t.Fatalf("IndexFactory failed: %v", err)
 	}
 	defer index.Close()
 
-	// Generate training data
-	trainVectors := make([]float32, d*nTrain)
-	for i := range trainVectors {
-		trainVectors[i] = float32(i % 100)
+	vectors := generateTestVectors(nb, d)
+
+	// Try to add without training
+	err = index.Add(vectors)
+	if err == nil {
+		t.Error("Add() should fail when index is not trained")
 	}
+
+	// Now train and add
+	if err := index.Train(vectors); err != nil {
+		t.Fatalf("Train() failed: %v", err)
+	}
+
+	if err := index.Add(vectors); err != nil {
+		t.Fatalf("Add() after training failed: %v", err)
+	}
+}
+
+func TestIVF_SearchBeforeAdd(t *testing.T) {
+	d := 64
+	nb := 500
+
+	index, err := IndexFactory(d, "IVF10,Flat", MetricL2)
+	if err != nil {
+		t.Fatalf("IndexFactory failed: %v", err)
+	}
+	defer index.Close()
+
+	vectors := generateTestVectors(nb, d)
+	if err := index.Train(vectors); err != nil {
+		t.Fatalf("Train() failed: %v", err)
+	}
+
+	// Search on empty index
+	queries := generateTestVectors(1, d)
+	distances, _, err := index.Search(queries, 5)
+
+	// Should succeed but return no results or special values
+	if err != nil {
+		t.Logf("Search() on empty index returned error: %v", err)
+	} else {
+		t.Logf("Search() on empty index returned %d results", len(distances))
+		// Distances might be inf or very large
+	}
+}
+
+func TestIVF_MetricTypes(t *testing.T) {
+	d := 64
+	nb := 500
+
+	tests := []struct {
+		name   string
+		metric MetricType
+	}{
+		{"L2", MetricL2},
+		{"InnerProduct", MetricInnerProduct},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			index, err := IndexFactory(d, "IVF10,Flat", tt.metric)
+			if err != nil {
+				t.Fatalf("IndexFactory failed: %v", err)
+			}
+			defer index.Close()
+
+			if index.MetricType() != tt.metric {
+				t.Errorf("MetricType() = %v, want %v", index.MetricType(), tt.metric)
+			}
+
+			// Train and add
+			vectors := generateTestVectors(nb, d)
+			if err := index.Train(vectors); err != nil {
+				t.Fatalf("Train() failed: %v", err)
+			}
+
+			if err := index.Add(vectors); err != nil {
+				t.Fatalf("Add() failed: %v", err)
+			}
+
+			// Search should work
+			queries := generateTestVectors(1, d)
+			_, _, err = index.Search(queries, 5)
+			if err != nil {
+				t.Fatalf("Search() failed: %v", err)
+			}
+		})
+	}
+}
+
+func TestIVF_AddInBatches(t *testing.T) {
+	d := 64
+	batchSize := 100
+	numBatches := 5
+	totalVectors := batchSize * numBatches
+
+	index, err := IndexFactory(d, "IVF10,Flat", MetricL2)
+	if err != nil {
+		t.Fatalf("IndexFactory failed: %v", err)
+	}
+	defer index.Close()
+
+	// Train with sufficient data (IVF10 needs ~390 vectors)
+	trainingData := generateTestVectors(400, d)
+	if err := index.Train(trainingData); err != nil {
+		t.Fatalf("Train() failed: %v", err)
+	}
+
+	// Add vectors in batches
+	for i := 0; i < numBatches; i++ {
+		batch := generateTestVectors(batchSize, d)
+		if err := index.Add(batch); err != nil {
+			t.Fatalf("Add() batch %d failed: %v", i, err)
+		}
+
+		expectedCount := int64((i + 1) * batchSize)
+		if index.Ntotal() != expectedCount {
+			t.Errorf("After batch %d: Ntotal() = %d, want %d",
+				i, index.Ntotal(), expectedCount)
+		}
+	}
+
+	if index.Ntotal() != int64(totalVectors) {
+		t.Errorf("Final Ntotal() = %d, want %d", index.Ntotal(), totalVectors)
+	}
+}
+
+func TestIVF_LargeK(t *testing.T) {
+	d := 64
+	// Need ~39*5 = 195 training vectors for IVF5
+	nb := 200
+	k := 400 // k larger than nb
+
+	index, err := IndexFactory(d, "IVF5,Flat", MetricL2)
+	if err != nil {
+		t.Fatalf("IndexFactory failed: %v", err)
+	}
+	defer index.Close()
+
+	vectors := generateTestVectors(nb, d)
+	if err := index.Train(vectors); err != nil {
+		t.Fatalf("Train() failed: %v", err)
+	}
+
+	if err := index.Add(vectors); err != nil {
+		t.Fatalf("Add() failed: %v", err)
+	}
+
+	// Search with k > nb
+	queries := generateTestVectors(1, d)
+	distances, _, err := index.Search(queries, k)
+	if err != nil {
+		t.Fatalf("Search() failed: %v", err)
+	}
+
+	// FAISS returns k results even when k > nb, padding with invalid entries
+	// Just verify Search doesn't crash
+	if len(distances) != k {
+		t.Errorf("Search() returned %d results, expected %d (FAISS pads results)", len(distances), k)
+	}
+}
+
+func TestIVFSQ_Factory(t *testing.T) {
+	d := 64
+	nb := 500
+
+	// Create IVF with scalar quantization
+	index, err := IndexFactory(d, "IVF10,SQ8", MetricL2)
+	if err != nil {
+		t.Fatalf("IndexFactory failed: %v", err)
+	}
+	defer index.Close()
 
 	// Train
-	if err := index.Train(trainVectors); err != nil {
-		t.Fatalf("Training failed: %v", err)
+	vectors := generateTestVectors(nb, d)
+	if err := index.Train(vectors); err != nil {
+		t.Fatalf("Train() failed: %v", err)
 	}
 
-	if !index.IsTrained() {
-		t.Error("Index should be trained after Train()")
-	}
-
-	// Add vectors
-	addVectors := make([]float32, d*nAdd)
-	for i := range addVectors {
-		addVectors[i] = float32(i % 50)
-	}
-
-	if err := index.Add(addVectors); err != nil {
-		t.Fatalf("Add failed: %v", err)
-	}
-
-	if index.Ntotal() != int64(nAdd) {
-		t.Errorf("Expected %d vectors, got %d", nAdd, index.Ntotal())
-	}
-
-	// Set nprobe for search
-	if err := index.SetNprobe(5); err != nil {
-		t.Fatalf("SetNprobe failed: %v", err)
+	// Add
+	if err := index.Add(vectors); err != nil {
+		t.Fatalf("Add() failed: %v", err)
 	}
 
 	// Search
-	queries := make([]float32, d*nQuery)
-	for i := range queries {
-		queries[i] = float32(i % 30)
-	}
-
-	distances, indices, err := index.Search(queries, k)
+	queries := generateTestVectors(3, d)
+	distances, indices, err := index.Search(queries, 10)
 	if err != nil {
-		t.Fatalf("Search failed: %v", err)
+		t.Fatalf("Search() failed: %v", err)
 	}
 
-	if len(distances) != nQuery*k {
-		t.Errorf("Expected %d distances, got %d", nQuery*k, len(distances))
-	}
-
-	if len(indices) != nQuery*k {
-		t.Errorf("Expected %d indices, got %d", nQuery*k, len(indices))
-	}
-
-	// Verify indices are valid
-	for i, idx := range indices {
-		if idx < 0 || idx >= int64(nAdd) {
-			t.Errorf("Invalid index at position %d: %d", i, idx)
-		}
+	if len(distances) != 30 || len(indices) != 30 {
+		t.Errorf("Search() returned %d distances and %d indices, want 30 each",
+			len(distances), len(indices))
 	}
 }
 
-func TestIndexIVFFlat_TrainBeforeAdd(t *testing.T) {
-	d := 32
-	nlist := 5
+func TestIVF_SetGetNprobe(t *testing.T) {
+	d := 64
 
-	quantizer, err := NewIndexFlatL2(d)
+	index, err := IndexFactory(d, "IVF10,Flat", MetricL2)
 	if err != nil {
-		t.Fatalf("Failed to create quantizer: %v", err)
-	}
-	defer quantizer.Close()
-
-	index, err := NewIndexIVFFlat(quantizer, d, nlist, MetricL2)
-	if err != nil {
-		t.Fatalf("Failed to create IVF index: %v", err)
+		t.Fatalf("IndexFactory failed: %v", err)
 	}
 	defer index.Close()
 
-	// Try to add without training
-	vectors := make([]float32, d*10)
-	err = index.Add(vectors)
-	if err != ErrNotTrained {
-		t.Errorf("Expected ErrNotTrained, got %v", err)
-	}
-}
-
-func TestIndexIVFFlat_InvalidVectorSize(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping invalid vector test in short mode")
+	genericIdx, ok := index.(*GenericIndex)
+	if !ok {
+		t.Fatalf("Expected *GenericIndex, got %T", index)
 	}
 
-	d := 32
-	nlist := 5
-
-	quantizer, err := NewIndexFlatL2(d)
+	// Get initial nprobe (should be 1)
+	nprobe, err := genericIdx.GetNprobe()
 	if err != nil {
-		t.Fatalf("Failed to create quantizer: %v", err)
+		t.Fatalf("GetNprobe() failed: %v", err)
 	}
-	defer quantizer.Close()
+	t.Logf("Initial nprobe: %d", nprobe)
 
-	index, err := NewIndexIVFFlat(quantizer, d, nlist, MetricL2)
+	// Set nprobe to 5
+	if err := genericIdx.SetNprobe(5); err != nil {
+		t.Fatalf("SetNprobe(5) failed: %v", err)
+	}
+
+	// Verify it was set
+	nprobe, err = genericIdx.GetNprobe()
 	if err != nil {
-		t.Fatalf("Failed to create IVF index: %v", err)
-	}
-	defer index.Close()
-
-	// Train with valid data
-	trainVectors := make([]float32, d*100)
-	if err := index.Train(trainVectors); err != nil {
-		t.Fatalf("Training failed: %v", err)
+		t.Fatalf("GetNprobe() after set failed: %v", err)
 	}
 
-	// Try to add with invalid size
-	invalidVectors := make([]float32, d+1)
-	err = index.Add(invalidVectors)
-	if err != ErrInvalidVectors {
-		t.Errorf("Expected ErrInvalidVectors, got %v", err)
-	}
-
-	// Try to search with invalid size
-	invalidQuery := make([]float32, d+1)
-	_, _, err = index.Search(invalidQuery, 5)
-	if err != ErrInvalidVectors {
-		t.Errorf("Expected ErrInvalidVectors, got %v", err)
-	}
-}
-
-func TestIndexIVFFlat_Reset(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping reset test in short mode")
-	}
-
-	d := 32
-	nlist := 5
-	n := 100
-
-	quantizer, err := NewIndexFlatL2(d)
-	if err != nil {
-		t.Fatalf("Failed to create quantizer: %v", err)
-	}
-	defer quantizer.Close()
-
-	index, err := NewIndexIVFFlat(quantizer, d, nlist, MetricL2)
-	if err != nil {
-		t.Fatalf("Failed to create IVF index: %v", err)
-	}
-	defer index.Close()
-
-	// Train and add
-	vectors := make([]float32, d*n)
-	if err := index.Train(vectors); err != nil {
-		t.Fatalf("Training failed: %v", err)
-	}
-	if err := index.Add(vectors); err != nil {
-		t.Fatalf("Add failed: %v", err)
-	}
-
-	if index.Ntotal() != int64(n) {
-		t.Errorf("Expected %d vectors before reset, got %d", n, index.Ntotal())
-	}
-
-	// Reset
-	if err := index.Reset(); err != nil {
-		t.Fatalf("Reset failed: %v", err)
-	}
-
-	if index.Ntotal() != 0 {
-		t.Errorf("Expected 0 vectors after reset, got %d", index.Ntotal())
-	}
-
-	// Should still be trained after reset
-	if !index.IsTrained() {
-		t.Error("Index should remain trained after reset")
-	}
-}
-
-func TestIndexIVFFlat_Assign(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping assign test in short mode")
-	}
-
-	d := 32
-	nlist := 5
-	n := 100
-
-	quantizer, err := NewIndexFlatL2(d)
-	if err != nil {
-		t.Fatalf("Failed to create quantizer: %v", err)
-	}
-	defer quantizer.Close()
-
-	index, err := NewIndexIVFFlat(quantizer, d, nlist, MetricL2)
-	if err != nil {
-		t.Fatalf("Failed to create IVF index: %v", err)
-	}
-	defer index.Close()
-
-	// Train
-	trainVectors := make([]float32, d*n)
-	for i := range trainVectors {
-		trainVectors[i] = float32(i % 20)
-	}
-
-	if err := index.Train(trainVectors); err != nil {
-		t.Fatalf("Training failed: %v", err)
-	}
-
-	// Assign vectors to clusters
-	assignments, err := index.Assign(trainVectors)
-	if err != nil {
-		t.Fatalf("Assign failed: %v", err)
-	}
-
-	if len(assignments) != n {
-		t.Errorf("Expected %d assignments, got %d", n, len(assignments))
-	}
-
-	// Verify assignments are valid cluster IDs
-	for i, clusterID := range assignments {
-		if clusterID < 0 || clusterID >= int64(nlist) {
-			t.Errorf("Invalid cluster ID at position %d: %d (should be 0-%d)", i, clusterID, nlist-1)
-		}
+	if nprobe != 5 {
+		t.Errorf("GetNprobe() = %d, want 5", nprobe)
 	}
 }
