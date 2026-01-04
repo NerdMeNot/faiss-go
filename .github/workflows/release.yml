@@ -1,0 +1,289 @@
+name: Release
+
+# Creates a new release with the faiss-go versioning scheme:
+# v{FAISS_VERSION}-{BINDING_MAJOR}.{BINDING_MINOR}
+#
+# Examples:
+# - v1.13.2-0.1 (first release for FAISS 1.13.2)
+# - v1.13.2-0.2 (bug fix release)
+# - v1.13.2-1.0 (new faiss-go feature added)
+# - v1.14.0-0.1 (first release for FAISS 1.14.0)
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: 'What to bump'
+        required: true
+        type: choice
+        options:
+          - binding_minor   # Bug fixes (0.1 -> 0.2)
+          - binding_major   # New features (0.1 -> 1.0)
+        default: 'binding_minor'
+      prerelease:
+        description: 'Pre-release suffix (optional, e.g., alpha, beta, rc1)'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify running on main branch
+        run: |
+          CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+          if [ "$CURRENT_BRANCH" != "main" ]; then
+            echo "Error: Releases can only be created from the main branch"
+            echo "Current branch: $CURRENT_BRANCH"
+            exit 1
+          fi
+          echo "Running on main branch"
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libopenblas-dev libgomp1 libomp-dev
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Get current version info
+        id: current
+        run: |
+          # Extract version components from faiss.go
+          FAISS_VERSION=$(grep -oP 'FAISSVersion\s*=\s*"\K[^"]+' faiss.go)
+          BINDING_MAJOR=$(grep -oP 'BindingMajor\s*=\s*\K\d+' faiss.go)
+          BINDING_MINOR=$(grep -oP 'BindingMinor\s*=\s*\K\d+' faiss.go)
+
+          echo "faiss_version=$FAISS_VERSION" >> $GITHUB_OUTPUT
+          echo "binding_major=$BINDING_MAJOR" >> $GITHUB_OUTPUT
+          echo "binding_minor=$BINDING_MINOR" >> $GITHUB_OUTPUT
+
+          CURRENT_TAG="v${FAISS_VERSION}-${BINDING_MAJOR}.${BINDING_MINOR}"
+          echo "current_tag=$CURRENT_TAG" >> $GITHUB_OUTPUT
+
+          echo "Current version info:"
+          echo "  FAISS Version: $FAISS_VERSION"
+          echo "  Binding Major: $BINDING_MAJOR"
+          echo "  Binding Minor: $BINDING_MINOR"
+          echo "  Current Tag: $CURRENT_TAG"
+
+      - name: Calculate next version
+        id: next
+        run: |
+          FAISS_VERSION="${{ steps.current.outputs.faiss_version }}"
+          BINDING_MAJOR=${{ steps.current.outputs.binding_major }}
+          BINDING_MINOR=${{ steps.current.outputs.binding_minor }}
+
+          case "${{ inputs.bump_type }}" in
+            binding_minor)
+              # Bug fix: 0.1 -> 0.2
+              BINDING_MINOR=$((BINDING_MINOR + 1))
+              ;;
+            binding_major)
+              # New feature: 0.1 -> 1.0
+              BINDING_MAJOR=$((BINDING_MAJOR + 1))
+              BINDING_MINOR=0
+              ;;
+          esac
+
+          NEXT_TAG="v${FAISS_VERSION}-${BINDING_MAJOR}.${BINDING_MINOR}"
+
+          # Add pre-release suffix if provided
+          if [ -n "${{ inputs.prerelease }}" ]; then
+            NEXT_TAG="${NEXT_TAG}-${{ inputs.prerelease }}"
+          fi
+
+          echo "binding_major=$BINDING_MAJOR" >> $GITHUB_OUTPUT
+          echo "binding_minor=$BINDING_MINOR" >> $GITHUB_OUTPUT
+          echo "next_tag=$NEXT_TAG" >> $GITHUB_OUTPUT
+          echo "version_string=${FAISS_VERSION}-${BINDING_MAJOR}.${BINDING_MINOR}" >> $GITHUB_OUTPUT
+
+          echo "Next version:"
+          echo "  Binding Major: $BINDING_MAJOR"
+          echo "  Binding Minor: $BINDING_MINOR"
+          echo "  Next Tag: $NEXT_TAG"
+
+      - name: Check if tag already exists
+        run: |
+          if git rev-parse "${{ steps.next.outputs.next_tag }}" >/dev/null 2>&1; then
+            echo "Error: Tag ${{ steps.next.outputs.next_tag }} already exists"
+            exit 1
+          fi
+          echo "Tag ${{ steps.next.outputs.next_tag }} is available"
+
+      - name: Update version in faiss.go
+        run: |
+          BINDING_MAJOR=${{ steps.next.outputs.binding_major }}
+          BINDING_MINOR=${{ steps.next.outputs.binding_minor }}
+          VERSION_STRING="${{ steps.next.outputs.version_string }}"
+
+          # Update BindingMajor
+          sed -i "s/BindingMajor = [0-9]*/BindingMajor = $BINDING_MAJOR/" faiss.go
+
+          # Update BindingMinor
+          sed -i "s/BindingMinor = [0-9]*/BindingMinor = $BINDING_MINOR/" faiss.go
+
+          # Update Version string
+          sed -i "s/Version = \"[^\"]*\"/Version = \"$VERSION_STRING\"/" faiss.go
+
+          echo "Updated faiss.go:"
+          grep -E "(FAISSVersion|BindingMajor|BindingMinor|Version)\s*=" faiss.go
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Get the last tag
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+          if [ -z "$LAST_TAG" ]; then
+            echo "No previous tags found, generating full changelog"
+            COMMIT_RANGE="HEAD"
+          else
+            echo "Generating changelog from $LAST_TAG to HEAD"
+            COMMIT_RANGE="$LAST_TAG..HEAD"
+          fi
+
+          # Generate changelog from commit messages
+          CHANGELOG=$(git log $COMMIT_RANGE --pretty=format:"- %s (%h)" --no-merges)
+
+          # Categorize commits
+          {
+            echo "## What's Changed"
+            echo ""
+
+            # Features
+            FEATURES=$(echo "$CHANGELOG" | grep -i "feat:" || true)
+            if [ -n "$FEATURES" ]; then
+              echo "### Features"
+              echo "$FEATURES"
+              echo ""
+            fi
+
+            # Bug Fixes
+            FIXES=$(echo "$CHANGELOG" | grep -i "fix:" || true)
+            if [ -n "$FIXES" ]; then
+              echo "### Bug Fixes"
+              echo "$FIXES"
+              echo ""
+            fi
+
+            # Performance
+            PERF=$(echo "$CHANGELOG" | grep -i "perf:" || true)
+            if [ -n "$PERF" ]; then
+              echo "### Performance"
+              echo "$PERF"
+              echo ""
+            fi
+
+            # Documentation
+            DOCS=$(echo "$CHANGELOG" | grep -i "docs:" || true)
+            if [ -n "$DOCS" ]; then
+              echo "### Documentation"
+              echo "$DOCS"
+              echo ""
+            fi
+
+            # Other changes
+            OTHER=$(echo "$CHANGELOG" | grep -viE "feat:|fix:|perf:|docs:" || true)
+            if [ -n "$OTHER" ]; then
+              echo "### Other Changes"
+              echo "$OTHER"
+              echo ""
+            fi
+
+            echo "---"
+            echo ""
+            echo "**FAISS Version:** ${{ steps.current.outputs.faiss_version }}"
+            echo ""
+
+          } > RELEASE_NOTES.md
+
+          cat RELEASE_NOTES.md
+
+      - name: Run tests
+        env:
+          CGO_LDFLAGS_ALLOW: ".*"
+        run: |
+          echo "Running tests before release..."
+          go test -v -timeout 10m ./...
+
+      - name: Run linting
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.62.2
+          args: --timeout=5m
+
+      - name: Commit version bump
+        run: |
+          git add faiss.go
+          git commit -m "chore: Bump version to ${{ steps.next.outputs.next_tag }}"
+
+      - name: Create and push tag
+        run: |
+          TAG="${{ steps.next.outputs.next_tag }}"
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin main
+          git push origin "$TAG"
+
+      - name: Create GitHub Release
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const tag = '${{ steps.next.outputs.next_tag }}';
+            const releaseNotes = fs.readFileSync('RELEASE_NOTES.md', 'utf8');
+
+            const isPrerelease = tag.includes('-alpha') || tag.includes('-beta') || tag.includes('-rc');
+
+            const release = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: tag,
+              name: `Release ${tag}`,
+              body: releaseNotes,
+              draft: false,
+              prerelease: isPrerelease
+            });
+
+            console.log(`Created release: ${release.data.html_url}`);
+
+      - name: Summary
+        run: |
+          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Released version:** ${{ steps.next.outputs.next_tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Version Info" >> $GITHUB_STEP_SUMMARY
+          echo "| Component | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| FAISS Version | ${{ steps.current.outputs.faiss_version }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Binding Major | ${{ steps.next.outputs.binding_major }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Binding Minor | ${{ steps.next.outputs.binding_minor }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Installation" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "go get github.com/NerdMeNot/faiss-go@${{ steps.next.outputs.next_tag }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Release Notes" >> $GITHUB_STEP_SUMMARY
+          cat RELEASE_NOTES.md >> $GITHUB_STEP_SUMMARY

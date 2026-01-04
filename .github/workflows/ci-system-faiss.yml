@@ -1,0 +1,440 @@
+name: CI - System FAISS
+
+# Tests faiss-go with system-installed FAISS (not prebuilt static libraries)
+# This validates the -tags=faiss_use_system build mode
+
+# Manual trigger only until workflows are fully verified
+on:
+  workflow_dispatch:
+    inputs:
+      faiss_version:
+        description: 'FAISS version to build'
+        required: false
+        default: 'v1.13.2'
+        type: string
+
+jobs:
+  # ============================================
+  # Linux AMD64 - System FAISS Build
+  # ============================================
+  system-faiss-linux-amd64:
+    name: System FAISS (Linux AMD64, Go ${{ matrix.go-version }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        go-version: ['1.21', '1.22', '1.23', '1.24', '1.25']
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ matrix.go-version }}
+
+    - name: Install build dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          cmake \
+          git \
+          libopenblas-dev \
+          libgomp1 \
+          libomp-dev \
+          libgfortran5
+
+    - name: Cache FAISS build
+      uses: actions/cache@v4
+      id: cache-faiss
+      with:
+        path: /tmp/faiss-install
+        key: faiss-linux-amd64-${{ inputs.faiss_version || 'v1.13.2' }}
+
+    - name: Build FAISS from source
+      if: steps.cache-faiss.outputs.cache-hit != 'true'
+      run: |
+        FAISS_VERSION="${{ inputs.faiss_version || 'v1.13.2' }}"
+        cd /tmp
+        wget https://github.com/facebookresearch/faiss/archive/refs/tags/${FAISS_VERSION}.tar.gz
+        tar -xzf ${FAISS_VERSION}.tar.gz
+        cd faiss-${FAISS_VERSION#v}
+
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DFAISS_ENABLE_GPU=OFF \
+          -DFAISS_ENABLE_PYTHON=OFF \
+          -DFAISS_ENABLE_C_API=ON \
+          -DBUILD_TESTING=OFF \
+          -DBUILD_SHARED_LIBS=ON \
+          -DCMAKE_INSTALL_PREFIX=/tmp/faiss-install \
+          .
+
+        cmake --build build -j$(nproc)
+        cmake --install build
+
+        echo "FAISS installed to /tmp/faiss-install"
+        ls -la /tmp/faiss-install/lib/
+
+    - name: Install FAISS to system
+      run: |
+        sudo cp -r /tmp/faiss-install/lib/* /usr/local/lib/
+        sudo cp -r /tmp/faiss-install/include/* /usr/local/include/
+        sudo ldconfig
+
+        echo "Verifying FAISS installation:"
+        ls -la /usr/local/lib/libfaiss*
+
+    - name: Cache Go modules
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ matrix.go-version }}-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-${{ matrix.go-version }}-
+
+    - name: Build with system FAISS
+      env:
+        CGO_LDFLAGS_ALLOW: ".*"
+        LD_LIBRARY_PATH: "/usr/local/lib:$LD_LIBRARY_PATH"
+      run: |
+        echo "Building with -tags=faiss_use_system..."
+        go build -tags=faiss_use_system -v ./...
+
+    - name: Run tests with system FAISS
+      env:
+        CGO_LDFLAGS_ALLOW: ".*"
+        LD_LIBRARY_PATH: "/usr/local/lib:$LD_LIBRARY_PATH"
+      timeout-minutes: 10
+      run: |
+        echo "Running tests with -tags=faiss_use_system..."
+        go test -tags=faiss_use_system -short -v -timeout 10m .
+
+    - name: Run scenario tests
+      env:
+        CGO_LDFLAGS_ALLOW: ".*"
+        LD_LIBRARY_PATH: "/usr/local/lib:$LD_LIBRARY_PATH"
+      timeout-minutes: 10
+      run: |
+        echo "Running scenario tests..."
+        go test -tags=faiss_use_system -v -timeout 10m ./test/scenarios/...
+
+  # ============================================
+  # Linux ARM64 - System FAISS Build
+  # ============================================
+  system-faiss-linux-arm64:
+    name: System FAISS (Linux ARM64, Go ${{ matrix.go-version }})
+    runs-on: ubuntu-24.04-arm
+
+    strategy:
+      fail-fast: false
+      matrix:
+        go-version: ['1.21', '1.22', '1.23', '1.24', '1.25']
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ matrix.go-version }}
+
+    - name: Install build dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          cmake \
+          git \
+          libopenblas-dev \
+          libgomp1 \
+          libomp-dev \
+          libgfortran5
+
+    - name: Cache FAISS build
+      uses: actions/cache@v4
+      id: cache-faiss
+      with:
+        path: /tmp/faiss-install
+        key: faiss-linux-arm64-${{ inputs.faiss_version || 'v1.13.2' }}
+
+    - name: Build FAISS from source
+      if: steps.cache-faiss.outputs.cache-hit != 'true'
+      run: |
+        FAISS_VERSION="${{ inputs.faiss_version || 'v1.13.2' }}"
+        cd /tmp
+        wget https://github.com/facebookresearch/faiss/archive/refs/tags/${FAISS_VERSION}.tar.gz
+        tar -xzf ${FAISS_VERSION}.tar.gz
+        cd faiss-${FAISS_VERSION#v}
+
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DFAISS_ENABLE_GPU=OFF \
+          -DFAISS_ENABLE_PYTHON=OFF \
+          -DFAISS_ENABLE_C_API=ON \
+          -DBUILD_TESTING=OFF \
+          -DBUILD_SHARED_LIBS=ON \
+          -DCMAKE_INSTALL_PREFIX=/tmp/faiss-install \
+          .
+
+        cmake --build build -j$(nproc)
+        cmake --install build
+
+    - name: Install FAISS to system
+      run: |
+        sudo cp -r /tmp/faiss-install/lib/* /usr/local/lib/
+        sudo cp -r /tmp/faiss-install/include/* /usr/local/include/
+        sudo ldconfig
+
+    - name: Cache Go modules
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-arm64-go-${{ matrix.go-version }}-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-arm64-go-${{ matrix.go-version }}-
+
+    - name: Build with system FAISS
+      env:
+        CGO_LDFLAGS_ALLOW: ".*"
+        LD_LIBRARY_PATH: "/usr/local/lib:$LD_LIBRARY_PATH"
+      run: |
+        go build -tags=faiss_use_system -v ./...
+
+    - name: Run tests with system FAISS
+      env:
+        CGO_LDFLAGS_ALLOW: ".*"
+        LD_LIBRARY_PATH: "/usr/local/lib:$LD_LIBRARY_PATH"
+      timeout-minutes: 10
+      run: |
+        go test -tags=faiss_use_system -short -v -timeout 10m .
+
+  # ============================================
+  # macOS Intel - System FAISS Build
+  # ============================================
+  system-faiss-macos-amd64:
+    name: System FAISS (macOS Intel, Go ${{ matrix.go-version }})
+    runs-on: macos-13  # Intel Mac
+
+    strategy:
+      fail-fast: false
+      matrix:
+        go-version: ['1.21', '1.22', '1.23', '1.24', '1.25']
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ matrix.go-version }}
+
+    - name: Install build dependencies
+      run: |
+        brew install cmake openblas libomp
+
+    - name: Cache FAISS build
+      uses: actions/cache@v4
+      id: cache-faiss
+      with:
+        path: /tmp/faiss-install
+        key: faiss-macos-amd64-${{ inputs.faiss_version || 'v1.13.2' }}
+
+    - name: Build FAISS from source
+      if: steps.cache-faiss.outputs.cache-hit != 'true'
+      run: |
+        FAISS_VERSION="${{ inputs.faiss_version || 'v1.13.2' }}"
+        cd /tmp
+        curl -L -o ${FAISS_VERSION}.tar.gz https://github.com/facebookresearch/faiss/archive/refs/tags/${FAISS_VERSION}.tar.gz
+        tar -xzf ${FAISS_VERSION}.tar.gz
+        cd faiss-${FAISS_VERSION#v}
+
+        # Find OpenBLAS and libomp paths
+        OPENBLAS_PREFIX=$(brew --prefix openblas)
+        LIBOMP_PREFIX=$(brew --prefix libomp)
+
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DFAISS_ENABLE_GPU=OFF \
+          -DFAISS_ENABLE_PYTHON=OFF \
+          -DFAISS_ENABLE_C_API=ON \
+          -DBUILD_TESTING=OFF \
+          -DBUILD_SHARED_LIBS=ON \
+          -DCMAKE_INSTALL_PREFIX=/tmp/faiss-install \
+          -DBLA_VENDOR=OpenBLAS \
+          -DCMAKE_PREFIX_PATH="${OPENBLAS_PREFIX};${LIBOMP_PREFIX}" \
+          .
+
+        cmake --build build -j$(sysctl -n hw.ncpu)
+        cmake --install build
+
+    - name: Set library paths
+      run: |
+        echo "DYLD_LIBRARY_PATH=/tmp/faiss-install/lib:$(brew --prefix openblas)/lib:$(brew --prefix libomp)/lib" >> $GITHUB_ENV
+        echo "CGO_CPPFLAGS=-I/tmp/faiss-install/include -I$(brew --prefix openblas)/include -I$(brew --prefix libomp)/include" >> $GITHUB_ENV
+        echo "CGO_LDFLAGS=-L/tmp/faiss-install/lib -L$(brew --prefix openblas)/lib -L$(brew --prefix libomp)/lib" >> $GITHUB_ENV
+
+    - name: Cache Go modules
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/Library/Caches/go-build
+          ~/go/pkg/mod
+        key: macos-amd64-go-${{ matrix.go-version }}-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          macos-amd64-go-${{ matrix.go-version }}-
+
+    - name: Build with system FAISS
+      env:
+        CGO_LDFLAGS_ALLOW: ".*"
+      run: |
+        go build -tags=faiss_use_system -v ./...
+
+    - name: Run tests with system FAISS
+      env:
+        CGO_LDFLAGS_ALLOW: ".*"
+      timeout-minutes: 10
+      run: |
+        go test -tags=faiss_use_system -short -v -timeout 10m .
+
+  # ============================================
+  # macOS Apple Silicon - System FAISS Build
+  # ============================================
+  system-faiss-macos-arm64:
+    name: System FAISS (macOS ARM64, Go ${{ matrix.go-version }})
+    runs-on: macos-14  # Apple Silicon
+
+    strategy:
+      fail-fast: false
+      matrix:
+        go-version: ['1.21', '1.22', '1.23', '1.24', '1.25']
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ matrix.go-version }}
+
+    - name: Install build dependencies
+      run: |
+        brew install cmake openblas libomp
+
+    - name: Cache FAISS build
+      uses: actions/cache@v4
+      id: cache-faiss
+      with:
+        path: /tmp/faiss-install
+        key: faiss-macos-arm64-${{ inputs.faiss_version || 'v1.13.2' }}
+
+    - name: Build FAISS from source
+      if: steps.cache-faiss.outputs.cache-hit != 'true'
+      run: |
+        FAISS_VERSION="${{ inputs.faiss_version || 'v1.13.2' }}"
+        cd /tmp
+        curl -L -o ${FAISS_VERSION}.tar.gz https://github.com/facebookresearch/faiss/archive/refs/tags/${FAISS_VERSION}.tar.gz
+        tar -xzf ${FAISS_VERSION}.tar.gz
+        cd faiss-${FAISS_VERSION#v}
+
+        # Find OpenBLAS and libomp paths (Apple Silicon uses /opt/homebrew)
+        OPENBLAS_PREFIX=$(brew --prefix openblas)
+        LIBOMP_PREFIX=$(brew --prefix libomp)
+
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DFAISS_ENABLE_GPU=OFF \
+          -DFAISS_ENABLE_PYTHON=OFF \
+          -DFAISS_ENABLE_C_API=ON \
+          -DBUILD_TESTING=OFF \
+          -DBUILD_SHARED_LIBS=ON \
+          -DCMAKE_INSTALL_PREFIX=/tmp/faiss-install \
+          -DBLA_VENDOR=OpenBLAS \
+          -DCMAKE_PREFIX_PATH="${OPENBLAS_PREFIX};${LIBOMP_PREFIX}" \
+          .
+
+        cmake --build build -j$(sysctl -n hw.ncpu)
+        cmake --install build
+
+    - name: Set library paths
+      run: |
+        echo "DYLD_LIBRARY_PATH=/tmp/faiss-install/lib:$(brew --prefix openblas)/lib:$(brew --prefix libomp)/lib" >> $GITHUB_ENV
+        echo "CGO_CPPFLAGS=-I/tmp/faiss-install/include -I$(brew --prefix openblas)/include -I$(brew --prefix libomp)/include" >> $GITHUB_ENV
+        echo "CGO_LDFLAGS=-L/tmp/faiss-install/lib -L$(brew --prefix openblas)/lib -L$(brew --prefix libomp)/lib" >> $GITHUB_ENV
+
+    - name: Cache Go modules
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/Library/Caches/go-build
+          ~/go/pkg/mod
+        key: macos-arm64-go-${{ matrix.go-version }}-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          macos-arm64-go-${{ matrix.go-version }}-
+
+    - name: Build with system FAISS
+      env:
+        CGO_LDFLAGS_ALLOW: ".*"
+      run: |
+        go build -tags=faiss_use_system -v ./...
+
+    - name: Run tests with system FAISS
+      env:
+        CGO_LDFLAGS_ALLOW: ".*"
+      timeout-minutes: 10
+      run: |
+        go test -tags=faiss_use_system -short -v -timeout 10m .
+
+  # ============================================
+  # Summary Job
+  # ============================================
+  system-faiss-success:
+    name: System FAISS CI Success
+    runs-on: ubuntu-latest
+    needs: [system-faiss-linux-amd64, system-faiss-linux-arm64, system-faiss-macos-amd64, system-faiss-macos-arm64]
+    if: always()
+
+    steps:
+    - name: Check all jobs
+      run: |
+        echo "=== Job Results ==="
+        echo "Linux AMD64: ${{ needs.system-faiss-linux-amd64.result }}"
+        echo "Linux ARM64: ${{ needs.system-faiss-linux-arm64.result }}"
+        echo "macOS Intel: ${{ needs.system-faiss-macos-amd64.result }}"
+        echo "macOS ARM64: ${{ needs.system-faiss-macos-arm64.result }}"
+        echo ""
+
+        FAILED=0
+        if [ "${{ needs.system-faiss-linux-amd64.result }}" != "success" ]; then
+          echo "Linux AMD64 failed or was skipped"
+          FAILED=1
+        fi
+        if [ "${{ needs.system-faiss-linux-arm64.result }}" != "success" ]; then
+          echo "Linux ARM64 failed or was skipped"
+          FAILED=1
+        fi
+        if [ "${{ needs.system-faiss-macos-amd64.result }}" != "success" ]; then
+          echo "macOS Intel failed or was skipped"
+          FAILED=1
+        fi
+        if [ "${{ needs.system-faiss-macos-arm64.result }}" != "success" ]; then
+          echo "macOS ARM64 failed or was skipped"
+          FAILED=1
+        fi
+
+        if [ $FAILED -eq 1 ]; then
+          echo "Some jobs failed!"
+          exit 1
+        fi
+
+        echo "All system FAISS CI jobs passed!"

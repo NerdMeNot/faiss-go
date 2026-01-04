@@ -1,0 +1,179 @@
+name: CI
+
+# Manual trigger only until workflows are fully verified
+on:
+  workflow_dispatch:
+    inputs:
+      run_qualitative:
+        description: 'Run qualitative/recall tests'
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  # ============================================
+  # Fast Unit Tests (runs on every push/PR)
+  # ~30 seconds, tests core functionality
+  # ============================================
+  fast-tests:
+    name: Fast Tests (Go ${{ matrix.go-version }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        go-version: ['1.21', '1.22', '1.23', '1.24', '1.25']
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ matrix.go-version }}
+
+    - name: Install runtime dependencies (Ubuntu)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libopenblas-dev libgomp1 libomp-dev
+
+    - name: Install runtime dependencies (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        brew install openblas libomp
+
+    - name: Cache Go modules
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ matrix.go-version }}-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-${{ matrix.go-version }}-
+
+    - name: Build
+      env:
+        CGO_LDFLAGS_ALLOW: ".*"
+      run: |
+        go build -v ./...
+
+    - name: Run fast unit tests
+      env:
+        CGO_LDFLAGS_ALLOW: ".*"
+      timeout-minutes: 5
+      run: |
+        # Fast tests only - skip slow tests with -short flag
+        go test -short -v -timeout 5m -coverprofile=coverage.out -covermode=atomic .
+
+    - name: Upload coverage (Ubuntu + Go 1.25 only)
+      if: matrix.os == 'ubuntu-latest' && matrix.go-version == '1.25'
+      uses: codecov/codecov-action@v4
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: ./coverage.out
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+
+  # ============================================
+  # Qualitative Tests (runs when manually triggered with flag)
+  # ~2-5 minutes, tests recall quality and scenarios
+  # ============================================
+  qualitative-tests:
+    name: Qualitative Tests
+    runs-on: ubuntu-latest
+    if: github.event.inputs.run_qualitative == 'true'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.25'
+
+    - name: Install runtime dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libopenblas-dev libgomp1 libomp-dev
+
+    - name: Cache Go modules
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ubuntu-go-1.25-${{ hashFiles('**/go.sum') }}
+
+    - name: Build
+      env:
+        CGO_LDFLAGS_ALLOW: ".*"
+      run: go build -v ./...
+
+    - name: Run scenario tests
+      env:
+        CGO_LDFLAGS_ALLOW: ".*"
+      timeout-minutes: 10
+      run: |
+        echo "🧪 Running qualitative scenario tests..."
+        go test -v -timeout 10m ./test/scenarios/...
+
+    - name: Run recall tests
+      env:
+        CGO_LDFLAGS_ALLOW: ".*"
+      timeout-minutes: 10
+      run: |
+        echo "📊 Running recall/quality tests..."
+        go test -v -timeout 10m ./test/recall/...
+
+  # Lint check
+  lint:
+    name: Lint (Go 1.25)
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.25'
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libopenblas-dev libgomp1 libomp-dev
+
+    - name: golangci-lint
+      uses: golangci/golangci-lint-action@v4
+      env:
+        CGO_LDFLAGS_ALLOW: ".*"
+      with:
+        version: v1.62.2
+        args: --timeout=5m
+
+  # Summary job
+  ci-success:
+    name: CI Success
+    runs-on: ubuntu-latest
+    needs: [fast-tests, lint]
+    if: always()
+
+    steps:
+    - name: Check all jobs
+      run: |
+        if [ "${{ needs.fast-tests.result }}" != "success" ]; then
+          echo "❌ Fast tests failed"
+          exit 1
+        fi
+        if [ "${{ needs.lint.result }}" != "success" ]; then
+          echo "❌ Lint failed"
+          exit 1
+        fi
+        echo "✅ All CI jobs passed!"

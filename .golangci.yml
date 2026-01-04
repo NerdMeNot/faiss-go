@@ -1,0 +1,51 @@
+linters-settings:
+  govet:
+    enable-all: true
+    disable:
+      - shadow
+  gocyclo:
+    min-complexity: 15
+  dupl:
+    threshold: 100
+  goconst:
+    min-len: 3
+    min-occurrences: 3
+
+linters:
+  disable-all: true
+  enable:
+    - errcheck
+    # govet disabled - requires type information from compilation
+    # - govet
+    - ineffassign
+    # staticcheck disabled - requires full compilation
+    # - staticcheck
+    # typecheck disabled - requires C++ compilation
+    # - typecheck
+    - unused
+    - misspell
+    - unconvert
+    - gocyclo
+    - goconst
+
+issues:
+  exclude-rules:
+    # Exclude some linters from running on tests files
+    - path: _test\.go
+      linters:
+        - gocyclo
+        - errcheck
+        - dupl
+        - goconst
+
+    # Exclude CGO files from certain checks
+    - path: faiss_.*\.go
+      linters:
+        - govet
+
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+run:
+  timeout: 5m
+  tests: true
