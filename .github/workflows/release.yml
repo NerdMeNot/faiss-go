@@ -1,25 +1,25 @@
 name: Release
 
-# Creates a new release with the faiss-go versioning scheme:
-# v{FAISS_VERSION}-{BINDING_MAJOR}.{BINDING_MINOR}
+# Creates a new release with versioning based on faiss-go-bindings version.
+# Version format: v{BINDINGS_VERSION}.{PATCH}
 #
-# Examples:
-# - v1.13.2-0.1 (first release for FAISS 1.13.2)
-# - v1.13.2-0.2 (bug fix release)
-# - v1.13.2-1.0 (new faiss-go feature added)
-# - v1.14.0-0.1 (first release for FAISS 1.14.0)
+# The bindings version is automatically extracted from go.mod.
+# Examples (if bindings is v1.13.2-2):
+# - v1.13.2-2.1 (first faiss-go release for bindings v1.13.2-2)
+# - v1.13.2-2.2 (second release, bug fixes)
+# - v1.13.2-2.3 (third release, new features)
+#
+# When bindings updates to v1.13.2-3:
+# - v1.13.2-3.1 (first release for new bindings)
 
 on:
   workflow_dispatch:
     inputs:
-      bump_type:
-        description: 'What to bump'
-        required: true
-        type: choice
-        options:
-          - binding_minor   # Bug fixes (0.1 -> 0.2)
-          - binding_major   # New features (0.1 -> 1.0)
-        default: 'binding_minor'
+      patch_bump:
+        description: 'Patch number to release (auto-increments from last tag if empty)'
+        required: false
+        type: string
+        default: ''
       prerelease:
         description: 'Pre-release suffix (optional, e.g., alpha, beta, rc1)'
         required: false
@@ -55,103 +55,81 @@ jobs:
         with:
           go-version: '1.25'
 
-      - name: Install dependencies
+      - name: Install runtime dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libopenblas-dev libgomp1 libomp-dev
+          # Only need OpenMP and Fortran runtimes - OpenBLAS is statically linked
+          sudo apt-get install -y libgomp1 libgfortran5
 
       - name: Configure Git
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Get current version info
-        id: current
+      - name: Extract bindings version from go.mod
+        id: bindings
         run: |
-          # Extract version components from faiss.go
-          FAISS_VERSION=$(grep -oP 'FAISSVersion\s*=\s*"\K[^"]+' faiss.go)
-          BINDING_MAJOR=$(grep -oP 'BindingMajor\s*=\s*\K\d+' faiss.go)
-          BINDING_MINOR=$(grep -oP 'BindingMinor\s*=\s*\K\d+' faiss.go)
+          # Extract the bindings version from go.mod
+          # Example: github.com/NerdMeNot/faiss-go-bindings v1.13.2-2
+          BINDINGS_VERSION=$(grep 'github.com/NerdMeNot/faiss-go-bindings' go.mod | awk '{print $2}')
 
-          echo "faiss_version=$FAISS_VERSION" >> $GITHUB_OUTPUT
-          echo "binding_major=$BINDING_MAJOR" >> $GITHUB_OUTPUT
-          echo "binding_minor=$BINDING_MINOR" >> $GITHUB_OUTPUT
+          if [ -z "$BINDINGS_VERSION" ]; then
+            echo "Error: Could not find faiss-go-bindings in go.mod"
+            exit 1
+          fi
 
-          CURRENT_TAG="v${FAISS_VERSION}-${BINDING_MAJOR}.${BINDING_MINOR}"
-          echo "current_tag=$CURRENT_TAG" >> $GITHUB_OUTPUT
+          echo "bindings_version=$BINDINGS_VERSION" >> $GITHUB_OUTPUT
+          echo "Bindings version: $BINDINGS_VERSION"
 
-          echo "Current version info:"
-          echo "  FAISS Version: $FAISS_VERSION"
-          echo "  Binding Major: $BINDING_MAJOR"
-          echo "  Binding Minor: $BINDING_MINOR"
-          echo "  Current Tag: $CURRENT_TAG"
-
-      - name: Calculate next version
-        id: next
+      - name: Determine next version
+        id: version
         run: |
-          FAISS_VERSION="${{ steps.current.outputs.faiss_version }}"
-          BINDING_MAJOR=${{ steps.current.outputs.binding_major }}
-          BINDING_MINOR=${{ steps.current.outputs.binding_minor }}
+          BINDINGS_VERSION="${{ steps.bindings.outputs.bindings_version }}"
 
-          case "${{ inputs.bump_type }}" in
-            binding_minor)
-              # Bug fix: 0.1 -> 0.2
-              BINDING_MINOR=$((BINDING_MINOR + 1))
-              ;;
-            binding_major)
-              # New feature: 0.1 -> 1.0
-              BINDING_MAJOR=$((BINDING_MAJOR + 1))
-              BINDING_MINOR=0
-              ;;
-          esac
+          # Find all existing tags that start with this bindings version
+          # e.g., v1.13.2-2.1, v1.13.2-2.2, etc.
+          EXISTING_TAGS=$(git tag -l "${BINDINGS_VERSION}.*" | sort -V)
 
-          NEXT_TAG="v${FAISS_VERSION}-${BINDING_MAJOR}.${BINDING_MINOR}"
+          echo "Existing tags for bindings $BINDINGS_VERSION:"
+          echo "$EXISTING_TAGS"
+
+          if [ -n "${{ inputs.patch_bump }}" ]; then
+            # User specified a patch number
+            PATCH="${{ inputs.patch_bump }}"
+          elif [ -z "$EXISTING_TAGS" ]; then
+            # No existing tags for this bindings version, start at .1
+            PATCH="1"
+          else
+            # Get the highest patch number and increment
+            LAST_TAG=$(echo "$EXISTING_TAGS" | tail -1)
+            LAST_PATCH=$(echo "$LAST_TAG" | sed "s/${BINDINGS_VERSION}\.//" | sed 's/-.*//')
+            PATCH=$((LAST_PATCH + 1))
+          fi
+
+          NEXT_TAG="${BINDINGS_VERSION}.${PATCH}"
 
           # Add pre-release suffix if provided
           if [ -n "${{ inputs.prerelease }}" ]; then
             NEXT_TAG="${NEXT_TAG}-${{ inputs.prerelease }}"
           fi
 
-          echo "binding_major=$BINDING_MAJOR" >> $GITHUB_OUTPUT
-          echo "binding_minor=$BINDING_MINOR" >> $GITHUB_OUTPUT
+          echo "patch=$PATCH" >> $GITHUB_OUTPUT
           echo "next_tag=$NEXT_TAG" >> $GITHUB_OUTPUT
-          echo "version_string=${FAISS_VERSION}-${BINDING_MAJOR}.${BINDING_MINOR}" >> $GITHUB_OUTPUT
 
-          echo "Next version:"
-          echo "  Binding Major: $BINDING_MAJOR"
-          echo "  Binding Minor: $BINDING_MINOR"
-          echo "  Next Tag: $NEXT_TAG"
+          echo "Next version: $NEXT_TAG"
 
       - name: Check if tag already exists
         run: |
-          if git rev-parse "${{ steps.next.outputs.next_tag }}" >/dev/null 2>&1; then
-            echo "Error: Tag ${{ steps.next.outputs.next_tag }} already exists"
+          if git rev-parse "${{ steps.version.outputs.next_tag }}" >/dev/null 2>&1; then
+            echo "Error: Tag ${{ steps.version.outputs.next_tag }} already exists"
             exit 1
           fi
-          echo "Tag ${{ steps.next.outputs.next_tag }} is available"
-
-      - name: Update version in faiss.go
-        run: |
-          BINDING_MAJOR=${{ steps.next.outputs.binding_major }}
-          BINDING_MINOR=${{ steps.next.outputs.binding_minor }}
-          VERSION_STRING="${{ steps.next.outputs.version_string }}"
-
-          # Update BindingMajor
-          sed -i "s/BindingMajor = [0-9]*/BindingMajor = $BINDING_MAJOR/" faiss.go
-
-          # Update BindingMinor
-          sed -i "s/BindingMinor = [0-9]*/BindingMinor = $BINDING_MINOR/" faiss.go
-
-          # Update Version string
-          sed -i "s/Version = \"[^\"]*\"/Version = \"$VERSION_STRING\"/" faiss.go
-
-          echo "Updated faiss.go:"
-          grep -E "(FAISSVersion|BindingMajor|BindingMinor|Version)\s*=" faiss.go
+          echo "Tag ${{ steps.version.outputs.next_tag }} is available"
 
       - name: Generate changelog
         id: changelog
         run: |
-          # Get the last tag
+          # Get the last tag (any tag, not just this bindings version)
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
 
           if [ -z "$LAST_TAG" ]; then
@@ -212,7 +190,7 @@ jobs:
 
             echo "---"
             echo ""
-            echo "**FAISS Version:** ${{ steps.current.outputs.faiss_version }}"
+            echo "**Bindings Version:** ${{ steps.bindings.outputs.bindings_version }}"
             echo ""
 
           } > RELEASE_NOTES.md
@@ -232,16 +210,10 @@ jobs:
           version: v1.62.2
           args: --timeout=5m
 
-      - name: Commit version bump
-        run: |
-          git add faiss.go
-          git commit -m "chore: Bump version to ${{ steps.next.outputs.next_tag }}"
-
       - name: Create and push tag
         run: |
-          TAG="${{ steps.next.outputs.next_tag }}"
+          TAG="${{ steps.version.outputs.next_tag }}"
           git tag -a "$TAG" -m "Release $TAG"
-          git push origin main
           git push origin "$TAG"
 
       - name: Create GitHub Release
@@ -250,7 +222,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fs = require('fs');
-            const tag = '${{ steps.next.outputs.next_tag }}';
+            const tag = '${{ steps.version.outputs.next_tag }}';
             const releaseNotes = fs.readFileSync('RELEASE_NOTES.md', 'utf8');
 
             const isPrerelease = tag.includes('-alpha') || tag.includes('-beta') || tag.includes('-rc');
@@ -271,18 +243,17 @@ jobs:
         run: |
           echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Released version:** ${{ steps.next.outputs.next_tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Released version:** ${{ steps.version.outputs.next_tag }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Version Info" >> $GITHUB_STEP_SUMMARY
           echo "| Component | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|-----------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| FAISS Version | ${{ steps.current.outputs.faiss_version }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Binding Major | ${{ steps.next.outputs.binding_major }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Binding Minor | ${{ steps.next.outputs.binding_minor }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Bindings Version | ${{ steps.bindings.outputs.bindings_version }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Patch | ${{ steps.version.outputs.patch }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Installation" >> $GITHUB_STEP_SUMMARY
           echo '```bash' >> $GITHUB_STEP_SUMMARY
-          echo "go get github.com/NerdMeNot/faiss-go@${{ steps.next.outputs.next_tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "go get github.com/NerdMeNot/faiss-go@${{ steps.version.outputs.next_tag }}" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Release Notes" >> $GITHUB_STEP_SUMMARY

@@ -44,10 +44,11 @@ jobs:
       with:
         go-version: ${{ matrix.go-version }}
 
-    - name: Install build dependencies
+    - name: Install runtime dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libopenblas-dev libgomp1 libomp-dev
+        # Only need OpenMP and Fortran runtimes - OpenBLAS is statically linked in libfaiss.a
+        sudo apt-get install -y libgomp1 libgfortran5
 
     - name: Cache Go modules
       uses: actions/cache@v4
@@ -109,10 +110,11 @@ jobs:
       with:
         go-version: ${{ matrix.go-version }}
 
-    - name: Install build dependencies
+    - name: Install runtime dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libopenblas-dev libgomp1 libomp-dev
+        # Only need OpenMP and Fortran runtimes - OpenBLAS is statically linked in libfaiss.a
+        sudo apt-get install -y libgomp1 libgfortran5
 
     - name: Cache Go modules
       uses: actions/cache@v4

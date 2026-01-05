@@ -100,31 +100,30 @@ See: $RELEASE_URL
 
 ### Checklist
 
+**In faiss-go-bindings repo:**
 - [ ] Review FAISS changelog for breaking changes
-- [ ] Update \`FAISSVersion\` constant in \`faiss.go\`
-- [ ] Reset \`BindingMajor\` to 0 and \`BindingMinor\` to 1
-- [ ] Update \`Version\` constant string
-- [ ] Run \`build-static-libs\` workflow to build new static libraries
-- [ ] Test all platforms (Linux AMD64/ARM64, macOS Intel/ARM64)
+- [ ] Update to new FAISS version and rebuild static libraries
+- [ ] Test all platforms (Linux AMD64/ARM64, macOS Intel/ARM64, Windows)
+- [ ] Create new bindings tag (e.g., \`v${LATEST}-1\`)
+
+**In faiss-go repo:**
+- [ ] Update \`go.mod\` to use new bindings version
+- [ ] Update any changed C API bindings if needed
 - [ ] Test with system FAISS (\`ci-system-faiss\` workflow)
-- [ ] Update any changed C API bindings in \`faiss_lib.go\` and \`faiss_system.go\`
 - [ ] Run full test suite
-- [ ] Create release with new version tag (e.g., \`v${LATEST}-0.1\`)
+- [ ] Create release using the Release workflow (version will be \`v${LATEST}-1.1\`)
 
 ### Commands
 
 \`\`\`bash
-# Update version in faiss.go
-# FAISSVersion = \"$LATEST\"
-# BindingMajor = 0
-# BindingMinor = 1
-# Version = \"$LATEST-0.1\"
-
-# Build static libraries (run workflow)
-# gh workflow run build-static-libs.yml -f faiss_version=v$LATEST -f platforms=all
+# In faiss-go repo: Update bindings version
+go get github.com/NerdMeNot/faiss-go-bindings@v${LATEST}-1
+go mod tidy
 
 # Test
 go test -v ./...
+
+# Release will be created via GitHub Actions workflow
 \`\`\`
 
 ---
