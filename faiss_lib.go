@@ -21,9 +21,8 @@ package faiss
 //
 // See: https://github.com/NerdMeNot/faiss-go-bindings
 
-// CGO linking is provided by the faiss-go-bindings module (blank import below)
-// Only common flags needed here - platform-specific flags come from bindings module
-#cgo LDFLAGS: -lstdc++ -lm
+// CGO linking is provided entirely by the faiss-go-bindings module (blank import below)
+// No LDFLAGS needed here - all flags come from the bindings module
 
 #include <stdlib.h>
 #include <stdint.h>

@@ -14,5 +14,3 @@ go 1.21
 //   go build -tags=faiss_use_system     # Use system FAISS
 
 require github.com/NerdMeNot/faiss-go-bindings v1.13.2-1
-
-replace github.com/NerdMeNot/faiss-go-bindings => ../faiss-go-bindings
