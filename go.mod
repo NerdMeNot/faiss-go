@@ -13,4 +13,4 @@ go 1.21
 //   go build                            # Use pre-built libraries (default)
 //   go build -tags=faiss_use_system     # Use system FAISS
 
-require github.com/NerdMeNot/faiss-go-bindings v1.13.2-1
+require github.com/NerdMeNot/faiss-go-bindings v1.13.2-2
