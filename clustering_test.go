@@ -179,7 +179,8 @@ func TestKmeans_Assign_Empty(t *testing.T) {
 	k := 5
 
 	km, _ := NewKmeans(d, k)
-	vectors := make([]float32, 100*d)
+	// Train with sufficient data (need at least k * 39 = 195 vectors)
+	vectors := make([]float32, 200*d)
 	for i := range vectors {
 		vectors[i] = float32(i)
 	}

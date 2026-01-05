@@ -450,9 +450,9 @@ func TestTransform_MemorySpeedTradeoff(t *testing.T) {
 			continue
 		}
 
-		// Train if needed
+		// Train if needed (PQ uses 256 centroids, needs ~39*256=9984 training points)
 		if !index.IsTrained() {
-			if err := index.Train(vectors.Vectors[:5000*dim]); err != nil {
+			if err := index.Train(vectors.Vectors[:10000*dim]); err != nil {
 				t.Logf("Training failed for %s: %v", config.name, err)
 				index.Close()
 				continue

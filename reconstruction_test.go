@@ -329,8 +329,8 @@ func TestIndexIVFFlat_Reconstruct(t *testing.T) {
 	}
 	defer idx.Close()
 
-	// Train
-	trainVectors := make([]float32, 4*100)
+	// Train (IVF5 needs ~39*5 = 195 training vectors)
+	trainVectors := make([]float32, 4*200)
 	for i := range trainVectors {
 		trainVectors[i] = float32(i % 50)
 	}

@@ -81,8 +81,8 @@ func TestIVF_ParameterSweep_nlist(t *testing.T) {
 			nprobe = 1
 		}
 
-		// FAISS needs ~30x nlist training vectors (e.g., nlist=400 needs 12K vectors)
-		n := nlist * 30
+		// FAISS needs ~39x nlist training vectors (e.g., nlist=400 needs 15.6K vectors)
+		n := nlist * 40
 		if n < 10000 {
 			n = 10000
 		}

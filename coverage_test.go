@@ -1128,8 +1128,8 @@ func TestKmeans_Assign_Coverage(t *testing.T) {
 	}
 	// Kmeans is pure Go, no Close() needed
 
-	// Train
-	trainVectors := generateVectors(200, d)
+	// Train (need at least k * 39 = 390 vectors)
+	trainVectors := generateVectors(400, d)
 	if err := km.Train(trainVectors); err != nil {
 		t.Fatalf("Train failed: %v", err)
 	}
@@ -1932,8 +1932,8 @@ func TestNewIndexPQ_Coverage(t *testing.T) {
 		t.Error("Expected not trained initially")
 	}
 
-	// Train
-	trainVectors := generateVectors(1000, d)
+	// Train (PQ with 8 bits uses 256 centroids per subquantizer, needs ~39*256=9984 training points)
+	trainVectors := generateVectors(10000, d)
 	if err := index.Train(trainVectors); err != nil {
 		t.Fatalf("Train failed: %v", err)
 	}
@@ -1983,8 +1983,8 @@ func TestNewIndexIVFPQ_Coverage(t *testing.T) {
 		t.Errorf("Expected D=%d, got %d", d, index.D())
 	}
 
-	// Train
-	trainVectors := generateVectors(1000, d)
+	// Train (IVFPQ with 8 bits uses 256 centroids per subquantizer, needs ~39*256=9984 training points)
+	trainVectors := generateVectors(10000, d)
 	if err := index.Train(trainVectors); err != nil {
 		t.Fatalf("Train failed: %v", err)
 	}
@@ -2123,8 +2123,8 @@ func TestIsIndexTrained_Coverage(t *testing.T) {
 		t.Error("Expected IVF index to not be trained initially")
 	}
 
-	// Train it
-	vectors := generateVectors(500, 64)
+	// Train it (IVF16 needs ~39*16 = 624 training vectors)
+	vectors := generateVectors(700, 64)
 	ivf.Train(vectors)
 
 	if !IsIndexTrained(ivf) {
@@ -2176,8 +2176,8 @@ func TestIndexIVFFlat_RangeSearch_Coverage(t *testing.T) {
 	}
 	defer index.Close()
 
-	// Train with sufficient data (need at least nlist * 30 = 120 vectors)
-	trainVectors := generateVectors(150, d)
+	// Train with sufficient data (need at least nlist * 39 = 156 vectors)
+	trainVectors := generateVectors(160, d)
 	if err := index.Train(trainVectors); err != nil {
 		t.Fatalf("Train failed: %v", err)
 	}
@@ -2223,8 +2223,8 @@ func TestIndexIVFFlat_RangeSearch_Empty_Coverage(t *testing.T) {
 	}
 	defer index.Close()
 
-	// Train with sufficient data
-	trainVectors := generateVectors(150, d)
+	// Train with sufficient data (need at least nlist * 39 = 156 vectors)
+	trainVectors := generateVectors(160, d)
 	if err := index.Train(trainVectors); err != nil {
 		t.Fatalf("Train failed: %v", err)
 	}
@@ -2257,8 +2257,8 @@ func TestIndexIVFFlat_Reconstruct_Coverage(t *testing.T) {
 	}
 	defer index.Close()
 
-	// Train with sufficient data
-	trainVectors := generateVectors(150, d)
+	// Train with sufficient data (need at least nlist * 39 = 156 vectors)
+	trainVectors := generateVectors(160, d)
 	if err := index.Train(trainVectors); err != nil {
 		t.Fatalf("Train failed: %v", err)
 	}
@@ -2296,8 +2296,8 @@ func TestIndexIVFFlat_ReconstructN_Coverage(t *testing.T) {
 	}
 	defer index.Close()
 
-	// Train with sufficient data
-	trainVectors := generateVectors(150, d)
+	// Train with sufficient data (need at least nlist * 39 = 156 vectors)
+	trainVectors := generateVectors(160, d)
 	if err := index.Train(trainVectors); err != nil {
 		t.Fatalf("Train failed: %v", err)
 	}
@@ -2332,8 +2332,8 @@ func TestIndexIVFFlat_ReconstructBatch_Coverage(t *testing.T) {
 	}
 	defer index.Close()
 
-	// Train with sufficient data
-	trainVectors := generateVectors(150, d)
+	// Train with sufficient data (need at least nlist * 39 = 156 vectors)
+	trainVectors := generateVectors(160, d)
 	if err := index.Train(trainVectors); err != nil {
 		t.Fatalf("Train failed: %v", err)
 	}

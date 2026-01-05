@@ -393,8 +393,8 @@ func TestIndexIVFScalarQuantizer_TrainAndAdd(t *testing.T) {
 	idx, _ := NewIndexIVFScalarQuantizer(quantizer, 4, 5, QT_8bit, MetricL2)
 	defer idx.Close()
 
-	// Train with enough vectors
-	trainVectors := make([]float32, 4*100)
+	// Train with enough vectors (need at least nlist * 39 = 195 vectors)
+	trainVectors := make([]float32, 4*200)
 	for i := range trainVectors {
 		trainVectors[i] = float32(i % 50)
 	}
@@ -461,8 +461,8 @@ func TestIndexIVFScalarQuantizer_Search(t *testing.T) {
 	idx, _ := NewIndexIVFScalarQuantizer(quantizer, 4, 5, QT_8bit, MetricL2)
 	defer idx.Close()
 
-	// Train
-	trainVectors := make([]float32, 4*100)
+	// Train (need at least nlist * 39 = 195 vectors)
+	trainVectors := make([]float32, 4*200)
 	for i := range trainVectors {
 		trainVectors[i] = float32(i % 50)
 	}

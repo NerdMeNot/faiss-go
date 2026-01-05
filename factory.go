@@ -6,6 +6,22 @@ import (
 	"strings"
 )
 
+// Index type constants for factory descriptions
+const (
+	IndexTypeFlat         = "Flat"
+	IndexTypeIVF          = "IVF"
+	IndexTypeHNSW         = "HNSW"
+	IndexTypePQ           = "PQ"
+	IndexTypeSQ           = "SQ"
+	IndexTypeLSH          = "LSH"
+	IndexTypePreTransform = "PreTransform"
+	IndexTypeUnknown      = "unknown"
+
+	// Common index configurations
+	IndexDescFlat   = "Flat"
+	IndexDescHNSW32 = "HNSW32"
+)
+
 // IndexFactory creates an index from a description string using FAISS's index_factory.
 // This is THE KEY function that unlocks ALL index types including HNSW, PQ, IVFPQ, and more.
 //
@@ -112,76 +128,7 @@ func ParseIndexDescription(description string) map[string]interface{} {
 
 	// Parse first component
 	first := parts[0]
-
-	switch {
-	case first == "Flat":
-		result["type"] = "Flat"
-		result["training_required"] = false
-
-	case strings.HasPrefix(first, "IVF"):
-		result["type"] = "IVF"
-		nlistStr := strings.TrimPrefix(first, "IVF")
-		if nlist, err := strconv.Atoi(nlistStr); err == nil {
-			result["nlist"] = nlist
-		}
-		result["training_required"] = true
-
-		if len(parts) >= 2 {
-			result["storage"] = parts[1]
-		}
-
-	case strings.HasPrefix(first, "HNSW"):
-		result["type"] = "HNSW"
-		MStr := strings.TrimPrefix(first, "HNSW")
-		if MStr != "" {
-			if M, err := strconv.Atoi(MStr); err == nil {
-				result["M"] = M
-			}
-		}
-		result["training_required"] = false
-
-	case strings.HasPrefix(first, "PQ"):
-		result["type"] = "PQ"
-		nbytesStr := strings.TrimPrefix(first, "PQ")
-		if nbytes, err := strconv.Atoi(nbytesStr); err == nil {
-			result["nbytes"] = nbytes
-		}
-		result["training_required"] = true
-
-	case strings.HasPrefix(first, "SQ"):
-		result["type"] = "SQ"
-		nbitsStr := strings.TrimPrefix(first, "SQ")
-		if nbits, err := strconv.Atoi(nbitsStr); err == nil {
-			result["nbits"] = nbits
-		}
-		result["training_required"] = true
-
-	case strings.HasPrefix(first, "PCA"):
-		result["type"] = "PreTransform"
-		result["transform"] = "PCA"
-		dOutStr := strings.TrimPrefix(first, "PCA")
-		if dOut, err := strconv.Atoi(dOutStr); err == nil {
-			result["d_out"] = dOut
-		}
-		result["training_required"] = true
-
-	case strings.HasPrefix(first, "OPQ"):
-		result["type"] = "PreTransform"
-		result["transform"] = "OPQ"
-		result["training_required"] = true
-
-	case strings.HasPrefix(first, "RR"):
-		result["type"] = "PreTransform"
-		result["transform"] = "RandomRotation"
-		result["training_required"] = false
-
-	case first == "LSH":
-		result["type"] = "LSH"
-		result["training_required"] = false
-
-	default:
-		result["type"] = "unknown"
-	}
+	parseFirstComponent(first, parts, result)
 
 	// Check for refinement
 	for _, part := range parts {
@@ -191,6 +138,191 @@ func ParseIndexDescription(description string) map[string]interface{} {
 	}
 
 	return result
+}
+
+// parseFirstComponent extracts index type info from the first component
+func parseFirstComponent(first string, parts []string, result map[string]interface{}) {
+	switch {
+	case first == IndexTypeFlat:
+		result["type"] = IndexTypeFlat
+		result["training_required"] = false
+
+	case strings.HasPrefix(first, IndexTypeIVF):
+		parseIVFComponent(first, parts, result)
+
+	case strings.HasPrefix(first, IndexTypeHNSW):
+		parseHNSWComponent(first, result)
+
+	case strings.HasPrefix(first, IndexTypePQ):
+		parsePQComponent(first, result)
+
+	case strings.HasPrefix(first, IndexTypeSQ):
+		parseSQComponent(first, result)
+
+	case strings.HasPrefix(first, "PCA"):
+		parseTransformComponent(first, "PCA", result)
+
+	case strings.HasPrefix(first, "OPQ"):
+		result["type"] = IndexTypePreTransform
+		result["transform"] = "OPQ"
+		result["training_required"] = true
+
+	case strings.HasPrefix(first, "RR"):
+		result["type"] = IndexTypePreTransform
+		result["transform"] = "RandomRotation"
+		result["training_required"] = false
+
+	case first == IndexTypeLSH:
+		result["type"] = IndexTypeLSH
+		result["training_required"] = false
+
+	default:
+		result["type"] = IndexTypeUnknown
+	}
+}
+
+func parseIVFComponent(first string, parts []string, result map[string]interface{}) {
+	result["type"] = IndexTypeIVF
+	nlistStr := strings.TrimPrefix(first, IndexTypeIVF)
+	if nlist, err := strconv.Atoi(nlistStr); err == nil {
+		result["nlist"] = nlist
+	}
+	result["training_required"] = true
+	if len(parts) >= 2 {
+		result["storage"] = parts[1]
+	}
+}
+
+func parseHNSWComponent(first string, result map[string]interface{}) {
+	result["type"] = IndexTypeHNSW
+	MStr := strings.TrimPrefix(first, IndexTypeHNSW)
+	if MStr != "" {
+		if M, err := strconv.Atoi(MStr); err == nil {
+			result["M"] = M
+		}
+	}
+	result["training_required"] = false
+}
+
+func parsePQComponent(first string, result map[string]interface{}) {
+	result["type"] = IndexTypePQ
+	nbytesStr := strings.TrimPrefix(first, IndexTypePQ)
+	if nbytes, err := strconv.Atoi(nbytesStr); err == nil {
+		result["nbytes"] = nbytes
+	}
+	result["training_required"] = true
+}
+
+func parseSQComponent(first string, result map[string]interface{}) {
+	result["type"] = IndexTypeSQ
+	nbitsStr := strings.TrimPrefix(first, IndexTypeSQ)
+	if nbits, err := strconv.Atoi(nbitsStr); err == nil {
+		result["nbits"] = nbits
+	}
+	result["training_required"] = true
+}
+
+func parseTransformComponent(first, transformType string, result map[string]interface{}) {
+	result["type"] = IndexTypePreTransform
+	result["transform"] = transformType
+	dOutStr := strings.TrimPrefix(first, transformType)
+	if dOut, err := strconv.Atoi(dOutStr); err == nil {
+		result["d_out"] = dOut
+	}
+	result["training_required"] = true
+}
+
+// indexRecommendation holds parsed requirements for index recommendation
+type indexRecommendation struct {
+	recallTarget float64
+	speedPref    string
+	memoryPref   string
+}
+
+func parseRequirements(requirements map[string]interface{}) indexRecommendation {
+	rec := indexRecommendation{
+		recallTarget: 0.9,
+		speedPref:    "balanced",
+		memoryPref:   "medium",
+	}
+	if r, ok := requirements["recall"].(float64); ok {
+		rec.recallTarget = r
+	}
+	if s, ok := requirements["speed"].(string); ok {
+		rec.speedPref = s
+	}
+	if m, ok := requirements["memory"].(string); ok {
+		rec.memoryPref = m
+	}
+	return rec
+}
+
+func calculateNlist(n int64) int {
+	nlist := int(n / 1000)
+	if nlist > 65536 {
+		nlist = 65536
+	}
+	if nlist < 100 {
+		nlist = 100
+	}
+	return nlist
+}
+
+func recommendSmallDataset(rec indexRecommendation) string {
+	if rec.speedPref == "fast" || rec.recallTarget >= 0.95 {
+		return IndexDescHNSW32
+	}
+	return "IVF100,Flat"
+}
+
+func recommendMediumDataset(n int64, rec indexRecommendation) string {
+	switch rec.speedPref {
+	case "fast":
+		if rec.recallTarget >= 0.95 {
+			return IndexDescHNSW32
+		}
+		return "HNSW16"
+	case "accurate":
+		return "HNSW64"
+	default:
+		nlist := calculateNlist(n)
+		if rec.memoryPref == "low" {
+			return fmt.Sprintf("IVF%d,PQ8", nlist)
+		}
+		return fmt.Sprintf("IVF%d,Flat", nlist)
+	}
+}
+
+func recommendLargeDataset(n int64, d int, rec indexRecommendation) string {
+	nlist := calculateNlist(n)
+
+	switch rec.memoryPref {
+	case "low":
+		return fmt.Sprintf("IVF%d,PQ8", nlist)
+	case "high":
+		return fmt.Sprintf("IVF%d,Flat", nlist)
+	default:
+		if d >= 128 {
+			dReduced := d / 2
+			if dReduced < 64 {
+				dReduced = 64
+			}
+			return fmt.Sprintf("PCA%d,IVF%d,PQ8", dReduced, nlist)
+		}
+		return fmt.Sprintf("IVF%d,PQ8", nlist)
+	}
+}
+
+func recommendVeryLargeDataset(n int64, d int) string {
+	nlist := calculateNlist(n)
+
+	if d >= 256 {
+		return fmt.Sprintf("OPQ16,IVF%d,PQ16", nlist)
+	} else if d >= 128 {
+		dReduced := d / 2
+		return fmt.Sprintf("PCA%d,IVF%d,PQ8", dReduced, nlist)
+	}
+	return fmt.Sprintf("IVF%d,PQ8", nlist)
 }
 
 // RecommendIndex recommends an index configuration based on dataset characteristics.
@@ -218,100 +350,19 @@ func ParseIndexDescription(description string) map[string]interface{} {
 //	})
 //	// Returns: "HNSW32"
 func RecommendIndex(n int64, d int, metric MetricType, requirements map[string]interface{}) string {
-	// Extract requirements with defaults
-	recallTarget := 0.9
-	if r, ok := requirements["recall"].(float64); ok {
-		recallTarget = r
-	}
+	rec := parseRequirements(requirements)
 
-	speedPref := "balanced"
-	if s, ok := requirements["speed"].(string); ok {
-		speedPref = s
-	}
-
-	memoryPref := "medium"
-	if m, ok := requirements["memory"].(string); ok {
-		memoryPref = m
-	}
-
-	// Decision tree for index recommendation
 	switch {
-	// Very small dataset: always use exact search
 	case n < 10000:
-		return "Flat"
-
-	// Small dataset (10K-100K): HNSW or IVF depending on preferences
+		return IndexDescFlat
 	case n < 100000:
-		if speedPref == "fast" || recallTarget >= 0.95 {
-			return "HNSW32"
-		}
-		return "IVF100,Flat"
-
-	// Medium dataset (100K-1M): HNSW for speed, IVF for balance
+		return recommendSmallDataset(rec)
 	case n < 1000000:
-		switch speedPref {
-		case "fast":
-			if recallTarget >= 0.95 {
-				return "HNSW32"
-			}
-			return "HNSW16"
-		case "accurate":
-			return "HNSW64"
-		default: // balanced
-			nlist := int(n / 1000)
-			if nlist < 100 {
-				nlist = 100
-			}
-			if memoryPref == "low" {
-				return fmt.Sprintf("IVF%d,PQ8", nlist)
-			}
-			return fmt.Sprintf("IVF%d,Flat", nlist)
-		}
-
-	// Large dataset (1M-10M): IVF+PQ for compression
+		return recommendMediumDataset(n, rec)
 	case n < 10000000:
-		nlist := int(n / 1000)
-		if nlist > 65536 {
-			nlist = 65536
-		}
-
-		switch memoryPref {
-		case "low":
-			// Heavy compression
-			return fmt.Sprintf("IVF%d,PQ8", nlist)
-		case "high":
-			// No compression
-			return fmt.Sprintf("IVF%d,Flat", nlist)
-		default: // medium
-			if d >= 128 {
-				// Use PCA to reduce dimension first
-				dReduced := d / 2
-				if dReduced < 64 {
-					dReduced = 64
-				}
-				return fmt.Sprintf("PCA%d,IVF%d,PQ8", dReduced, nlist)
-			}
-			return fmt.Sprintf("IVF%d,PQ8", nlist)
-		}
-
-	// Very large dataset (>10M): Aggressive compression
+		return recommendLargeDataset(n, d, rec)
 	default:
-		nlist := int(n / 1000)
-		if nlist > 65536 {
-			nlist = 65536
-		}
-
-		if d >= 256 {
-			// Heavy dimension reduction
-			return fmt.Sprintf("OPQ16,IVF%d,PQ16", nlist)
-		} else if d >= 128 {
-			// Moderate dimension reduction
-			dReduced := d / 2
-			return fmt.Sprintf("PCA%d,IVF%d,PQ8", dReduced, nlist)
-		}
-
-		// No dimension reduction needed
-		return fmt.Sprintf("IVF%d,PQ8", nlist)
+		return recommendVeryLargeDataset(n, d)
 	}
 }
 
@@ -330,7 +381,7 @@ func ValidateIndexDescription(description string) error {
 
 	// Check if we recognized the type
 	if indexType, ok := info["type"].(string); ok {
-		if indexType == "unknown" {
+		if indexType == IndexTypeUnknown {
 			return fmt.Errorf("unrecognized index type in: %s", description)
 		}
 	}
